@@ -49,7 +49,7 @@ def make(all_keywords=False, description=True, output_directory='',
         ('use_ncpus', {
             'default': 'None',
             'description': "number of CPUs used in parallel processing. By default 75% of all CPUs on the machine are used. [int]",
-            'simple': False}),
+            'simple': True}),
 
         ('snr', {
             'default': '3.',
@@ -82,7 +82,7 @@ def make(all_keywords=False, description=True, output_directory='',
         ('rchi2_limit', {
             'default': '1.5',
             'description': "maximium value for the reduced chi-squared above which the fit gets flagged [float]",
-            'simple': False}),
+            'simple': True}),
 
         ('two_phase_decomposition', {
             'default': 'True',
@@ -134,7 +134,7 @@ def make(all_keywords=False, description=True, output_directory='',
         ('random_seed', {
             'default': '111',
             'description': "Seed for random processes [int]",
-            'simple': False}),
+            'simple': True}),
 
         ('main_beam_efficiency', {
             'default': 'None',
@@ -247,11 +247,11 @@ def make(all_keywords=False, description=True, output_directory='',
         ('rms_from_data', {
             'default': 'True',
             'description': "Calculate the root-mean-square noise from the data [bool]",
-            'simple': False}),
+            'simple': True}),
         ('average_rms', {
             'default': 'None',
             'description': "Average data of the FITS cube; if no value is supplied it is estimated from the data [float]",
-            'simple': False})
+            'simple': True})
     ]
     dct_preparation = collections.OrderedDict(preparation)
 
@@ -369,7 +369,7 @@ def make(all_keywords=False, description=True, output_directory='',
         ('min_weight', {
             'default': '0.5',
             'description': "Minimum weight threshold for phase 2 of spatially coherent refitting. [float]",
-            'simple': False}),
+            'simple': True}),
         ('min_pvalue', {
             'default': '0.01',
             'description': "p-value for the null hypothesis that the residual resembles a normal distribution. [float]",
