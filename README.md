@@ -1,4 +1,6 @@
-![gausspyplus_logo](https://github.com/mriener/gausspyplus/blob/package/docs/gausspyplus_logo.png)
+<p align="center">
+<img src="docs/gausspyplus_logo.png"  alt="" width = "550" />
+</p>
 
 # GaussPy+
 A fully automated Gaussian decomposition package for emission line spectra.
