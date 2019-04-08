@@ -23,7 +23,7 @@ from .gausspy_py3.gp_plus import split_params, get_fully_blended_gaussians, chec
 from .utils.determine_intervals import mask_covering_gaussians
 from .utils.fit_quality_checks import goodness_of_fit
 from .utils.gaussian_functions import combined_gaussian
-from .utils.grouping import to_graph, get_neighbors
+from .utils.grouping_functions import to_graph, get_neighbors
 from .utils.noise_estimation import mask_channels
 from .utils.output import set_up_logger
 
