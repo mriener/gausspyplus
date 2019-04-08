@@ -2,20 +2,18 @@
 <img src="docs/gausspyplus_logo.png"  alt="" width = "300" />
 </p>
 
-# GaussPy+
-A fully automated Gaussian decomposition package for emission line spectra.
-
-
-
-GaussPy+ is based on:
-
-GaussPy: A python tool for implementing the Autonomous Gaussian Decomposition
-algorithm.
+# About
+``GaussPy+`` is a fully automated Gaussian decomposition package for emission
+line spectra.
 
 Manuel Riener, Jouni Kainulainen, Jonathan D. Henshaw, Jan H. Orkisz,
 Claire E. Murray, Henrik Beuther
 
 [Riener et al. 2019]
+
+
+``GaussPy+`` is based on ``GaussPy``: A python tool for implementing the
+Autonomous Gaussian Decomposition algorithm.
 
 Robert R. Lindner, Carlos Vera-Ciro, Claire E. Murray, Elijah Bernstein-Cooper
 
@@ -23,14 +21,14 @@ Robert R. Lindner, Carlos Vera-Ciro, Claire E. Murray, Elijah Bernstein-Cooper
 
 # Documentation
 
-The GaussPy+ documentation can be found on ReadTheDocs [here]
+The ``GaussPy+`` documentation can be found on ReadTheDocs [here]
 
 # Installation
 
 ### Dependencies
 
-You will need the following packages to run GaussPy+. We list the version of
-each package which we know to be compatible with GaussPy+.
+You will need the following packages to run ``GaussPy+``. We list the version of
+each package which we know to be compatible with ``GaussPy+``.
 
 * [python 3.5](https://www.python.org/)
 
@@ -55,7 +53,7 @@ pre-loaded with numpy, scipy, and h5py.
 
 ### Optional Dependencies
 
-If you wish to use GaussPy+'s plotting capabilities you will need to install
+If you wish to use ``GaussPy+``'s plotting capabilities you will need to install
 matplotlib:
 
 * [matplotlib (v2.2.2)](http://matplotlib.org/)
@@ -65,7 +63,7 @@ If you wish to use optimization with Fortran code you will need
 * [GNU Scientific Library (GSL)](http://www.gnu.org/software/gsl/)
 
 
-### Download GaussPy+
+### Download ``GaussPy+``
 
 Download GaussPy+ using git `$ git clone (...)`
 
@@ -89,7 +87,7 @@ sudo apt-get install python-pip
 Then install the required python packages:
 
 ```bash
-sudo pip install scipy numpy h5py lmfit
+sudo pip install scipy numpy h5py lmfit astropy networkx tqdm
 ```
 
 Install the optional dependencies for plotting and optimization:
@@ -121,23 +119,23 @@ sudo pip install matplotlib
 sudo brew install gsl
 ```
 
-### Installing GaussPy
+### Installing ``GaussPy+``
 
 To install make sure that all dependences are already installed and properly
 linked to python --python has to be able to load them--. Then cd to the local
-directory containing GaussPy and install via
+directory containing ``GaussPy+`` and install via
 
 ```bash
 python setup.py install
 ```
 
 If you don't have root access and/or wish a local installation of
-GaussPy then use
+``GaussPy+`` then use
 
 ```bash
 python setup.py install --user
 ```
 
-### Contributing to GaussPy
+### Contributing to ``GaussPy+``
 
-To contribute to GaussPy, see [Contributing to GaussPy](CONTRIBUTING.md)
+To contribute to ``GaussPy+``, see [Contributing to GaussPy+]
