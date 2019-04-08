@@ -1,5 +1,5 @@
 <p align="center">
-<img src="docs/gausspyplus_logo.png"  alt="" width = "550" />
+<img src="docs/gausspyplus_logo.png"  alt="" width = "300" />
 </p>
 
 # GaussPy+
