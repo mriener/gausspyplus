@@ -6,7 +6,7 @@
 
 import collections
 import os
-from .output import save_file
+from .utils.output import save_file
 
 
 def append_keywords(config_file, dct, all_keywords=False, description=True):

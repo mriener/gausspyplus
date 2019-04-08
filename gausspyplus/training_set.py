@@ -18,11 +18,14 @@ import numpy as np
 from astropy import units as u
 from astropy.io import fits
 from astropy.modeling import models, fitting, optimizers
+from scipy.signal import argrelextrema
 
-from .shared_functions import gaussian, determine_significance, get_max_consecutive_channels, get_noise_spike_ranges, get_signal_ranges, mask_channels, goodness_of_fit
-
-from .spectral_cube_functions import determine_noise, remove_additional_axes
-from .output import check_if_all_values_are_none
+from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
+from .utils.fit_quality_checks import determine_significance, goodness_of_fit
+from .utils.gaussian_functions import gaussian
+from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise
+from .utils.output import check_if_all_values_are_none
+from .utils.spectral_cube_functions import remove_additional_axes
 
 
 class GaussPyTrainingSet(object):
@@ -248,8 +251,6 @@ class GaussPyTrainingSet(object):
             return None
 
     def get_maxima(self, spectrum, rms):
-        from scipy.signal import argrelextrema
-
         array = spectrum.copy()
         #  set all spectral data points below threshold to zero
         low_values = array < self.snr*rms

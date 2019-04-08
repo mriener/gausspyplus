@@ -17,9 +17,9 @@ from astropy import units as u
 from astropy.wcs import WCS
 from tqdm import tqdm
 
-from .shared_functions import get_max_consecutive_channels
-from .spectral_cube_functions import remove_additional_axes, spatial_smoothing, spectral_smoothing, open_fits_file, calculate_average_rms_noise, moment_map, pv_map, correct_header
-from .miscellaneous_functions import get_neighbors
+from .noise_estimation import get_max_consecutive_channels, calculate_average_rms_noise
+from .spectral_cube_functions import remove_additional_axes, spatial_smoothing, spectral_smoothing, open_fits_file, moment_map, pv_map, correct_header
+from .grouping_functions import get_neighbors
 
 
 def say(message, verbose=False):

@@ -106,3 +106,8 @@ def timer(mode='start', start_time=None):
     elif mode == 'stop':
         print('\nrequired run time: {:.4f} s'.format(
             time.time() - start_time))
+
+
+def add_suffix_to_filename(filename, suffix=''):
+    filename, fileExtension = os.path.splitext(filename)
+    return "{}{}{}".format(filename, suffix, fileExtension)

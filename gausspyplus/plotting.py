@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
-from .shared_functions import gaussian, combined_gaussian
+from .utils.gaussian_functions import gaussian, combined_gaussian
 
 
 def get_points_for_colormap(vmin, vmax, central_val=0.):

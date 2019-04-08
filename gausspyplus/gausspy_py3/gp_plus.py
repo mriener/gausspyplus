@@ -11,7 +11,10 @@ import numpy as np
 from lmfit import minimize as lmfit_minimize
 from lmfit import Parameters
 
-from gausspyplus.shared_functions import determine_significance, goodness_of_fit, check_if_intervals_contain_signal, determine_peaks, mask_channels, combined_gaussian
+from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
+from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
+from gausspyplus.utils.gaussian_functions import combined_gaussian
+from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
 
 def say(message, verbose=False):

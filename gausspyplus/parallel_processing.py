@@ -11,7 +11,7 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
-from .spectral_cube_functions import determine_noise
+from .utils.noise_estimation import determine_noise
 from .prepare import GaussPyPrepare
 from .spatial_fitting import SpatialFitting
 from .training_set import GaussPyTrainingSet

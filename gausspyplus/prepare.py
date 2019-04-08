@@ -16,11 +16,10 @@ from astropy import units as u
 from astropy.io import fits
 from tqdm import tqdm
 
-from .shared_functions import get_max_consecutive_channels, mask_channels, get_signal_ranges, get_noise_spike_ranges
-
-from .spectral_cube_functions import determine_noise, remove_additional_axes, calculate_average_rms_noise, add_noise, change_header, save_fits
-
-from .output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none
+from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
+from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
+from .utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none
+from .utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
 
 
 class GaussPyPrepare(object):

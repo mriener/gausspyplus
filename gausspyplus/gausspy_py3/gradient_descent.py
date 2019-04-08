@@ -15,7 +15,7 @@ from . import AGD_decomposer
 import signal
 # import time
 
-from gausspyplus.output import set_up_logger
+from gausspyplus.utils.output import set_up_logger
 
 
 def init_worker():

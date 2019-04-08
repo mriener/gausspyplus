@@ -6,15 +6,19 @@
 
 import ast
 import configparser
+import itertools
 import os
 import pickle
-import numpy as np
+import random
 import warnings
 
-from astropy import units as u
+import numpy as np
 
-from .shared_functions import gaussian
-from .output import format_warning
+from astropy import units as u
+from astropy.io import fits
+
+from .utils.gaussian_functions import gaussian
+from .utils.output import format_warning
 warnings.showwarning = format_warning
 
 
@@ -129,11 +133,6 @@ class GaussPyTraining(object):
             raise Exception(errorMessage)
 
     def get_parameters_from_data(self, pathToFile):
-        import itertools
-        import random
-
-        from astropy.io import fits
-
         if self.verbose:
             print("determine parameters from data ...")
 

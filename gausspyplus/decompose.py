@@ -17,9 +17,9 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from tqdm import tqdm
 
-from .shared_functions import gaussian, area_of_gaussian, combined_gaussian
-from .spectral_cube_functions import change_header, save_fits, correct_header, update_header
-from .output import set_up_logger
+from .utils.gaussian_functions import gaussian, area_of_gaussian, combined_gaussian
+from .utils.spectral_cube_functions import change_header, save_fits, correct_header, update_header
+from .utils.output import set_up_logger
 
 
 class GaussPyDecompose(object):

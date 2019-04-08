@@ -10,18 +10,22 @@ import configparser
 import os
 import pickle
 
-from astropy import units as u
+import numpy as np
 import scipy.ndimage as ndimage
+
+from astropy import units as u
+from functools import reduce
+from networkx.algorithms.components.connected import connected_components
 from scipy.stats import normaltest
 from tqdm import tqdm
 
-from networkx.algorithms.components.connected import connected_components
-import numpy as np
-
-from .shared_functions import goodness_of_fit, mask_channels, mask_covering_gaussians, combined_gaussian
-from .miscellaneous_functions import to_graph, get_neighbors
-from .output import set_up_logger
 from .gausspy_py3.gp_plus import split_params, get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
+from .utils.determine_intervals import mask_covering_gaussians
+from .utils.fit_quality_checks import goodness_of_fit
+from .utils.gaussian_functions import combined_gaussian
+from .utils.grouping import to_graph, get_neighbors
+from .utils.noise_estimation import mask_channels
+from .utils.output import set_up_logger
 
 
 class SpatialFitting(object):
@@ -495,8 +499,6 @@ class SpatialFitting(object):
             Array containing the information about the number of fitted components per location.
 
         """
-        import scipy.ndimage as ndimage
-
         if not flag:
             return np.zeros(self.length).astype('bool'), None, None
 
@@ -2318,7 +2320,6 @@ class SpatialFitting(object):
 
     def select_neighbors_to_use_for_refit(self, dct):
         """Select only neighboring fit solutions for the refit that show the right number of centroid positions within the determined interval."""
-        from functools import reduce
         mask = dct['weights'] >= self.w_min
         indices = dct['indices_neighbors'][mask]
         dct['indices_refit'] = {}

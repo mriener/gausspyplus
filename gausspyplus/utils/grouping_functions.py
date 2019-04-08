@@ -1,36 +1,7 @@
-# @Author: riener
-# @Date:   2019-01-09T12:27:55+01:00
-# @Filename: miscellaneous_functions.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:17:39+02:00
+"""Functions used for grouping."""
 
-import os
 import numpy as np
 import networkx
-
-from .shared_functions import determine_peaks
-
-
-def add_suffix_to_filename(filename, suffix=''):
-    filename, fileExtension = os.path.splitext(filename)
-    return "{}{}{}".format(filename, suffix, fileExtension)
-
-
-def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):
-    N_negative_residuals = 0
-
-    amp_vals, ranges = determine_peaks(
-        residual, peak='negative', amp_threshold=neg_res_snr*rms)
-
-    if len(amp_vals) > 0:
-        amp_vals_position_mask = np.in1d(residual, amp_vals)
-        offset_vals = np.where(amp_vals_position_mask == True)[0]
-
-        for offset in offset_vals:
-            if residual[offset] < (spectrum[offset] - neg_res_snr*rms):
-                N_negative_residuals += 1
-
-    return N_negative_residuals
 
 
 def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
@@ -56,6 +27,7 @@ def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
 
     Adapted from:
     https://stackoverflow.com/questions/34905274/how-to-find-the-neighbors-of-a-cell-in-an-ndarray
+
     """
     ndim = len(p)
     n = nNeighbors*2 + 1

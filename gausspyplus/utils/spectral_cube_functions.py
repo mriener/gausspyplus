@@ -16,13 +16,13 @@ import numpy as np
 from astropy import units as u
 from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 from astropy.io import fits
-from astropy.stats import median_absolute_deviation
 from astropy.wcs import WCS
 from datetime import datetime
+from reproject import reproject_interp
 from tqdm import tqdm
 
 from .output import check_if_value_is_none, check_if_all_values_are_none, format_warning, save_file
-from .shared_functions import get_rms_noise, get_max_consecutive_channels
+from .noise_estimation import get_max_consecutive_channels, determine_noise
 
 warnings.showwarning = format_warning
 
@@ -488,8 +488,6 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
 
 
 def reproject_data(input_data, output_projection, shape_out):
-    from reproject import reproject_interp
-
     data_reprojected, footprint = reproject_interp(
         input_data, output_projection, shape_out=shape_out)
     return data_reprojected
@@ -690,56 +688,56 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
     return data, header
 
 
-def determine_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
-                    idx=None, average_rms=None, random_seed=111):
-    np.random.seed(random_seed)
-    if not np.isnan(spectrum).all():
-        if np.isnan(spectrum).any():
-            # TODO: Case where spectrum contains nans and only positive values
-            nans = np.isnan(spectrum)
-            error = get_rms_noise(spectrum[~nans], max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
-            spectrum[nans] = np.random.randn(len(spectrum[nans])) * error
+# def determine_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
+#                     idx=None, average_rms=None, random_seed=111):
+#     np.random.seed(random_seed)
+#     if not np.isnan(spectrum).all():
+#         if np.isnan(spectrum).any():
+#             # TODO: Case where spectrum contains nans and only positive values
+#             nans = np.isnan(spectrum)
+#             error = get_rms_noise(spectrum[~nans], max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
+#             spectrum[nans] = np.random.randn(len(spectrum[nans])) * error
+#
+#         elif (spectrum >= 0).all():
+#             warnings.warn('Masking spectra that contain only values >= 0')
+#             error = np.NAN
+#         else:
+#             error = get_rms_noise(spectrum, max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
+#     else:
+#         error = np.NAN
+#     return error
 
-        elif (spectrum >= 0).all():
-            warnings.warn('Masking spectra that contain only values >= 0')
-            error = np.NAN
-        else:
-            error = get_rms_noise(spectrum, max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
-    else:
-        error = np.NAN
-    return error
 
-
-def calculate_average_rms_noise(data, number_rms_spectra, random_seed=111,
-                                max_consecutive_channels=14, pad_channels=5):
-    import random
-
-    random.seed(random_seed)
-    yValues = np.arange(data.shape[1])
-    xValues = np.arange(data.shape[2])
-    locations = list(itertools.product(yValues, xValues))
-    if len(locations) > number_rms_spectra:
-        locations = random.sample(locations, len(locations))
-    rmsList = []
-    counter = 0
-    pbar = tqdm(total=number_rms_spectra)
-    for y, x in locations:
-        spectrum = data[:, y, x]
-        error = determine_noise(
-            spectrum, max_consecutive_channels=max_consecutive_channels,
-            pad_channels=pad_channels)
-
-        if not np.isnan(error):
-            rmsList.append(error)
-            counter += 1
-            pbar.update(1)
-
-        if counter >= number_rms_spectra:
-            break
-
-    pbar.close()
-    return np.nanmean(rmsList)
-    # return np.nanmedian(rmsList), median_absolute_deviation(rmsList, ignore_nan=True)
+# def calculate_average_rms_noise(data, number_rms_spectra, random_seed=111,
+#                                 max_consecutive_channels=14, pad_channels=5):
+#     import random
+#
+#     random.seed(random_seed)
+#     yValues = np.arange(data.shape[1])
+#     xValues = np.arange(data.shape[2])
+#     locations = list(itertools.product(yValues, xValues))
+#     if len(locations) > number_rms_spectra:
+#         locations = random.sample(locations, len(locations))
+#     rmsList = []
+#     counter = 0
+#     pbar = tqdm(total=number_rms_spectra)
+#     for y, x in locations:
+#         spectrum = data[:, y, x]
+#         error = determine_noise(
+#             spectrum, max_consecutive_channels=max_consecutive_channels,
+#             pad_channels=pad_channels)
+#
+#         if not np.isnan(error):
+#             rmsList.append(error)
+#             counter += 1
+#             pbar.update(1)
+#
+#         if counter >= number_rms_spectra:
+#             break
+#
+#     pbar.close()
+#     return np.nanmean(rmsList)
+#     # return np.nanmedian(rmsList), median_absolute_deviation(rmsList, ignore_nan=True)
 
 
 def get_path_to_output_file(path_to_file, suffix='_',
@@ -918,9 +916,6 @@ def clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
 
 
 def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
-    import getpass
-    import socket
-
     prihdr = fits.Header()
     for key in ['SIMPLE', 'BITPIX']:
         prihdr[key] = header[key]
@@ -1224,8 +1219,6 @@ def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
 
 
 def get_center_coordinates_for_swarp(header):
-    from astropy.wcs import WCS
-
     wcs = WCS(header)
 
     x_wcs_min, y_wcs_min, z_wcs_min = wcs.wcs_pix2world(0, 0, 0, 0)
