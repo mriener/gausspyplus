@@ -136,6 +136,12 @@ If you don't have root access and/or wish a local installation of
 python setup.py install --user
 ```
 
-### Contributing to ``GaussPy+``
+# Getting started
+
+You can find an example decomposition run with ``GaussPy+`` in the `example`
+directory. All individual scripts can be run via the Jupyter notebook
+`Tutorial_example-GRS.ipynb`.
+
+# Contributing to ``GaussPy+``
 
 To contribute to ``GaussPy+``, see [Contributing to GaussPy+]

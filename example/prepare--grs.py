@@ -16,7 +16,8 @@ prepare = GaussPyPrepare(config_file='gausspy+.ini')
 #  The following lines will override the corresponding parameter settings defined in 'gausspy+.ini'.
 
 #  Path to the FITS cube.
-prepare.path_to_file = 'grs-test_field.fits'
+prepare.path_to_file = os.path.join(
+    '..', 'gausspyplus', 'data', 'grs-test_field.fits')
 #  Directory in which all files produced by GaussPy+ are saved.
 prepare.dirpath_gpy = 'decomposition_grs'
 #  Prepare the data cube for the decomposition

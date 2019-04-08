@@ -217,6 +217,9 @@ class GaussPyDecompose(object):
         if self.gausspy_decomposition:
             self.gaussPy_decomposition()
 
+        if 'batchdecomp_temp.pickle' in os.listdir(os.getcwd()):
+            os.remove('batchdecomp_temp.pickle')
+
     def decomposition_settings(self):
         string_gausspy = str(
             '\ndecomposition settings:'

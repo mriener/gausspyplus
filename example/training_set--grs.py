@@ -16,7 +16,8 @@ training = GaussPyTrainingSet(config_file='gausspy+.ini')
 #  The following lines will override the corresponding parameter settings defined in 'gausspy+.ini'.
 
 #  Path to the FITS cube.
-training.path_to_file = 'grs-test_field.fits'
+training.path_to_file = os.path.join(
+    '..', 'gausspyplus', 'data', 'grs-test_field.fits')
 #  Directory to which all files produced by GaussPy+ will get saved.
 training.dirpath_gpy = 'decomposition_grs'
 #  Number of spectra included in the training set. We recommend to have at least 250 spectra for a good training set.
