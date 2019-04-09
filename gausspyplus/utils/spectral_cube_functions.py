@@ -2,7 +2,7 @@
 # @Date:   2019-02-18T16:27:12+01:00
 # @Filename: spectral_cube_functions.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:18:54+02:00
+# @Last modified time: 09-04-2019
 
 
 import getpass
@@ -261,6 +261,40 @@ def swap_axes(data, header, new_order):
     for keyword, value in header_diff.diff_keyword_values.items():
         header[keyword] = value[0][1]
     return data, header
+
+
+def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
+    """Return the spectral axis of a Spectral cube in physical values.
+
+    Parameters
+    ----------
+    header : astropy.io.fits.Header
+        Header of the FITS array.
+    channels : numpy.ndarray
+        Array of the channels [0, ..., N].
+    wcs : astropy.wcs.wcs.WCS
+        WCS parameters of the FITS array.
+    to_unit : astropy.units.quantity.Quantity
+        Valid unit to which the values of the spectral axis will be converted.
+
+    Returns
+    -------
+    spectral_axis : numpy.ndarray
+        The (unitless) spectral axis of the spectral cube, converted to 'to_unit' (if specified).
+
+    """
+    check_if_all_values_are_none(header, wcs, 'header', 'wcs')
+    check_if_all_values_are_none(header, channels, 'header', 'channels')
+    if header:
+        wcs = WCS(header)
+        channels = np.arange(header['NAXIS3'])
+
+    x_wcs, y_wcs, spectral_axis = wcs.wcs_pix2world(0, 0, channels, 0)
+
+    if to_unit:
+        conversion_factor = wcs.wcs.cunit[2].to(to_unit)
+        spectral_axis *= conversion_factor
+    return spectral_axis
 
 
 def get_slice_parameters(path_to_file=None, header=None, wcs=None,

@@ -2,7 +2,7 @@
 # @Date:   2018-12-19T17:26:54+01:00
 # @Filename: plotting.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:18:08+02:00
+# @Last modified time: 09-04-2019
 
 import itertools
 import os
@@ -17,9 +17,11 @@ matplotlib.use('PDF', warn=False)
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
+from astropy import units as u
 from tqdm import tqdm
 
 from .utils.gaussian_functions import gaussian, combined_gaussian
+from .utils.spectral_cube_functions import get_spectral_axis
 
 
 def get_points_for_colormap(vmin, vmax, central_val=0.):
@@ -177,11 +179,11 @@ def get_figure_params(n_channels, n_spectra, cols, rowsize, rowbreak,
     return cols, rows, rowbreak, colsize, multiple_pdfs
 
 
-def add_figure_properties(ax, rms, figMinChannel, figMaxChannel,
-                          header=None, residual=False, fontsize=10):
-    ax.set_xlim(figMinChannel, figMaxChannel)
+def add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
+                          header=None, residual=False, fontsize=10, vel_unit=u.km/u.s):
+    ax.set_xlim(fig_min_channel, fig_max_channel)
     if header is not None:
-        ax.set_xlabel('Velocity [km/s]', fontsize=fontsize)
+        ax.set_xlabel('Velocity [{}]'.format(vel_unit), fontsize=fontsize)
     else:
         ax.set_xlabel('Channels', fontsize=fontsize)
     ax.set_ylabel('T$_{\\mathrm{B}}$ [K]', fontsize=fontsize)
@@ -198,10 +200,10 @@ def add_figure_properties(ax, rms, figMinChannel, figMaxChannel,
         ax.set_title('Residual', fontsize=fontsize)
 
 
-def plot_signal_ranges(ax, data, idx, figChannels):
+def plot_signal_ranges(ax, data, idx, fig_channels):
     if 'signal_ranges' in data.keys():
         for low, upp in data['signal_ranges'][idx]:
-            ax.axvspan(figChannels[low], figChannels[upp - 1], alpha=0.1, color='indianred')
+            ax.axvspan(fig_channels[low], fig_channels[upp - 1], alpha=0.1, color='indianred')
 
 
 def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss):
@@ -245,7 +247,8 @@ def plot_spectra(pathToDataPickle, *args,
                  path_to_plots=None, path_to_decomp_pickle=None,
                  training_set=False, cols=5, rowsize=7.75, rowbreak=50, dpi=50,
                  n_spectra=None, suffix='', subcube=False, pixel_range=None,
-                 list_indices=None, gaussians=True, residual=True, signal_ranges=True, random_seed=111):
+                 list_indices=None, gaussians=True, residual=True,
+                 signal_ranges=True, random_seed=111, vel_unit=u.km/u.s):
 
     print("\nPlotting...")
 
@@ -275,17 +278,13 @@ def plot_spectra(pathToDataPickle, *args,
         fileName, file_extension = os.path.splitext(
             os.path.basename(path_to_decomp_pickle))
 
-    channels, figChannels = (data['x_values'] for _ in range(2))
+    channels, fig_channels = (data['x_values'] for _ in range(2))
     n_channels = len(channels)
-    # TODO. check if figChannels[-1] is correct
-    figMinChannel, figMaxChannel = figChannels[0], figChannels[-1]
+    fig_min_channel, fig_max_channel = fig_channels[0], fig_channels[-1]
 
     if 'header' in data.keys():
-        header = data['header']
-        offset = header['CRVAL3'] - header['CDELT3']*(header['CRPIX3'] - 1)
-        figChannels = (offset + figChannels*header['CDELT3']) / 1000
-        figMinChannel = round(offset / 1000)
-        figMaxChannel = round((offset + header['NAXIS3']*header['CDELT3']) / 1000)
+        fig_channels = get_spectral_axis(header=data['header'], to_unit=vel_unit)
+        fig_min_channel, fig_max_channel = fig_channels[0], fig_channels[-1]
     else:
         header = None
 
@@ -342,14 +341,14 @@ def plot_spectra(pathToDataPickle, *args,
         ax = plt.subplot2grid((3*rows_in_figure, cols),
                               (row_i, col_i), rowspan=2)
 
-        ax.step(figChannels, y, color='black', lw=0.5)
+        ax.step(fig_channels, y, color='black', lw=0.5, where='mid')
 
         ncomps, rchi2, rchi2gauss = None, None, None
 
         if decomposition:
             combined_gauss = combined_gaussian(
                 fit_amps, fit_fwhms, fit_means, channels)
-            ax.plot(figChannels, combined_gauss, lw=2, color='orangered')
+            ax.plot(fig_channels, combined_gauss, lw=2, color='orangered')
 
             ncomps = len(fit_amps)
 
@@ -358,7 +357,7 @@ def plot_spectra(pathToDataPickle, *args,
                 for j in range(ncomps):
                     gauss = gaussian(
                         fit_amps[j], fit_fwhms[j], fit_means[j], channels)
-                    ax.plot(figChannels, gauss, ls='solid', lw=1, color='orangered')
+                    ax.plot(fig_channels, gauss, ls='solid', lw=1, color='orangered')
 
         if training_set:
             rchi2 = data['best_fit_rchi2'][idx]
@@ -366,7 +365,7 @@ def plot_spectra(pathToDataPickle, *args,
             rchi2 = decomp['best_fit_rchi2'][idx]
 
         if signal_ranges:
-            plot_signal_ranges(ax, data, idx, figChannels)
+            plot_signal_ranges(ax, data, idx, fig_channels)
 
         rchi2gauss = None
         # TODO: incorporate rchi2_gauss
@@ -375,8 +374,8 @@ def plot_spectra(pathToDataPickle, *args,
                                  rchi2, rchi2gauss)
         ax.set_title(title, fontsize=fontsize)
 
-        add_figure_properties(ax, rms, figMinChannel, figMaxChannel,
-                              header=header, fontsize=fontsize)
+        add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
+                              header=header, fontsize=fontsize, vel_unit=vel_unit)
 
         if residual and decomposition:
             row_i = int((i - k*(rowbreak*cols)) / cols)*3 + 2
@@ -384,12 +383,12 @@ def plot_spectra(pathToDataPickle, *args,
             ax = plt.subplot2grid((3*rows_in_figure, cols),
                                   (row_i, col_i))
 
-            ax.step(figChannels, y - combined_gauss, color='black', lw=0.5)
+            ax.step(fig_channels, y - combined_gauss, color='black', lw=0.5, where='mid')
             if signal_ranges:
-                plot_signal_ranges(ax, data, idx, figChannels)
+                plot_signal_ranges(ax, data, idx, fig_channels)
 
-            add_figure_properties(ax, rms, figMinChannel, figMaxChannel, header=header,
-                                  residual=True, fontsize=fontsize)
+            add_figure_properties(ax, rms, fig_min_channel, fig_max_channel, header=header,
+                                  residual=True, fontsize=fontsize, vel_unit=vel_unit)
 
         if ((i + 1) % (rowbreak*cols) == 0) or ((i + 1) == n_spectra):
             if multiple_pdfs:
