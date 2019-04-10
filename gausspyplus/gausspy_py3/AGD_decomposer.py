@@ -465,7 +465,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             rchi2 = goodness_of_fit(data, best_fit_final, errors, ncomps_fit)
 
         # Set up figure
-        fig = plt.figure('AGD results', [12, 12])
+        fig = plt.figure('AGD results', [16, 12])
         ax1 = fig.add_axes([0.1, 0.5, 0.4, 0.4])  # Initial guesses (alpha1)
         ax2 = fig.add_axes([0.5, 0.5, 0.4, 0.4])  # D2 fit to peaks(alpha2)
         ax3 = fig.add_axes([0.1, 0.1, 0.4, 0.4])  # Initial guesses (alpha2)
@@ -491,8 +491,8 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         u2_scale = 1. / np.max(np.abs(u2)) * datamax * 0.5
         ax1.plot(vel, data, '-k')
         ax1.plot(vel, u2 * u2_scale, '-r')
-        ax1.plot(vel, vel / vel * agd1['thresh'], '-k')
-        ax1.plot(vel, vel / vel * agd1['thresh2'] * u2_scale, '--r')
+        ax1.plot(vel, np.ones(len(vel)) * agd1['thresh'], '--k')
+        ax1.plot(vel, np.ones(len(vel)) * agd1['thresh2'] * u2_scale, '--r')
 
         for i in range(ncomps_g1):
             one_component = gaussian(params_g1[i], params_g1[i+ncomps_g1], params_g1[i+2*ncomps_g1])(vel)
@@ -512,8 +512,8 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         if phase == 'two':
             u22_scale = 1. / np.abs(u22).max() * np.max(residuals) * 0.5
             ax3.plot(vel, residuals, '-k')
-            ax3.plot(vel, vel / vel * agd2['thresh'], '--k')
-            ax3.plot(vel, vel / vel * agd2['thresh2'] * u22_scale, '--r')
+            ax3.plot(vel, np.ones(len(vel)) * agd2['thresh'], '--k')
+            ax3.plot(vel, np.ones(len(vel)) * agd2['thresh2'] * u22_scale, '--r')
             ax3.plot(vel, u22 * u22_scale, '-r')
             for i in range(ncomps_g2):
                 one_component = gaussian(params_g2[i], params_g2[i+ncomps_g2], params_g2[i+2*ncomps_g2])(vel)
