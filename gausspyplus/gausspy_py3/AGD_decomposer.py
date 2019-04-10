@@ -489,6 +489,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         # -------------------------
         ax1.xaxis.tick_top()
         u2_scale = 1. / np.max(np.abs(u2)) * datamax * 0.5
+        ax1.axhline(color='black', linewidth=0.5)
         ax1.plot(vel, data, '-k')
         ax1.plot(vel, u2 * u2_scale, '-r')
         ax1.plot(vel, np.ones(len(vel)) * agd1['thresh'], '--k')
@@ -501,6 +502,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         # Plot intermediate fit components (Panel 2)
         # ------------------------------------------
         ax2.xaxis.tick_top()
+        ax2.axhline(color='black', linewidth=0.5)
         ax2.plot(vel, data, '-k')
         ax2.yaxis.tick_right()
         for i in range(ncomps_f1):
@@ -511,6 +513,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         # -----------------------------
         if phase == 'two':
             u22_scale = 1. / np.abs(u22).max() * np.max(residuals) * 0.5
+            ax3.axhline(color='black', linewidth=0.5)
             ax3.plot(vel, residuals, '-k')
             ax3.plot(vel, np.ones(len(vel)) * agd2['thresh'], '--k')
             ax3.plot(vel, np.ones(len(vel)) * agd2['thresh2'] * u22_scale, '--r')
@@ -523,6 +526,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         # -----------------------------
         if perform_final_fit:
             ax4.yaxis.tick_right()
+            ax4.axhline(color='black', linewidth=0.5)
             ax4.plot(vel, best_fit_final, label='final model', color='purple')
             ax4.plot(vel, data, label='data', color='black')
             for i in range(ncomps_fit):
