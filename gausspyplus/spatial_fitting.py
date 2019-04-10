@@ -121,13 +121,13 @@ class SpatialFitting(object):
 
         if self.fin_filename is None:
             suffix = '_sf-p1'
-            self.fin_filename = self.filename + suffix
+            self.fin_filename = self.filename + suffix + self.suffix
             if self.phase_two:
                 suffix = '_sf-p2'
                 if self.filename.endswith('_sf-p1'):
-                    self.fin_filename = self.filename.replace('_sf-p1', '_sf-p2')
+                    self.fin_filename = self.filename.replace('_sf-p1', '_sf-p2') + self.suffix
                 else:
-                    self.fin_filename = self.filename + suffix
+                    self.fin_filename = self.filename + suffix + self.suffix
 
         if self.dirpath_gpy is None:
             self.dirpath_gpy = os.path.dirname(self.decomp_dirname)
@@ -677,7 +677,7 @@ class SpatialFitting(object):
     def stopping_criterion(self, n_refit_list):
         """Check if spatial refitting iterations should be stopped."""
         #  stop refitting if the user-defined maximum number of iterations are reached
-        if self.refitting_iteration > self.max_refitting_iteration:
+        if self.refitting_iteration >= self.max_refitting_iteration:
             return True
         #  stop refitting if the number of spectra selected for refitting is identical to a previous iteration
         if n_refit_list in self.list_n_refit:
@@ -1506,8 +1506,11 @@ class SpatialFitting(object):
             loc, exclude_p=False, shape=self.shape, nNeighbors=1,
             get_indices=True)
         ncomps = self.ncomps[indices]
-        ncomps[4] = self.get_dictionary_value(
+        ncomps_central = self.get_dictionary_value(
             'N_components', index, dct_new_fit=dct_new_fit)
+        while ncomps.size < 8:
+            ncomps = np.append(ncomps, np.nan)
+        ncomps = np.insert(ncomps, 4, ncomps_central)
         njumps_new = self.number_of_component_jumps(ncomps)
 
         if njumps_old > self.n_max_jump_comps:
