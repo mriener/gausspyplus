@@ -21,7 +21,7 @@ from astropy import units as u
 from tqdm import tqdm
 
 from .utils.gaussian_functions import gaussian, combined_gaussian
-from .utils.spectral_cube_functions import get_spectral_axis
+from .utils.spectral_cube_functions import get_spectral_axis, correct_header
 
 
 def get_points_for_colormap(vmin, vmax, central_val=0.):
@@ -283,7 +283,8 @@ def plot_spectra(pathToDataPickle, *args,
     fig_min_channel, fig_max_channel = fig_channels[0], fig_channels[-1]
 
     if 'header' in data.keys():
-        fig_channels = get_spectral_axis(header=data['header'], to_unit=vel_unit)
+        header = correct_header(data['header'])
+        fig_channels = get_spectral_axis(header=header, to_unit=vel_unit)
         fig_min_channel, fig_max_channel = fig_channels[0], fig_channels[-1]
     else:
         header = None
