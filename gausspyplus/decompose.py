@@ -200,7 +200,7 @@ class GaussPyDecompose(object):
             self.use_ncpus = 1
             self.log_output = False
             self.getting_ready()
-            self.start_decomposition()
+            return self.start_decomposition()
         else:
             self.check_settings()
             self.initialize_data()
