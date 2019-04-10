@@ -130,10 +130,12 @@ class GaussianDecomposer(object):
             pickle.dump([self, science_data_path, ilist],
                         open('batchdecomp_temp.pickle', 'wb'), protocol=2)
             batch_decomposition.init()
+            result_list = batch_decomposition.func(
+                use_ncpus=self.p['use_ncpus'])
         else:
+            #  if only a single spectrum is decomposed
             batch_decomposition.init([self, dct, ilist])
-        result_list = batch_decomposition.func(use_ncpus=self.p['use_ncpus'])
-        # print 'SUCCESS'
+            result_list = [batch_decomposition.decompose_one(0)]
 
         new_keys = ['index_fit', 'amplitudes_fit', 'fwhms_fit', 'means_fit',
                     'index_initial', 'amplitudes_initial', 'fwhms_initial', 'means_initial',
@@ -141,13 +143,6 @@ class GaussianDecomposer(object):
                     'best_fit_aicc', 'N_components', 'N_negative_residuals', 'N_blended', 'log_gplus']
 
         output_data = dict((key, []) for key in new_keys)
-        # import pickle
-        # pickle.dump(result_list, open('/disk1/riener/GRS/temp_result_list.pickle', 'w'))
-
-        # for item in result_list:
-        #     if item is not None:
-        #         if not isinstance(item, dict):
-        #             print(item)
 
         for i, result in enumerate(result_list):
             # if not isinstance(item, dict):
@@ -204,7 +199,6 @@ class GaussianDecomposer(object):
                     output_data[key].append(None)
                 output_data['index_fit'][i] = i
 
-        print('100 finished.%')
         return output_data
 
     def plot_components(self, data, index, xlabel='x', ylabel='y', xlim=None,
