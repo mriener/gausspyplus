@@ -102,7 +102,7 @@ class GaussPyDecompose(object):
         self.refit_residual = True
         self.refit_broad = True
         self.refit_blended = True
-        self.separation_factor = 0.8493218002991817
+        self.separation_factor = 0.8493218
         self.fwhm_factor = 2.
 
         self.main_beam_efficiency = None

@@ -72,7 +72,7 @@ def make(all_keywords=False, description=True, output_directory='',
             'description': "Enforced maximum value for FWHM parameter specified in fractions of channels. Use with caution! Can lead to artifacts in the fitting. [float]",
             'simple': False}),
         ('separation_factor', {
-            'default': '0.8493218002991817',
+            'default': '0.8493218',
             'description': "The required minimum separation between two Gaussian components (mean1, fwhm1) and (mean2, fwhm2) is determined as separation_factor * min(fwhm1, fwhm2). [float]",
             'simple': False}),
         ('fwhm_factor', {

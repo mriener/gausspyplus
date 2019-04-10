@@ -39,7 +39,7 @@ class GaussPyPrepare(object):
         self.rms_from_data = True
         self.average_rms = None
         self.n_spectra_rms = 1000
-        self.p_limit = 0.025
+        self.p_limit = 0.02
         self.pad_channels = 5
         self.signal_mask = True
         self.min_channels = 100
@@ -47,7 +47,7 @@ class GaussPyPrepare(object):
 
         self.snr = 3.
         self.significance = 5.
-        self.snr_noise_spike = 4.
+        self.snr_noise_spike = 5.
 
         self.suffix = ''
         self.use_ncpus = None
