@@ -32,7 +32,7 @@ each package which we know to be compatible with ``GaussPy+``.
 
 * [python 3.5](https://www.python.org/)
 
-* [numpy (v1.13.3)](http://www.numpy.org/)
+* [numpy (v1.14.2)](http://www.numpy.org/)
 
 * [scipy (v0.19.0)](http://www.scipy.org/)
 
