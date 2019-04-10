@@ -2,7 +2,7 @@
 # @Date:   2019-02-08T15:40:10+01:00
 # @Filename: decompose.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:17:34+02:00
+# @Last modified time: 10-04-2019
 
 import ast
 import configparser
@@ -44,8 +44,6 @@ class GaussPyDecompose(object):
         Path to directory in which decomposition results are saved.
     parent_dirname : str
         Parent directory of 'gpy_prepared'.
-    gausspy_decomposition : bool
-        'True' if data should be decomposed. 'False' if decomposition results are loaded.
     two_phase_decomposition : bool
         'True' (default) uses two smoothing parameters (alpha1, alpha2) for the decomposition. 'False' uses only the alpha1 smoothing parameter.
     save_initial_guesses : bool
@@ -83,7 +81,7 @@ class GaussPyDecompose(object):
         self.path_to_pickle_file = path_to_pickle_file
         self.dirpath_gpy = None
 
-        self.gausspy_decomposition = True
+        # self.gausspy_decomposition = True
         self.two_phase_decomposition = True
         self.save_initial_guesses = False
         self.alpha1 = None
@@ -152,37 +150,28 @@ class GaussPyDecompose(object):
             print(message)
 
     def initialize_data(self):
-        self.check_settings()
-        self.getting_ready()
-
-        self.fitting = {
-            'improve_fitting': self.improve_fitting, 'min_fwhm': self.min_fwhm, 'max_fwhm': self.max_fwhm, 'snr': self.snr, 'snr_fit': self.snr_fit, 'significance': self.significance, 'snr_negative': self.snr_negative, 'rchi2_limit': self.rchi2_limit, 'max_amp_factor': self.max_amp_factor, 'negative_residual': self.refit_residual,
-            'broad': self.refit_broad, 'blended': self.refit_blended, 'fwhm_factor': self.fwhm_factor,
-            'separation_factor': self.separation_factor,
-            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range}
-
         self.say("\npickle load '{}'...".format(self.file))
 
         with open(self.path_to_pickle_file, "rb") as pickle_file:
-            self.pickledData = pickle.load(pickle_file, encoding='latin1')
+            self.pickled_data = pickle.load(pickle_file, encoding='latin1')
 
-        if 'header' in self.pickledData.keys():
-            self.header = correct_header(self.pickledData['header'])
+        if 'header' in self.pickled_data.keys():
+            self.header = correct_header(self.pickled_data['header'])
             self.wcs = WCS(self.header)
             self.velocity_increment = (
                 self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2]).to(
                     self.vel_unit).value
-        if 'location' in self.pickledData.keys():
-            self.location = self.pickledData['location']
-        if 'nan_mask' in self.pickledData.keys():
-            self.nan_mask = self.pickledData['nan_mask']
-        if 'testing' in self.pickledData.keys():
-            self.testing = self.pickledData['testing']
+        if 'location' in self.pickled_data.keys():
+            self.location = self.pickled_data['location']
+        if 'nan_mask' in self.pickled_data.keys():
+            self.nan_mask = self.pickled_data['nan_mask']
+        if 'testing' in self.pickled_data.keys():
+            self.testing = self.pickled_data['testing']
             self.use_ncpus = 1
 
-        self.data = self.pickledData['data_list']
-        self.channels = self.pickledData['x_values']
-        self.errors = self.pickledData['error']
+        self.data = self.pickled_data['data_list']
+        self.channels = self.pickled_data['x_values']
+        self.errors = self.pickled_data['error']
 
     def check_settings(self):
         if self.path_to_pickle_file is None:
@@ -200,6 +189,27 @@ class GaussPyDecompose(object):
         if not os.path.exists(self.decomp_dirname):
             os.makedirs(self.decomp_dirname)
 
+        if self.main_beam_efficiency is None:
+            warnings.warn('assuming intensities are already corrected for main beam efficiency')
+
+        warnings.warn("converting velocity values to {}".format(self.vel_unit))
+
+    def decompose(self):
+        if self.single_prepared_spectrum:
+            self.testing = True
+            self.use_ncpus = 1
+            self.log_output = False
+            self.getting_ready()
+            self.start_decomposition()
+        else:
+            self.check_settings()
+            self.initialize_data()
+            self.getting_ready()
+            self.start_decomposition()
+            if 'batchdecomp_temp.pickle' in os.listdir(os.getcwd()):
+                os.remove('batchdecomp_temp.pickle')
+
+    def decomposition_settings(self):
         if self.snr_negative is None:
             self.snr_negative = self.snr
         if self.snr_fit is None:
@@ -209,21 +219,12 @@ class GaussPyDecompose(object):
         if self.snr2_thresh is None:
             self.snr2_thresh = self.snr
 
-        if self.main_beam_efficiency is None:
-            warnings.warn('assuming intensities are already corrected for main beam efficiency')
+        self.fitting = {
+            'improve_fitting': self.improve_fitting, 'min_fwhm': self.min_fwhm, 'max_fwhm': self.max_fwhm, 'snr': self.snr, 'snr_fit': self.snr_fit, 'significance': self.significance, 'snr_negative': self.snr_negative, 'rchi2_limit': self.rchi2_limit, 'max_amp_factor': self.max_amp_factor, 'negative_residual': self.refit_residual,
+            'broad': self.refit_broad, 'blended': self.refit_blended, 'fwhm_factor': self.fwhm_factor,
+            'separation_factor': self.separation_factor,
+            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range}
 
-        warnings.warn("converting velocity values to {}".format(self.vel_unit))
-
-    def decompose(self):
-        self.initialize_data()
-
-        if self.gausspy_decomposition:
-            self.gaussPy_decomposition()
-
-        if 'batchdecomp_temp.pickle' in os.listdir(os.getcwd()):
-            os.remove('batchdecomp_temp.pickle')
-
-    def decomposition_settings(self):
         string_gausspy = str(
             '\ndecomposition settings:'
             '\nGaussPy:'
@@ -249,20 +250,13 @@ class GaussPyDecompose(object):
                     self.fitting['improve_fitting'])
         self.say(string_gausspy_plus)
 
-    def gaussPy_decomposition(self):
-        if self.gausspy_decomposition and (self.alpha1 is None or
-                                           self.snr_thresh is None or
-                                           self.snr2_thresh is None):
-            errorMessage = \
-                """gausspy_decomposition needs alpha1, snr_thresh and
-                snr2_thresh values"""
-            raise Exception(errorMessage)
+    def start_decomposition(self):
+        if self.alpha1 is None:
+            raise Exception("Need to specify 'alpha1' for decomposition.")
 
-        if self.gausspy_decomposition and self.two_phase_decomposition and \
-                (self.alpha2 is None):
-                    errorMessage = \
-                        """two_phase_decomposition needs alpha2 value"""
-                    raise Exception(errorMessage)
+        if self.two_phase_decomposition and (self.alpha2 is None):
+            raise Exception(
+                "Need to specify 'alpha2' for 'two_phase_decomposition'.")
 
         self.decomposition_settings()
         self.say('\ndecomposing data...')
@@ -344,7 +338,10 @@ class GaussPyDecompose(object):
         self.say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, self.decomp_dirname))
 
     def load_final_results(self, pathToDecomp):
+        self.check_settings()
         self.initialize_data()
+        self.getting_ready()
+
         self.say('\npickle load final GaussPy results...')
 
         self.decomp_dirname = os.path.dirname(pathToDecomp)
@@ -358,10 +355,10 @@ class GaussPyDecompose(object):
             self.header = self.decomposition['header']
         if 'channels' in self.decomposition.keys():
             self.channels = self.decomposition['channels']
-        if 'nan_mask' in self.pickledData.keys():
-            self.nan_mask = self.pickledData['nan_mask']
-        if 'location' in self.pickledData.keys():
-            self.location = self.pickledData['location']
+        if 'nan_mask' in self.pickled_data.keys():
+            self.nan_mask = self.pickled_data['nan_mask']
+        if 'location' in self.pickled_data.keys():
+            self.location = self.pickled_data['location']
 
     def make_cube(self, mode='full_decomposition'):
         """Create FITS cube of the decomposition results.
@@ -429,15 +426,15 @@ class GaussPyDecompose(object):
         array[self.nan_mask] = np.nan
 
         comments = [comment]
-        if self.gausspy_decomposition:
-            for name, value in zip(
-                    ['SNR_1', 'SNR_2', 'ALPHA1'],
-                    [self.snr_thresh, self.snr2_thresh, self.alpha1]):
-                comments.append('GaussPy+ parameter {}={}'.format(name, value))
-
-            if self.two_phase_decomposition:
-                comments.append('GaussPy+ parameter {}={}'.format(
-                    'ALPHA2', self.alpha2))
+        # if self.gausspy_decomposition:
+        #     for name, value in zip(
+        #             ['SNR_1', 'SNR_2', 'ALPHA1'],
+        #             [self.snr_thresh, self.snr2_thresh, self.alpha1]):
+        #         comments.append('GaussPy+ parameter {}={}'.format(name, value))
+        #
+        #     if self.two_phase_decomposition:
+        #         comments.append('GaussPy+ parameter {}={}'.format(
+        #             'ALPHA2', self.alpha2))
 
         self.header = update_header(
             self.header, comments=comments, write_meta=True)
