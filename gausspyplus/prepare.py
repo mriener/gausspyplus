@@ -140,6 +140,7 @@ class GaussPyPrepare(object):
             self.data = self.data[:, ypos, xpos]
             self.data = self.data[:, np.newaxis, np.newaxis]
             self.rms_from_data = False
+            self.use_ncpus = 1
 
         self.n_channels = self.data.shape[0]
         if self.n_channels < self.min_channels:
@@ -156,6 +157,30 @@ class GaussPyPrepare(object):
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
         self.say(heading)
+
+    def return_single_prepared_spectrum(self, data_location=None):
+        if data_location:
+            self.data_location = data_location
+        self.testing = True
+        self.check_settings()
+        self.initialize()
+
+        location = (0, 0)
+        result = self.calculate_rms_noise(location, 0)
+        idx, spectrum, location, rms, signal_ranges, noise_spike_ranges = result
+
+        data = {}
+        data['header'] = self.header
+        data['nan_mask'] = np.isnan(self.data)
+        data['x_values'] = np.arange(self.data.shape[0])
+        data['data_list'] = [spectrum]
+        data['error'] = [[rms]]
+        data['index'] = [idx]
+        data['location'] = [location]
+        data['signal_ranges'] = [signal_ranges]
+        data['noise_spike_ranges'] = [noise_spike_ranges]
+
+        return data
 
     def prepare_cube(self):
         self.check_settings()
@@ -232,13 +257,14 @@ class GaussPyPrepare(object):
                 data['signal_ranges'].append(None)
                 data['noise_spike_ranges'].append(None)
 
-        self.say("\npickle dump dictionary...")
-
         if self.testing:
-            suffix = '_test'
+            suffix = '_test_Y{}X{}'.format(
+                self.data_location[0], self.data_location[1])
             data['testing'] = self.testing
         else:
             suffix = self.suffix
+
+        self.say("\npickle dump dictionary...")
 
         if self.gausspy_pickle:
             path_to_file = os.path.join(

@@ -115,6 +115,8 @@ class GaussPyDecompose(object):
         self.log_output = True
         self.use_ncpus = None
 
+        self.single_prepared_spectrum = None
+
         if config_file:
             self.get_values_from_config_file(config_file)
 
@@ -176,6 +178,7 @@ class GaussPyDecompose(object):
             self.nan_mask = self.pickledData['nan_mask']
         if 'testing' in self.pickledData.keys():
             self.testing = self.pickledData['testing']
+            self.use_ncpus = 1
 
         self.data = self.pickledData['data_list']
         self.channels = self.pickledData['x_values']
@@ -281,6 +284,9 @@ class GaussPyDecompose(object):
             g.set('alpha2', self.alpha2)
         else:
             g.set('phase', 'one')
+
+        if self.single_prepared_spectrum:
+            return g.batch_decomposition(dct=self.single_prepared_spectrum)
 
         self.decomposition = g.batch_decomposition(self.path_to_pickle_file)
 

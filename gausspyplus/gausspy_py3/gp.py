@@ -120,12 +120,18 @@ class GaussianDecomposer(object):
                 return
         pickle.dump(self, open(filename, 'wb'), protocol=2)
 
-    def batch_decomposition(self, science_data_path, ilist=None):
+    def batch_decomposition(self, *args, ilist=None, dct=None):
         """Science data should be AGD format ilist is either None or an integer list."""
-        # Dump information to hard drive to allow multiprocessing
-        pickle.dump([self, science_data_path, ilist], open('batchdecomp_temp.pickle', 'wb'), protocol=2)
         from . import batch_decomposition
-        batch_decomposition.init()
+
+        if args:
+            science_data_path = args[0]
+            # Dump information to hard drive to allow multiprocessing
+            pickle.dump([self, science_data_path, ilist],
+                        open('batchdecomp_temp.pickle', 'wb'), protocol=2)
+            batch_decomposition.init()
+        else:
+            batch_decomposition.init([self, dct, ilist])
         result_list = batch_decomposition.func(use_ncpus=self.p['use_ncpus'])
         # print 'SUCCESS'
 
