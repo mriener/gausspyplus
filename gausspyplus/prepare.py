@@ -2,7 +2,7 @@
 # @Date:   2019-02-26T16:38:04+01:00
 # @Filename: prepare.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-08T11:00:55+02:00
+# @Last modified time: 10-04-2019
 
 import ast
 import configparser
@@ -104,9 +104,11 @@ class GaussPyPrepare(object):
 
         if self.dirpath_gpy is not None:
             self.dirpath = self.dirpath_gpy
-        self.dirpath_pickle = os.path.join(self.dirpath, 'gpy_prepared')
-        if not os.path.exists(self.dirpath_pickle):
-            os.makedirs(self.dirpath_pickle)
+
+        if not self.testing:
+            self.dirpath_pickle = os.path.join(self.dirpath, 'gpy_prepared')
+            if not os.path.exists(self.dirpath_pickle):
+                os.makedirs(self.dirpath_pickle)
 
         if self.log_output:
             self.logger = set_up_logger(
@@ -162,6 +164,7 @@ class GaussPyPrepare(object):
         if data_location:
             self.data_location = data_location
         self.testing = True
+        self.log_output = False
         self.check_settings()
         self.initialize()
 
