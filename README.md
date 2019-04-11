@@ -38,7 +38,7 @@ each package which we know to be compatible with ``GaussPy+``.
 
 * [lmfit (v0.9.5)](https://lmfit.github.io/lmfit-py/intro.html)
 
-* [h5py (v2.7.1)](http://www.h5py.org/)
+* [h5py (v2.8)](http://www.h5py.org/)
 
 * [astropy (v3.0.4)](http://www.astropy.org/)
 
