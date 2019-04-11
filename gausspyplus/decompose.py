@@ -23,27 +23,15 @@ from .utils.output import set_up_logger
 
 
 class GaussPyDecompose(object):
-    """Wrapper for decomposition with GaussPy+.
-
-    Parameters
-    ----------
-    path_to_pickle_file : str
-        Filepath to the pickled dictionary produced by GaussPyPrepare.
+    """Decompose spectra with GaussPy+.
 
     Attributes
     ----------
-    dirname : str
-        Path to the directory containing the pickled dictionary produced by GaussPyPrepare.
-    file : str
-        Filename and extension of the pickled dictionary produced by GaussPyPrepare.
-    filename : str
-        Filename of the pickled dictionary produced by GaussPyPrepare.
-    file_extension : str
-        Extension of the pickled dictionary produced by GaussPyPrepare.
-    decomp_dirname : str
-        Path to directory in which decomposition results are saved.
-    parent_dirname : str
-        Parent directory of 'gpy_prepared'.
+    path_to_pickle_file : str
+        Filepath to the pickled dictionary produced by GaussPyPrepare.
+    dirpath_gpy : str
+        Directory in which all files produced by GaussPy+ are saved
+
     two_phase_decomposition : bool
         'True' (default) uses two smoothing parameters (alpha1, alpha2) for the decomposition. 'False' uses only the alpha1 smoothing parameter.
     save_initial_guesses : bool
@@ -56,6 +44,7 @@ class GaussPyDecompose(object):
         S/N threshold used for the original spectrum.
     snr2_thresh : float
         S/N threshold used for the second derivate of the smoothed spectrum.
+
     use_ncpus : int
         Number of CPUs used in the decomposition. By default 75% of all CPUs on the machine are used.
     fitting : dct
@@ -133,10 +122,6 @@ class GaussPyDecompose(object):
                     raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def getting_ready(self):
-        if self.log_output:
-            self.logger = set_up_logger(
-                self.dirpath_gpy, self.filename, method='g+_decomposition')
-
         string = 'GaussPy decomposition'
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
@@ -150,6 +135,10 @@ class GaussPyDecompose(object):
             print(message)
 
     def initialize_data(self):
+        if self.log_output:
+            self.logger = set_up_logger(
+                self.dirpath_gpy, self.filename, method='g+_decomposition')
+
         self.say("\npickle load '{}'...".format(self.file))
 
         with open(self.path_to_pickle_file, "rb") as pickle_file:
