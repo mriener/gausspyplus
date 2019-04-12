@@ -4,8 +4,8 @@
 # @Last modified by:   riener
 # @Last modified time: 10-04-2019
 
-import ast
-import configparser
+# import ast
+# import configparser
 import os
 import pickle
 import warnings
@@ -17,6 +17,7 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from tqdm import tqdm
 
+from .config_file import get_values_from_config_file
 from .utils.gaussian_functions import gaussian, area_of_gaussian, combined_gaussian
 from .utils.spectral_cube_functions import change_header, save_fits, correct_header, update_header
 from .utils.output import set_up_logger
@@ -105,21 +106,23 @@ class GaussPyDecompose(object):
         self.single_prepared_spectrum = None
 
         if config_file:
-            self.get_values_from_config_file(config_file)
+            # self.get_values_from_config_file(config_file)
+            get_values_from_config_file(
+                self, config_file, config_key='decomposition')
 
-    def get_values_from_config_file(self, config_file):
-        config = configparser.ConfigParser()
-        config.read(config_file)
-
-        for key, value in config['decomposition'].items():
-            try:
-                setattr(self, key, ast.literal_eval(value))
-            except ValueError:
-                if key == 'vel_unit':
-                    value = u.Unit(value)
-                    setattr(self, key, value)
-                else:
-                    raise Exception('Could not parse parameter {} from config file'.format(key))
+    # def get_values_from_config_file(self, config_file):
+    #     config = configparser.ConfigParser()
+    #     config.read(config_file)
+    #
+    #     for key, value in config['decomposition'].items():
+    #         try:
+    #             setattr(self, key, ast.literal_eval(value))
+    #         except ValueError:
+    #             if key == 'vel_unit':
+    #                 value = u.Unit(value)
+    #                 setattr(self, key, value)
+    #             else:
+    #                 raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def getting_ready(self):
         string = 'GaussPy decomposition'

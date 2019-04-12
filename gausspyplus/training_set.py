@@ -5,21 +5,18 @@
 
 # @Last modified time: 2019-04-08T11:59:28+02:00
 
-import ast
-import configparser
 import itertools
-# import multiprocessing
 import os
 import pickle
 import random
 
 import numpy as np
 
-from astropy import units as u
 from astropy.io import fits
 from astropy.modeling import models, fitting, optimizers
 from scipy.signal import argrelextrema
 
+from .config_file import get_values_from_config_file
 from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from .utils.fit_quality_checks import determine_significance, goodness_of_fit
 from .utils.gaussian_functions import gaussian
@@ -57,21 +54,23 @@ class GaussPyTrainingSet(object):
         self.random_seed = 111
 
         if config_file:
-            self.get_values_from_config_file(config_file)
+            # self.get_values_from_config_file(config_file)
+            get_values_from_config_file(
+                self, config_file, config_key='training')
 
-    def get_values_from_config_file(self, config_file):
-        config = configparser.ConfigParser()
-        config.read(config_file)
-
-        for key, value in config['training'].items():
-            try:
-                setattr(self, key, ast.literal_eval(value))
-            except ValueError:
-                if key == 'vel_unit':
-                    value = u.Unit(value)
-                    setattr(self, key, value)
-                else:
-                    raise Exception('Could not parse parameter {} from config file'.format(key))
+    # def get_values_from_config_file(self, config_file):
+    #     config = configparser.ConfigParser()
+    #     config.read(config_file)
+    #
+    #     for key, value in config['training'].items():
+    #         try:
+    #             setattr(self, key, ast.literal_eval(value))
+    #         except ValueError:
+    #             if key == 'vel_unit':
+    #                 value = u.Unit(value)
+    #                 setattr(self, key, value)
+    #             else:
+    #                 raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def check_settings(self):
         check_if_all_values_are_none(self.path_to_file, self.dirpath_gpy,

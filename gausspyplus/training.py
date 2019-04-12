@@ -4,8 +4,6 @@
 # @Last modified by:   riener
 # @Last modified time: 2019-04-08T10:19:11+02:00
 
-import ast
-import configparser
 import itertools
 import os
 import pickle
@@ -14,9 +12,9 @@ import warnings
 
 import numpy as np
 
-from astropy import units as u
 from astropy.io import fits
 
+from .config_file import get_values_from_config_file
 from .utils.gaussian_functions import gaussian
 from .utils.output import format_warning
 warnings.showwarning = format_warning
@@ -51,21 +49,8 @@ class GaussPyTraining(object):
         self.random_seed = 111
 
         if config_file:
-            self.get_values_from_config_file(config_file)
-
-    def get_values_from_config_file(self, config_file):
-        config = configparser.ConfigParser()
-        config.read(config_file)
-
-        for key, value in config['training'].items():
-            try:
-                setattr(self, key, ast.literal_eval(value))
-            except ValueError:
-                if key == 'vel_unit':
-                    value = u.Unit(value)
-                    setattr(self, key, value)
-                else:
-                    raise Exception('Could not parse parameter {} from config file'.format(key))
+            get_values_from_config_file(
+                self, config_file, config_key='training')
 
     def initialize(self):
         if self.path_to_training_set is None:

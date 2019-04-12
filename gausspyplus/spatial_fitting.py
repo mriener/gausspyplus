@@ -19,6 +19,7 @@ from networkx.algorithms.components.connected import connected_components
 from scipy.stats import normaltest
 from tqdm import tqdm
 
+from .config_file import get_values_from_config_file
 from .gausspy_py3.gp_plus import split_params, get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
 from .utils.determine_intervals import mask_covering_gaussians
 from .utils.fit_quality_checks import goodness_of_fit
@@ -85,29 +86,31 @@ class SpatialFitting(object):
         self.only_print_flags = False
 
         if config_file:
-            self.get_values_from_config_file(config_file)
+            # self.get_values_from_config_file(config_file)
+            get_values_from_config_file(
+                self, config_file, config_key='spatial fitting')
 
-    def get_values_from_config_file(self, config_file):
-        """Read in values from a GaussPy+ configuration file.
-
-        Parameters
-        ----------
-        config_file : str
-            Filepath to configuration file of GaussPy+.
-
-        """
-        config = configparser.ConfigParser()
-        config.read(config_file)
-
-        for key, value in config['spatial fitting'].items():
-            try:
-                setattr(self, key, ast.literal_eval(value))
-            except ValueError:
-                if key == 'vel_unit':
-                    value = u.Unit(value)
-                    setattr(self, key, value)
-                else:
-                    raise Exception('Could not parse parameter {} from config file'.format(key))
+    # def get_values_from_config_file(self, config_file):
+    #     """Read in values from a GaussPy+ configuration file.
+    #
+    #     Parameters
+    #     ----------
+    #     config_file : str
+    #         Filepath to configuration file of GaussPy+.
+    #
+    #     """
+    #     config = configparser.ConfigParser()
+    #     config.read(config_file)
+    #
+    #     for key, value in config['spatial fitting'].items():
+    #         try:
+    #             setattr(self, key, ast.literal_eval(value))
+    #         except ValueError:
+    #             if key == 'vel_unit':
+    #                 value = u.Unit(value)
+    #                 setattr(self, key, value)
+    #             else:
+    #                 raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def check_settings(self):
         """Check user settings and raise error messages or apply corrections."""

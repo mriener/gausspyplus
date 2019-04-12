@@ -4,8 +4,13 @@
 # @Last modified by:   riener
 # @Last modified time: 2019-04-08T10:08:05+02:00
 
+import ast
+import configparser
 import collections
 import os
+
+from astropy import units as u
+
 from .utils.output import save_file
 
 
@@ -419,3 +424,29 @@ def make(all_keywords=False, description=True, output_directory='',
         for line in config_file:
             file.write(line)
         save_file(filename, output_directory)
+
+
+def get_values_from_config_file(self, config_file, config_key='DEFAULT'):
+    """Read in values from a GaussPy+ configuration file.
+
+    Parameters
+    ----------
+    config_file : str
+        Filepath to configuration file of GaussPy+.
+    config_key : str
+        Section of GaussPy+nconfiguration, whose parameters should be read in in addtion to 'DEFAULT'.
+
+    """
+    print('it works')
+    config = configparser.ConfigParser()
+    config.read(config_file)
+
+    for key, value in config[config_key].items():
+        try:
+            setattr(self, key, ast.literal_eval(value))
+        except ValueError:
+            if key == 'vel_unit':
+                value = u.Unit(value)
+                setattr(self, key, value)
+            else:
+                raise Exception('Could not parse parameter {} from config file'.format(key))
