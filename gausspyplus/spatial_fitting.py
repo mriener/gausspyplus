@@ -4,16 +4,13 @@
 # @Last modified by:   riener
 # @Last modified time: 2019-04-08T10:18:41+02:00
 
-import ast
 import collections
-import configparser
 import os
 import pickle
 
 import numpy as np
 import scipy.ndimage as ndimage
 
-from astropy import units as u
 from functools import reduce
 from networkx.algorithms.components.connected import connected_components
 from scipy.stats import normaltest
@@ -86,31 +83,8 @@ class SpatialFitting(object):
         self.only_print_flags = False
 
         if config_file:
-            # self.get_values_from_config_file(config_file)
             get_values_from_config_file(
                 self, config_file, config_key='spatial fitting')
-
-    # def get_values_from_config_file(self, config_file):
-    #     """Read in values from a GaussPy+ configuration file.
-    #
-    #     Parameters
-    #     ----------
-    #     config_file : str
-    #         Filepath to configuration file of GaussPy+.
-    #
-    #     """
-    #     config = configparser.ConfigParser()
-    #     config.read(config_file)
-    #
-    #     for key, value in config['spatial fitting'].items():
-    #         try:
-    #             setattr(self, key, ast.literal_eval(value))
-    #         except ValueError:
-    #             if key == 'vel_unit':
-    #                 value = u.Unit(value)
-    #                 setattr(self, key, value)
-    #             else:
-    #                 raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def check_settings(self):
         """Check user settings and raise error messages or apply corrections."""

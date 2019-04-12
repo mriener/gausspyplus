@@ -4,8 +4,6 @@
 # @Last modified by:   riener
 # @Last modified time: 10-04-2019
 
-# import ast
-# import configparser
 import os
 import pickle
 import warnings
@@ -106,23 +104,8 @@ class GaussPyDecompose(object):
         self.single_prepared_spectrum = None
 
         if config_file:
-            # self.get_values_from_config_file(config_file)
             get_values_from_config_file(
                 self, config_file, config_key='decomposition')
-
-    # def get_values_from_config_file(self, config_file):
-    #     config = configparser.ConfigParser()
-    #     config.read(config_file)
-    #
-    #     for key, value in config['decomposition'].items():
-    #         try:
-    #             setattr(self, key, ast.literal_eval(value))
-    #         except ValueError:
-    #             if key == 'vel_unit':
-    #                 value = u.Unit(value)
-    #                 setattr(self, key, value)
-    #             else:
-    #                 raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def getting_ready(self):
         string = 'GaussPy decomposition'

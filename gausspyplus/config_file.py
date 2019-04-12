@@ -189,43 +189,6 @@ def make(all_keywords=False, description=True, output_directory='',
         ('snr2_thresh', {
             'default': 'None',
             'description': " [float]",
-            'simple': False}),
-
-        ('create_training_set', {
-            'default': 'False',
-            'description': " [True/False]",
-            'simple': False}),
-        ('n_channels', {
-            'default': 'None',
-            'description': " [int]",
-            'simple': False}),
-        ('ncomps_limits', {
-            'default': 'None',
-            'description': " [list]",
-            'simple': False}),
-        ('amp_limits', {
-            'default': 'None',
-            'description': " [list]",
-            'simple': False}),
-        ('fwhm_limits', {
-            'default': 'None',
-            'description': " [list]",
-            'simple': False}),
-        ('mean_limits', {
-            'default': 'None',
-            'description': " [list]",
-            'simple': False}),
-        ('rms', {
-            'default': 'None',
-            'description': " [float]",
-            'simple': False}),
-        ('n_spectra_rms', {
-            'default': '5000',
-            'description': " [int]",
-            'simple': False}),
-        ('n_edge_channels', {
-            'default': '10',
-            'description': " [int]",
             'simple': False})
     ]
     dct_training = collections.OrderedDict(training)
@@ -261,10 +224,10 @@ def make(all_keywords=False, description=True, output_directory='',
     dct_preparation = collections.OrderedDict(preparation)
 
     decomposition = [
-        ('gausspy_decomposition', {
-            'default': 'True',
-            'description': " [bool]",
-            'simple': False}),
+        # ('gausspy_decomposition', {
+        #     'default': 'True',
+        #     'description': " [bool]",
+        #     'simple': False}),
         ('save_initial_guesses', {
             'default': 'False',
             'description': "Save initial component guesses of GaussPy as pickle file [bool]",
@@ -437,7 +400,6 @@ def get_values_from_config_file(self, config_file, config_key='DEFAULT'):
         Section of GaussPy+nconfiguration, whose parameters should be read in in addtion to 'DEFAULT'.
 
     """
-    print('it works')
     config = configparser.ConfigParser()
     config.read(config_file)
 

@@ -54,23 +54,8 @@ class GaussPyTrainingSet(object):
         self.random_seed = 111
 
         if config_file:
-            # self.get_values_from_config_file(config_file)
             get_values_from_config_file(
                 self, config_file, config_key='training')
-
-    # def get_values_from_config_file(self, config_file):
-    #     config = configparser.ConfigParser()
-    #     config.read(config_file)
-    #
-    #     for key, value in config['training'].items():
-    #         try:
-    #             setattr(self, key, ast.literal_eval(value))
-    #         except ValueError:
-    #             if key == 'vel_unit':
-    #                 value = u.Unit(value)
-    #                 setattr(self, key, value)
-    #             else:
-    #                 raise Exception('Could not parse parameter {} from config file'.format(key))
 
     def check_settings(self):
         check_if_all_values_are_none(self.path_to_file, self.dirpath_gpy,
@@ -159,9 +144,6 @@ class GaussPyTrainingSet(object):
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([indices, [self]])
 
-        # #  start multiprocessing
-        # mp_init([self, indices])
-        # results_list = mp_func(self.n_spectra, use_ncpus=self.use_ncpus)
         results_list = gausspyplus.parallel_processing.func_ts(
             self.n_spectra, use_ncpus=self.use_ncpus)
         print('SUCCESS\n')
@@ -181,7 +163,6 @@ class GaussPyTrainingSet(object):
                         means.append(item[1])
                         fwhms.append(item[2]*2.355)
 
-                # data['data_list'] = data.get('data_list', []) + [self.data[:, location[0], location[1]]]
                 data['data_list'] = data.get('data_list', []) + [spectrum]
                 if self.header:
                     data['location'] = data.get('location', []) + [location]
