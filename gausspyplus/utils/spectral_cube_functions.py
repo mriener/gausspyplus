@@ -88,9 +88,8 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT3': 'm/s'},
         header = wcs.to_header()
         for keyword, value in dct_naxis.items():
             header[keyword] = value
-    for key in header.keys():
-        if key.startswith('CROTA'):
-            header = transform_header_from_crota_to_pc(header)
+    if 'CROTA1' in header.keys():
+        header = transform_header_from_crota_to_pc(header)
     return header
 
 
