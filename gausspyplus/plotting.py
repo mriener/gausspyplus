@@ -346,7 +346,7 @@ def plot_spectra(pathToDataPickle, *args,
 
         ncomps, rchi2, rchi2gauss = None, None, None
 
-        if decomposition:
+        if decomposition or training_set:
             combined_gauss = combined_gaussian(
                 fit_amps, fit_fwhms, fit_means, channels)
             ax.plot(fig_channels, combined_gauss, lw=2, color='orangered')
@@ -378,7 +378,7 @@ def plot_spectra(pathToDataPickle, *args,
         add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
                               header=header, fontsize=fontsize, vel_unit=vel_unit)
 
-        if residual and decomposition:
+        if residual and (decomposition or training_set):
             row_i = int((i - k*(rowbreak*cols)) / cols)*3 + 2
             col_i = i % cols
             ax = plt.subplot2grid((3*rows_in_figure, cols),
