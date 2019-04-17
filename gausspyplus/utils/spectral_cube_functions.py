@@ -43,7 +43,8 @@ def transform_header_from_crota_to_pc(header):
         warnings.warn("'CROTA*' keywords with value 0. present in FITS header.")
 
     warnings.warn("Removing 'CROTA*' keywords from FITS header.")
-    for key in header.keys():
+
+    for key in list(header.keys()):
         if key.startswith('CROTA'):
             header.remove(key)
 
@@ -72,23 +73,23 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT3': 'm/s'},
 
     """
     for keyword, value in check_keywords.items():
-        if keyword not in header.keys():
+        if keyword not in list(header.keys()):
             warnings.warn("{a} keyword not found in header. Assuming {a}={b}".format(a=keyword, b=value), stacklevel=2)
             header[keyword] = value
-    if 'CTYPE3' in header.keys():
+    if 'CTYPE3' in list(header.keys()):
         if header['CTYPE3'] == 'VELOCITY':
             warnings.warn("Changed header keyword CTYPE3 from VELOCITY to VELO-LSR")
             header['CTYPE3'] = 'VELO-LSR'
     if keep_only_wcs_keywords:
         wcs = WCS(header)
         dct_naxis = {}
-        for keyword in header.keys():
+        for keyword in list(header.keys()):
             if keyword.startswith('NAXIS'):
                 dct_naxis[keyword] = header[keyword]
         header = wcs.to_header()
         for keyword, value in dct_naxis.items():
             header[keyword] = value
-    if 'CROTA1' in header.keys():
+    if 'CROTA1' in list(header.keys()):
         header = transform_header_from_crota_to_pc(header)
     return header
 
@@ -247,10 +248,10 @@ def swap_axes(data, header, new_order):
     hdu = fits.PrimaryHDU(data=data)
     header_new = hdu.header
 
-    if 'CD1_1' in header.keys():
+    if 'CD1_1' in list(header.keys()):
         raise Exception('Cannot swap_axes for CDX_X keywords. Convert them to CDELTX.')
 
-    for keyword in header.keys():
+    for keyword in list(header.keys()):
         for axis in range(dims):
             if keyword.endswith(str(axis + 1)):
                 keyword_new = keyword.replace(str(axis + 1), str(new_order[axis] + 1))
