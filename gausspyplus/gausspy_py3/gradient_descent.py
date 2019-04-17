@@ -15,7 +15,7 @@ from . import AGD_decomposer
 import signal
 # import time
 
-from gausspyplus.utils.output import set_up_logger
+from gausspyplus.utils.output import say
 
 
 def init_worker():
@@ -166,7 +166,7 @@ def train(objective_function=objective_function, training_data=None,
           MAD=None, eps=None, learning_rate=None, p=None, window_size=10,
           iterations_for_convergence=10, plot=False, phase=None, SNR2_thresh=0.,
           SNR_thresh=5., verbose=False, mode='conv',
-          improve_fitting_dict=None, log_output=None):
+          improve_fitting_dict=None, logger=False):
     """
     alpha1_initial =
     alpha2_initial =
@@ -179,16 +179,6 @@ def train(objective_function=objective_function, training_data=None,
     iterations_for_convergence = number of continuous iterations within threshold tolerence required to
                                  achieve convergence
     """
-
-    if log_output:
-        logger = set_up_logger(
-            log_output['dirname'], log_output['filename'], method='g+_training')
-
-    def say(message, end=None):
-        """Diagnostic messages."""
-        if log_output:
-            logger.info(message)
-        print(message, end=end)
 
     # Default settings for hyper parameters
     if mode == 'conv':
@@ -216,11 +206,11 @@ def train(objective_function=objective_function, training_data=None,
         p /= 3.
 
     if alpha2_initial is None and phase == 'two':
-        say('alpha2_initial is required for two-phase decomposition.')
+        say('alpha2_initial is required for two-phase decomposition.', logger=logger)
         return None
 
     if alpha2_initial is not None and phase == 'one':
-        say('alpha2_intial must be unset for one-phase decomposition.')
+        say('alpha2_intial must be unset for one-phase decomposition.', logger=logger)
         return None
 
     # Unpack the training data
@@ -280,13 +270,13 @@ def train(objective_function=objective_function, training_data=None,
             if gd.alpha2_trace[i+1] < 0.:
                 gd.alpha2_trace[i+1] = 0.
 
-        say('')
-        say('{}, {}, {}, {}'.format(gd.alpha1_trace[i], learning_rate, gd.D_alpha1_trace[i], momentum1))
-        say('iter {0}: F1={1:4.1f}%, alpha=[{2}, {3}], p=[{4:4.2f}, {5:4.2f}]'.format(i, 100 * np.exp(-gd.accuracy_trace[i]), np.round(gd.alpha1_trace[i], 2), np.round(gd.alpha2_trace[i], 2), np.round(momentum1, 2), np.round(momentum2, 2)), end=' ')
+        say('', logger=logger)
+        say('{}, {}, {}, {}'.format(gd.alpha1_trace[i], learning_rate, gd.D_alpha1_trace[i], momentum1), logger=logger)
+        say('iter {0}: F1={1:4.1f}%, alpha=[{2}, {3}], p=[{4:4.2f}, {5:4.2f}]'.format(i, 100 * np.exp(-gd.accuracy_trace[i]), np.round(gd.alpha1_trace[i], 2), np.round(gd.alpha2_trace[i], 2), np.round(momentum1, 2), np.round(momentum2, 2)), logger=logger, end=' ')
 
     #    if False: (use this to avoid convergence testing)
         if i <= 2 * window_size:
-            say(' (Convergence testing begins in {} iterations)'.format(int(2 * window_size - i)))
+            say(' (Convergence testing begins in {} iterations)'.format(int(2 * window_size - i)), logger=logger)
         else:
             gd.alpha1means1[i] = np.mean(gd.alpha1_trace[i - window_size:i])
             gd.alpha1means2[i] = np.mean(gd.alpha1_trace[i - 2 * window_size:i - window_size])
@@ -302,12 +292,12 @@ def train(objective_function=objective_function, training_data=None,
                 converge_logic = (gd.fracdiff_alpha1 < thresh)
 
             c = count_ones_in_row(converge_logic)
-            say('  ({0:4.2F},{1:4.2F} < {2:4.2F} for {3} iters [{4} required])'.format(gd.fracdiff_alpha1[i], gd.fracdiff_alpha2[i], thresh, int(c[i]), iterations_for_convergence))
+            say('  ({0:4.2F},{1:4.2F} < {2:4.2F} for {3} iters [{4} required])'.format(gd.fracdiff_alpha1[i], gd.fracdiff_alpha2[i], thresh, int(c[i]), iterations_for_convergence), logger=logger)
 
             if np.any(c > iterations_for_convergence):
                 i_converge = np.min(np.argwhere(c > iterations_for_convergence))
                 gd.iter_of_convergence = i_converge
-                say('Stable convergence achieved at iteration: {}'.format(i_converge))
+                say('Stable convergence achieved at iteration: {}'.format(i_converge), logger=logger)
                 break
 
     # Return best-fit alphas, and bookkeeping object

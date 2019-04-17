@@ -23,7 +23,7 @@ from .utils.fit_quality_checks import goodness_of_fit
 from .utils.gaussian_functions import combined_gaussian
 from .utils.grouping_functions import to_graph, get_neighbors
 from .utils.noise_estimation import mask_channels
-from .utils.output import set_up_logger
+from .utils.output import set_up_logger, say
 
 
 class SpatialFitting(object):
@@ -79,6 +79,7 @@ class SpatialFitting(object):
         self.min_pvalue = 0.01
         self.use_ncpus = None
         self.verbose = True
+        self.suffix = ''
         self.log_output = True
         self.only_print_flags = False
 
@@ -196,6 +197,7 @@ class SpatialFitting(object):
 
     def getting_ready(self):
         """Set up logger and write initial output to terminal."""
+        self.logger = False
         if self.log_output:
             self.logger = set_up_logger(
                 self.dirpath_gpy, self.filename, method='g+_spatial_refitting')
@@ -207,7 +209,7 @@ class SpatialFitting(object):
         string = 'Spatial refitting - Phase {}'.format(phase)
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
-        self.say(heading)
+        say(heading, logger=self.logger)
 
         string = str(
             '\nFlagging:'
@@ -228,13 +230,13 @@ class SpatialFitting(object):
                 f=self.rchi2_limit,
                 g=self.flag_rchi2,
                 h=self.flag_ncomps)
-        self.say(string)
+        say(string, logger=self.logger)
 
         string = str(
             '\nExclude flagged spectra as possible refit solutions: {}'.format(
                 self.exclude_flagged))
         if not self.phase_two:
-            self.say(string)
+            say(string, logger=self.logger)
 
         string = str(
             '\nRefitting:'
@@ -256,7 +258,7 @@ class SpatialFitting(object):
                 g=self.refit_rchi2,
                 h=self.refit_ncomps)
         if not self.phase_two:
-            self.say(string)
+            say(string, logger=self.logger)
 
     def spatial_fitting(self, continuity=False):
         """Start the spatially coherent refitting.
@@ -549,7 +551,7 @@ class SpatialFitting(object):
                     g=n_flagged_ncomps
                 )
 
-            self.say(text)
+            say(text, logger=self.logger)
 
     def define_mask_refit(self):
         """Select spectra to refit in phase 1 of the spatially coherent refitting."""
@@ -573,7 +575,7 @@ class SpatialFitting(object):
 
     def determine_spectra_for_refitting(self):
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
-        self.say('\ndetermine spectra that need refitting...')
+        say('\ndetermine spectra that need refitting...', logger=self.logger)
 
         #  flag spectra based on user-defined criteria
         self.determine_spectra_for_flagging()
@@ -638,7 +640,7 @@ class SpatialFitting(object):
                 p=n_flagged_ncomps
             )
 
-        self.say(text)
+        say(text, logger=self.logger)
 
         #  check if the stopping criterion is fulfilled
 
@@ -669,8 +671,8 @@ class SpatialFitting(object):
 
     def refitting(self):
         """Refit spectra with multiprocessing routine."""
-        self.say('\nstart refit iteration #{}...'.format(
-            self.refitting_iteration))
+        say('\nstart refit iteration #{}...'.format(
+            self.refitting_iteration), logger=self.logger)
 
         #  initialize the multiprocessing routine
 
@@ -702,7 +704,8 @@ class SpatialFitting(object):
 
         for i, item in enumerate(results_list):
             if not isinstance(item, list):
-                self.say("Error for spectrum with index {}: {}".format(i, item))
+                say("Error for spectrum with index {}: {}".format(i, item),
+                    logger=self.logger)
                 continue
 
             index, result, indices_neighbors, refit = item
@@ -732,7 +735,7 @@ class SpatialFitting(object):
                 b=count_refitted,
                 c=refit_percent)
 
-        self.say(text)
+        say(text, logger=self.logger)
 
         #  check if one of the stopping criteria is fulfilled
 
@@ -1981,15 +1984,15 @@ class SpatialFitting(object):
         pathToFile = os.path.join(
             self.decomp_dirname, '{}.pickle'.format(self.fin_filename))
         pickle.dump(self.decomposition, open(pathToFile, 'wb'), protocol=2)
-        self.say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            self.fin_filename, self.decomp_dirname))
+        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+            self.fin_filename, self.decomp_dirname), logger=self.logger)
 
-    def say(self, message):
-        """Print diagnostic messages to terminal."""
-        if self.log_output:
-            self.logger.info(message)
-        if self.verbose:
-            print(message)
+    # def say(self, message):
+    #     """Print diagnostic messages to terminal."""
+    #     if self.log_output:
+    #         self.logger.info(message)
+    #     if self.verbose:
+    #         print(message)
 
     #
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
@@ -2329,7 +2332,7 @@ class SpatialFitting(object):
 
     def determine_all_neighbors(self):
         """Determine the indices of all valid neighbors."""
-        self.say("\ndetermine neighbors for all spectra...")
+        say("\ndetermine neighbors for all spectra...", logger=self.logger)
 
         mask_all = np.array(
             [0 if x is None else 1 for x in self.decomposition['N_components']]).astype('bool')
@@ -2352,7 +2355,7 @@ class SpatialFitting(object):
 
     def check_indices_refit(self):
         """Check which spectra show incoherence in their fitted centroid positions and require refitting."""
-        self.say('\ncheck which spectra require refitting...')
+        say('\ncheck which spectra require refitting...', logger=self.logger)
         if self.refitting_iteration == 1:
             self.determine_all_neighbors()
 
@@ -2380,7 +2383,8 @@ class SpatialFitting(object):
 
         """
         self.refitting_iteration += 1
-        self.say('\nthreshold for required components: {:.3f}'.format(self.min_p))
+        say('\nthreshold for required components: {:.3f}'.format(self.min_p),
+            logger=self.logger)
 
         self.determine_spectra_for_flagging()
 

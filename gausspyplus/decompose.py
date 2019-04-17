@@ -18,7 +18,7 @@ from tqdm import tqdm
 from .config_file import get_values_from_config_file
 from .utils.gaussian_functions import gaussian, area_of_gaussian, combined_gaussian
 from .utils.spectral_cube_functions import change_header, save_fits, correct_header, update_header
-from .utils.output import set_up_logger
+from .utils.output import set_up_logger, say
 
 
 class GaussPyDecompose(object):
@@ -111,21 +111,22 @@ class GaussPyDecompose(object):
         string = 'GaussPy decomposition'
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
-        self.say(heading)
+        say(heading, logger=self.logger)
 
-    def say(self, message):
-        """Diagnostic messages."""
-        if self.log_output:
-            self.logger.info(message)
-        if self.verbose:
-            print(message)
+    # def say(self, message):
+    #     """Diagnostic messages."""
+    #     if self.log_output:
+    #         self.logger.info(message)
+    #     if self.verbose:
+    #         print(message)
 
     def initialize_data(self):
+        self.logger = False
         if self.log_output:
             self.logger = set_up_logger(
                 self.dirpath_gpy, self.filename, method='g+_decomposition')
 
-        self.say("\npickle load '{}'...".format(self.file))
+        say("\npickle load '{}'...".format(self.file), logger=self.logger)
 
         with open(self.path_to_pickle_file, "rb") as pickle_file:
             self.pickled_data = pickle.load(pickle_file, encoding='latin1')
@@ -213,7 +214,7 @@ class GaussPyDecompose(object):
                 c=self.alpha2,
                 d=self.snr_thresh,
                 e=self.snr2_thresh)
-        self.say(string_gausspy)
+        say(string_gausspy, logger=self.logger)
 
         string_gausspy_plus = ''
         if self.fitting['improve_fitting']:
@@ -223,7 +224,7 @@ class GaussPyDecompose(object):
             string_gausspy_plus += str(
                 '\nimprove_fitting: {}').format(
                     self.fitting['improve_fitting'])
-        self.say(string_gausspy_plus)
+        say(string_gausspy_plus, logger=self.logger)
 
     def start_decomposition(self):
         if self.alpha1 is None:
@@ -234,7 +235,7 @@ class GaussPyDecompose(object):
                 "Need to specify 'alpha2' for 'two_phase_decomposition'.")
 
         self.decomposition_settings()
-        self.say('\ndecomposing data...')
+        say('\ndecomposing data...', logger=self.logger)
 
         from .gausspy_py3 import gp as gp
         g = gp.GaussianDecomposer()  # Load GaussPy
@@ -265,7 +266,7 @@ class GaussPyDecompose(object):
             self.save_initial_guesses()
 
     def save_initial_guesses(self):
-        self.say('\npickle dump GaussPy initial guesses...')
+        say('\npickle dump GaussPy initial guesses...', logger=self.logger)
 
         filename = '{}{}_fit_ini.pickle'.format(self.filename, self.suffix)
         pathname = os.path.join(self.decomp_dirname, filename)
@@ -277,10 +278,11 @@ class GaussPyDecompose(object):
             dct_initial_guesses[key] = self.decomposition[key]
 
         pickle.dump(dct_initial_guesses, open(pathname, 'wb'), protocol=2)
-        self.say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, self.decomp_dirname))
+        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+            filename, self.decomp_dirname), logger=self.logger)
 
     def save_final_results(self):
-        self.say('\npickle dump GaussPy final results...')
+        say('\npickle dump GaussPy final results...', logger=self.logger)
 
         dct_gausspy_settings = {"two_phase": self.two_phase_decomposition,
                                 "alpha1": self.alpha1,
@@ -310,14 +312,15 @@ class GaussPyDecompose(object):
         filename = '{}{}_fit_fin.pickle'.format(self.filename, self.suffix)
         pathname = os.path.join(self.decomp_dirname, filename)
         pickle.dump(dct_final_guesses, open(pathname, 'wb'), protocol=2)
-        self.say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, self.decomp_dirname))
+        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+            filename, self.decomp_dirname), logger=self.logger)
 
     def load_final_results(self, pathToDecomp):
         self.check_settings()
         self.initialize_data()
         self.getting_ready()
 
-        self.say('\npickle load final GaussPy results...')
+        say('\npickle load final GaussPy results...', logger=self.logger)
 
         self.decomp_dirname = os.path.dirname(pathToDecomp)
         with open(pathToDecomp, "rb") as pickle_file:
@@ -343,7 +346,7 @@ class GaussPyDecompose(object):
         mode : str
             'full_decomposition' recreates the whole FITS cube, 'integrated_intensity' creates a cube with the integrated intensity values of the Gaussian components placed at their mean positions, 'main_component' only retains the fitted component with the largest amplitude value
         """
-        self.say('\ncreate {} cube...'.format(mode))
+        say('\ncreate {} cube...'.format(mode), logger=self.logger)
 
         x = self.header['NAXIS1']
         y = self.header['NAXIS2']
@@ -416,8 +419,8 @@ class GaussPyDecompose(object):
 
         pathToFile = os.path.join(self.decomp_dirname, 'FITS', filename)
         save_fits(array, self.header, pathToFile, verbose=False)
-        self.say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            filename, os.path.dirname(pathToFile)))
+        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+            filename, os.path.dirname(pathToFile)), logger=self.logger)
 
     def create_input_table(self, ncomps_max=None):
         """Create a table of the decomposition results.
@@ -447,7 +450,7 @@ class GaussPyDecompose(object):
         ncomps_max : int
             All spectra whose number of fitted components exceeds this value will be neglected.
         """
-        self.say('\ncreate input table...')
+        say('\ncreate input table...', logger=self.logger)
 
         length = len(self.decomposition['amplitudes_fit'])
 
@@ -545,14 +548,15 @@ class GaussPyDecompose(object):
         filename = '{}{}_wco.dat'.format(self.filename, self.suffix)
         pathToTable = os.path.join(tableDirname, filename)
         table.write(pathToTable, format='ascii', overwrite=True)
-        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, tableDirname))
+        say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+            filename, tableDirname), logger=self.logger)
 
     def produce_component_map(self):
         """Create FITS map showing the number of fitted components.
 
         The FITS file in saved in the gpy_maps directory.
         """
-        self.say("\nmaking component map...")
+        say("\nmaking component map...", logger=self.logger)
         data = np.empty((self.header['NAXIS2'],
                          self.header['NAXIS1']))
         data.fill(np.nan)
@@ -578,7 +582,7 @@ class GaussPyDecompose(object):
 
         The FITS file in saved in the gpy_maps directory.
         """
-        self.say("\nmaking reduced chi2 map...")
+        say("\nmaking reduced chi2 map...", logger=self.logger)
 
         data = np.empty((self.header['NAXIS2'], self.header['NAXIS1']))
         data.fill(np.nan)
@@ -605,7 +609,8 @@ class GaussPyDecompose(object):
 
     def produce_velocity_dispersion_map(self, mode='average'):
         """Produce map showing the maximum velocity dispersions."""
-        self.say("\nmaking map of maximum velocity dispersions...")
+        say("\nmaking map of maximum velocity dispersions...",
+            logger=self.logger)
 
         data = np.empty((self.header['NAXIS2'], self.header['NAXIS1']))
         data.fill(np.nan)
@@ -637,5 +642,5 @@ class GaussPyDecompose(object):
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
         save_fits(data, header, pathToFile, verbose=False)
-        self.say(">> saved {} velocity dispersion map '{}' in {}".format(
-            mode, filename, os.path.dirname(pathToFile)))
+        say(">> saved {} velocity dispersion map '{}' in {}".format(
+            mode, filename, os.path.dirname(pathToFile)), logger=self.logger)

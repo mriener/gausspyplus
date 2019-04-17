@@ -8,7 +8,7 @@ import os
 import warnings
 
 from .config_file import get_values_from_config_file
-from .utils.output import format_warning
+from .utils.output import format_warning, set_up_logger, say
 warnings.showwarning = format_warning
 
 
@@ -56,12 +56,27 @@ class GaussPyTraining(object):
                 'No value for {a} supplied. Setting {a} to {b}.'.format(
                     a='alpha2_initial', b=self.alpha2_initial))
 
+        self.logger = False
+        if self.log_output:
+            self.logger = set_up_logger(
+                self.gpy_dirpath, self.filename, method='g+_training')
+
+    def getting_ready(self):
+        string = 'GaussPy training'
+        banner = len(string) * '='
+        heading = '\n' + banner + '\n' + string + '\n' + banner
+        say(heading, verbose=self.verbose, logger=self.logger)
+
     def training(self):
         self.initialize()
+        self.getting_ready()
         self.gausspy_train_alpha()
 
     def gausspy_train_alpha(self):
         from .gausspy_py3 import gp as gp
+
+        say('Using training set: {}'.format(self.path_to_training_set),
+            logger=self.logger)
 
         g = gp.GaussianDecomposer()
 
@@ -69,14 +84,11 @@ class GaussPyTraining(object):
         g.set('SNR_thresh', self.snr_thresh)
         g.set('SNR2_thresh', self.snr2_thresh)
 
-        if self.log_output:
-            log_output = {'dirname': self.gpy_dirpath, 'filename': self.filename}
-
         if self.two_phase_decomposition:
             g.set('phase', 'two')  # Set GaussPy parameters
             # Train AGD starting with initial guess for alpha
             g.train(alpha1_initial=self.alpha1_initial, alpha2_initial=self.alpha2_initial,
-                    log_output=log_output)
+                    logger=self.logger)
         else:
             g.set('phase', 'one')
-            g.train(alpha1_initial=self.alpha1_initial, log_output=log_output)
+            g.train(alpha1_initial=self.alpha1_initial, logger=self.logger)

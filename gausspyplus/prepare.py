@@ -16,7 +16,7 @@ from tqdm import tqdm
 from .config_file import get_values_from_config_file
 from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
-from .utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none
+from .utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say
 from .utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
 
 
@@ -58,12 +58,12 @@ class GaussPyPrepare(object):
             get_values_from_config_file(
                 self, config_file, config_key='preparation')
 
-    def say(self, message):
-        """Diagnostic messages."""
-        if self.log_output:
-            self.logger.info(message)
-        if self.verbose:
-            print(message)
+    # def say(self, message):
+    #     """Diagnostic messages."""
+    #     if self.log_output:
+    #         self.logger.info(message)
+    #     if self.verbose:
+    #         print(message)
 
     def check_settings(self):
         text = "specify 'data_location' as (y, x) for 'testing'"
@@ -95,6 +95,7 @@ class GaussPyPrepare(object):
             if not os.path.exists(self.dirpath_pickle):
                 os.makedirs(self.dirpath_pickle)
 
+        self.logger = False
         if self.log_output:
             self.logger = set_up_logger(
                 self.dirpath, self.filename, method='g+_preparation')
@@ -122,8 +123,8 @@ class GaussPyPrepare(object):
         if self.testing:
             ypos = self.data_location[0]
             xpos = self.data_location[1]
-            self.say('\nTesting: using only pixel at location ({}, {})'.format(
-                ypos, xpos))
+            say('\nTesting: using only pixel at location ({}, {})'.format(
+                ypos, xpos), logger=self.logger)
             self.data = self.data[:, ypos, xpos]
             self.data = self.data[:, np.newaxis, np.newaxis]
             self.rms_from_data = False
@@ -143,7 +144,7 @@ class GaussPyPrepare(object):
         string = 'GaussPy preparation'
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
-        self.say(heading)
+        say(heading, logger=self.logger)
 
     def return_single_prepared_spectrum(self, data_location=None):
         if data_location:
@@ -178,18 +179,18 @@ class GaussPyPrepare(object):
         self.prepare_gausspy_pickle()
 
     def calculate_average_rms_from_data(self):
-        self.say('\ncalculating average rms from data...')
+        say('\ncalculating average rms from data...', logger=self.logger)
 
         self.average_rms = calculate_average_rms_noise(
             self.data.copy(), self.n_spectra_rms,
             pad_channels=self.pad_channels, random_seed=self.random_seed,
             max_consecutive_channels=self.max_consecutive_channels)
 
-        self.say('>> calculated rms value of {:.3f} from data'.format(
-                self.average_rms))
+        say('>> calculated rms value of {:.3f} from data'.format(
+            self.average_rms), logger=self.logger)
 
     def prepare_gausspy_pickle(self):
-        self.say('\npreparing GaussPy cube...')
+        say('\npreparing GaussPy cube...', logger=self.logger)
 
         data = {}
         channels = np.arange(self.data.shape[0])
@@ -252,7 +253,7 @@ class GaussPyPrepare(object):
         else:
             suffix = self.suffix
 
-        self.say("\npickle dump dictionary...")
+        say("\npickle dump dictionary...", logger=self.logger)
 
         if self.gausspy_pickle:
             path_to_file = os.path.join(
@@ -303,5 +304,5 @@ class GaussPyPrepare(object):
             os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
 
         save_fits(self.errors, header, path_to_file, verbose=False)
-        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            filename, os.path.dirname(path_to_file)))
+        say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+            filename, os.path.dirname(path_to_file)), logger=self.logger)

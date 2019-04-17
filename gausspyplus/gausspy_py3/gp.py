@@ -40,7 +40,7 @@ class GaussianDecomposer(object):
 
     def train(self, alpha1_initial=None, alpha2_initial=None, plot=False,
               verbose=False, mode='conv', learning_rate=0.9, eps=0.25, MAD=0.1,
-              log_output=None):
+              logger=False):
         """Solve for optimal values of alpha1 (and alpha2) using training data."""
         if (((self.p['phase'] == 'one') and (not alpha1_initial)) or
            ((self.p['phase'] == 'two') and ((not alpha1_initial) or (not alpha1_initial)))):
@@ -63,7 +63,7 @@ class GaussianDecomposer(object):
                                    plot=plot, eps=eps,
                                    verbose=verbose, mode=mode,
                                    learning_rate=learning_rate, MAD=MAD,
-                                   log_output=log_output)
+                                   logger=logger)
 
     def decompose(self, xdata, ydata, edata, idx=None, signal_ranges=None,
                   noise_spike_ranges=None):

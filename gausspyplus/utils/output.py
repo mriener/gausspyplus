@@ -76,6 +76,14 @@ def set_up_logger(parentDirname, filename, method='g+_decomposition'):
     return logging.getLogger(__name__)
 
 
+def say(message, verbose=True, logger=False, end=None):
+    """Diagnostic messages."""
+    if logger:
+        logger.info(message)
+    if verbose:
+        print(message, end=end)
+
+
 def format_warning(message, category, filename, lineno, file=None, line=None):
     sys.stderr.write("\n\033[93mWARNING:\033[0m {}: {}\n".format(
         category.__name__, message))
