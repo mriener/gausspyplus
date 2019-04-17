@@ -1005,29 +1005,30 @@ def get_moment_map(data, header, order=0, linewidth='sigma', vel_unit=u.km/u.s):
 
     bunit = u.Unit('')
     velocity_bin = wcs.wcs.cdelt[2]
-    offset = wcs.wcs.crval[2] - wcs.wcs.cdelt[2]*(wcs.wcs.crpix[2] - 1)
-    spectral_channels = offset + np.arange(data.shape[0])*wcs.wcs.cdelt[2]
+    spectral_channels = get_spectral_axis(header=header, to_unit=vel_unit)
     moment_data = np.zeros(data.shape[1:])
-    locations = list(
-        itertools.product(range(data.shape[1]), range(data.shape[2])))
 
-    for y, x in locations:
-        spectrum = data[:, y, x]
-        nan_mask = np.logical_not(np.isnan(spectrum))
+    def moment0(spectrum):
+        return velocity_bin * np.nansum(spectrum)
 
-        if order == 0:
-            moment_0 = velocity_bin * np.nansum(spectrum)
-            moment_data[y, x] = moment_0
-            bunit = u.Unit(header['BUNIT'])
-        if order == 1 or order == 2:
-            moment_1 = np.nansum(spectral_channels[nan_mask]) * spectrum[nan_mask]
-            moment_data[y, x] = moment_1
-        if order == 2:
-            numerator = np.nansum(
-                (spectral_channels[nan_mask] - moment_1)**2 * spectrum[nan_mask])
-            denominator = np.nansum(spectrum[nan_mask])
-            moment_2 = np.sqrt(numerator / denominator)
-            moment_data[y, x] = moment_2
+    def moment1(spectrum):
+        nanmask = np.logical_not(np.isnan(spectrum))
+        return np.nansum(spectral_channels[nanmask]) * spectrum[nanmask]
+
+    def moment2(spectrum):
+        nanmask = np.logical_not(np.isnan(spectrum))
+        numerator = np.nansum(
+            (spectral_channels[nanmask] - moment1(spectrum[nanmask]))**2 * spectrum[nanmask])
+        denominator = np.nansum(spectrum[nanmask])
+        return np.sqrt(numerator / denominator)
+
+    if order == 0:
+        moment_data = np.apply_along_axis(moment0, 0, data)
+        bunit = u.Unit(header['BUNIT'])
+    elif order == 1:
+        moment_data = np.apply_along_axis(moment1, 0, data)
+    elif order == 2:
+        moment_data = np.apply_along_axis(moment2, 0, data)
 
     header = change_header(
         header, comments=['moment {} map'.format(order)],
