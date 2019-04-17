@@ -51,7 +51,8 @@ def transform_header_from_crota_to_pc(header):
     return header
 
 
-def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT3': 'm/s'},
+def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
+                                           'CUNIT2': 'deg', 'CUNIT3': 'm/s'},
                    keep_only_wcs_keywords=False):
     """Correct FITS header by checking keywords or removing unnecessary keywords.
 
