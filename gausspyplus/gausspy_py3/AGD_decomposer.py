@@ -472,9 +472,12 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         ax4 = fig.add_axes([0.5, 0.1, 0.4, 0.4])  # Final fit
 
         # Decorations
-        plt.figtext(0.52, 0.47, 'Final fit')
+        if dct['improve_fitting']:
+            plt.figtext(0.52, 0.47, 'Final fit (GaussPy+)')
+        else:
+            plt.figtext(0.52, 0.47, 'Final fit (GaussPy)')
         if perform_final_fit:
-            plt.figtext(0.52, 0.45, 'Reduced Chi2: {0:3.1f}'.format(rchi2))
+            plt.figtext(0.52, 0.45, 'Reduced Chi2: {0:3.3f}'.format(rchi2))
             plt.figtext(0.52, 0.43, 'N components: {0}'.format(ncomps_fit))
 
         plt.figtext(0.12, 0.47, 'Phase-two initial guess')
@@ -527,12 +530,11 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         if perform_final_fit:
             ax4.yaxis.tick_right()
             ax4.axhline(color='black', linewidth=0.5)
-            ax4.plot(vel, best_fit_final, label='final model', color='purple')
             ax4.plot(vel, data, label='data', color='black')
             for i in range(ncomps_fit):
                 one_component = gaussian(params_fit[i], params_fit[i+ncomps_fit], params_fit[i+2*ncomps_fit])(vel)
-                ax4.plot(vel, one_component, '-', color='purple')
-            ax4.plot(vel, best_fit_final, '-', color='purple')
+                ax4.plot(vel, one_component, '--', color='orange')
+            ax4.plot(vel, best_fit_final, '-', color='orange', linewidth=2)
 
         plt.show()
 
