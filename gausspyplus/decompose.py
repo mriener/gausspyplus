@@ -172,6 +172,7 @@ class GaussPyDecompose(object):
 
     def decompose(self):
         if self.single_prepared_spectrum:
+            self.logger = False
             self.testing = True
             self.use_ncpus = 1
             self.log_output = False
