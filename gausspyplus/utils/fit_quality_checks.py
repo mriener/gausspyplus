@@ -1,7 +1,7 @@
 """Functions that check the quality of the fit."""
 
 import numpy as np
-from scipy.stats import normaltest
+from scipy.stats import normaltest, kstest
 
 from .noise_estimation import determine_peaks
 
@@ -99,6 +99,22 @@ def get_pvalue_from_normaltest(data, mask=None):
     mask = mask.astype('bool')
 
     statistic, pvalue = normaltest(data[mask])
+
+    return pvalue
+
+
+def get_pvalue_from_kstest(data, errors, mask=None):
+    if type(errors) is not np.ndarray:
+        errors = np.ones(len(data)) * errors
+    if mask is None:
+        mask = np.ones(len(data))
+    elif len(mask) == 0:
+        mask = np.ones(len(data))
+    elif np.count_nonzero(mask) == 0:
+        mask = np.ones(len(data))
+    mask = mask.astype('bool')
+
+    statistic, pvalue = kstest(data[mask] / errors[mask], 'norm')
 
     return pvalue
 

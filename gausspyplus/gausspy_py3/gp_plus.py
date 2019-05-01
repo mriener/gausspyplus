@@ -12,7 +12,7 @@ from lmfit import minimize as lmfit_minimize
 from lmfit import Parameters
 
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
-from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, get_pvalue_from_normaltest
+from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, get_pvalue_from_kstest
 from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
@@ -667,7 +667,7 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     residual = data - best_fit
 
-    pvalue = get_pvalue_from_normaltest(residual, mask=signal_mask)
+    pvalue = get_pvalue_from_kstest(residual, errors, mask=signal_mask)
 
     #  return the list of best fit results if there was no old list of best fit results for comparison
     if first:
@@ -1096,7 +1096,7 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
         rchi2, aicc = goodness_of_fit(
             data, best_fit_final, errors, ncomps_fit, mask=signal_mask, get_aicc=True)
 
-        pvalue = get_pvalue_from_normaltest(data, mask=signal_mask)
+        pvalue = get_pvalue_from_kstest(data, errors, mask=signal_mask)
 
         best_fit_list = [params_fit, params_errs, ncomps_fit, best_fit_final, residual, rchi2, aicc, new_fit, params_min, params_max, pvalue]
 

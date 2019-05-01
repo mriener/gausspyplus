@@ -19,7 +19,7 @@ from scipy.signal import argrelextrema
 from .config_file import get_values_from_config_file
 from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from .utils.fit_quality_checks import determine_significance, goodness_of_fit,\
-    get_pvalue_from_normaltest
+    get_pvalue_from_kstest
 from .utils.gaussian_functions import gaussian
 from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise
 from .utils.output import check_if_all_values_are_none
@@ -287,8 +287,8 @@ class GaussPyTrainingSet(object):
         else:
             rchi2 = None
 
-        pvalue = get_pvalue_from_normaltest(
-            spectrum - combined_gauss, mask=mask_signal)
+        pvalue = get_pvalue_from_kstest(
+            spectrum - combined_gauss, rms, mask=mask_signal)
 
         return fit_values, rchi2, pvalue
 

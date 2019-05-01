@@ -13,7 +13,7 @@ import scipy.ndimage as ndimage
 
 from functools import reduce
 from networkx.algorithms.components.connected import connected_components
-from scipy.stats import normaltest
+from scipy.stats import kstest
 from tqdm import tqdm
 
 from .config_file import get_values_from_config_file
@@ -695,7 +695,7 @@ class SpatialFitting(object):
         keys = ['amplitudes_fit', 'fwhms_fit', 'means_fit',
                 'amplitudes_fit_err', 'fwhms_fit_err', 'means_fit_err',
                 'best_fit_rchi2', 'best_fit_aicc', 'N_components',
-                'gaussians_rchi2', 'gaussians_aicc',
+                'gaussians_rchi2', 'gaussians_aicc', 'pvalue',
                 'N_negative_residuals', 'N_blended']
 
         count_selected, count_refitted = 0, 0
@@ -1633,20 +1633,16 @@ class SpatialFitting(object):
 
         #  if total flag value is the same or decreased there are two ways for the new best fit to get accepted as the new best fit solution:
         #  - accept the new fit if its AICc value is lower than AICc value of the current best fit solution
-        # - if the AICc value of new fit is higher than the AICc value of the current best fit solution, only accept the new fit if the values of the residual are normally distributed, i.e. if it passes the normaltest
+        # - if the AICc value of new fit is higher than the AICc value of the current best fit solution, only accept the new fit if the values of the residual are normally distributed, i.e. if it passes the Kolmogorov-Smirnov test
 
         aicc_old = self.get_dictionary_value(
             'best_fit_aicc', index, dct_new_fit=dct_new_fit)
         aicc_new = dictResults['best_fit_aicc']
-        residual_signal_mask = dictResults['residual_signal_mask']
+        # residual_signal_mask = dictResults['residual_signal_mask']
+        pvalue = dictResults['pvalue']
 
-        if (aicc_new > aicc_old):
-            try:
-                statistic, pvalue = normaltest(residual_signal_mask)
-                if pvalue < self.min_pvalue:
-                    return False
-            except ValueError:
-                return False
+        if (aicc_new > aicc_old) and (pvalue < self.min_pvalue):
+            return False
 
         return True
 
@@ -1946,6 +1942,7 @@ class SpatialFitting(object):
         residual_signal_mask = best_fit_list[4][signal_mask]
         rchi2 = best_fit_list[5]
         aicc = best_fit_list[6]
+        pvalue = best_fit_list[10]
 
         if ncomps == 0:
             return None
@@ -1973,10 +1970,10 @@ class SpatialFitting(object):
             channels, spectrum, rms, best_fit_list, dct, get_count=True)
 
         keys = ["best_fit_rchi2", "best_fit_aicc", "residual_signal_mask",
-                "gaussians_rchi2", "gaussians_aicc",
+                "gaussians_rchi2", "gaussians_aicc", "pvalue",
                 "N_components", "N_blended", "N_negative_residuals"]
         values = [rchi2, aicc, residual_signal_mask,
-                  rchi2_gauss, aicc_gauss,
+                  rchi2_gauss, aicc_gauss, pvalue,
                   ncomps, N_blended, N_negative_residuals]
         for key, val in zip(keys, values):
             dictResults[key] = val
