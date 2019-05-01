@@ -809,7 +809,7 @@ class SpatialFitting(object):
         """
         refit = False
         dictResults = None
-        flag = 'none'
+        flags = []
 
         loc = self.locations_refit[i]
         spectrum = self.data[index]
@@ -831,21 +831,24 @@ class SpatialFitting(object):
             if self.mask_refitted[indices_neighbors].sum() < 1:
                 return [index, None, indices_neighbors, refit]
 
-        if self.refit_broad and self.mask_broad_refit[index]:
-            flag = 'broad'
+        if self.refit_residual and self.mask_residual[index]:
+            flags.append('residual')
+        elif self.refit_broad and self.mask_broad_refit[index]:
+            flags.append('broad')
         elif self.refit_blended and self.mask_blended[index]:
-            flag = 'blended'
-        elif self.refit_residual and self.mask_residual[index]:
-            flag = 'residual'
+            flags.append('blended')
+
+        flags.append('None')
 
         #  try to refit the spectrum with fit solution of individual unflagged neighboring spectra
 
-        dictResults, refit = self.try_refit_with_individual_neighbors(
-            index, spectrum, rms, indices_neighbors, signal_ranges,
-            noise_spike_ranges, signal_mask, flag=flag)
+        for flag in flags:
+            dictResults, refit = self.try_refit_with_individual_neighbors(
+                index, spectrum, rms, indices_neighbors, signal_ranges,
+                noise_spike_ranges, signal_mask, flag=flag)
 
-        if dictResults is not None:
-            return [index, dictResults, indices_neighbors, refit]
+            if dictResults is not None:
+                return [index, dictResults, indices_neighbors, refit]
 
         #  try to refit the spectrum by grouping the fit solutions of all unflagged neighboring spectra
 
@@ -962,13 +965,13 @@ class SpatialFitting(object):
         signal_mask : numpy.ndarray
             Boolean array containing the information of signal_ranges.
         interval : list
-            List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
-        n_centroids : type
-            Description of parameter `n_centroids`.
+            List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper]. Only used in phase 2 of the spatially coherent refitting.
+        n_centroids : int
+            Number of centroid positions that should be present in interval.
         flag : str
             Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
-        dct_new_fit : type
-            Description of parameter `dct_new_fit`.
+        dct_new_fit : dict
+            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
 
         Returns
         -------
@@ -1073,6 +1076,7 @@ class SpatialFitting(object):
                 amps, fwhms, means, self.channels)
             best_fit_list[4] = residual
 
+            #  TODO: What if multiple negative residual features occur in one spectrum?
             idx = check_for_negative_residual(
                 self.channels, spectrum, rms, best_fit_list, dct, get_idx=True)
             if idx is None:
@@ -1102,7 +1106,7 @@ class SpatialFitting(object):
         interval : list
             List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
         dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting.
+            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
 
         Returns
         -------
