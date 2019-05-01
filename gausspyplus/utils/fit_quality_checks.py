@@ -1,6 +1,7 @@
 """Functions that check the quality of the fit."""
 
 import numpy as np
+from scipy.stats import normaltest
 
 from .noise_estimation import determine_peaks
 
@@ -86,6 +87,20 @@ def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None,
                 (n_samples - n_params - 1.0))
         return rchi2, aicc
     return rchi2
+
+
+def get_pvalue_from_normaltest(data, mask=None):
+    if mask is None:
+        mask = np.ones(len(data))
+    elif len(mask) == 0:
+        mask = np.ones(len(data))
+    elif np.count_nonzero(mask) == 0:
+        mask = np.ones(len(data))
+    mask = mask.astype('bool')
+
+    statistic, pvalue = normaltest(data[mask])
+
+    return pvalue
 
 
 def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):

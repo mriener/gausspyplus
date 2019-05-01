@@ -88,6 +88,10 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '1.5',
             'description': "maximium value for the reduced chi-squared above which the fit gets flagged [float]",
             'simple': True}),
+        ('min_pvalue', {
+            'default': '0.01',
+            'description': "p-value for the null hypothesis that the residual resembles a normal distribution. [float]",
+            'simple': False}),
 
         ('two_phase_decomposition', {
             'default': 'True',
@@ -338,10 +342,6 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '0.5',
             'description': "Minimum weight threshold for phase 2 of spatially coherent refitting. [float]",
             'simple': True}),
-        ('min_pvalue', {
-            'default': '0.01',
-            'description': "p-value for the null hypothesis that the residual resembles a normal distribution. [float]",
-            'simple': False}),
         ('weight_factor', {
             'default': '2',
             'description': "Factor that determines the weight given to neighboring spectra located at a distance of 1 and 2 pixels. [int/float]",

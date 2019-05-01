@@ -18,7 +18,8 @@ from scipy.signal import argrelextrema
 
 from .config_file import get_values_from_config_file
 from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
-from .utils.fit_quality_checks import determine_significance, goodness_of_fit
+from .utils.fit_quality_checks import determine_significance, goodness_of_fit,\
+    get_pvalue_from_normaltest
 from .utils.gaussian_functions import gaussian
 from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise
 from .utils.output import check_if_all_values_are_none
@@ -38,11 +39,12 @@ class GaussPyTrainingSet(object):
         self.significance = 5
         self.min_fwhm = 1.
         self.max_fwhm = None
-        self.p_limit = 0.025
+        self.p_limit = 0.02
         self.signal_mask = True
         self.pad_channels = 5
         self.min_channels = 100
-        self.snr_noise_spike = 4.
+        self.snr_noise_spike = 5.
+        self.min_pvalue = 0.01
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.rchi2_limit = 1.5
         self.use_all = False
@@ -150,11 +152,11 @@ class GaussPyTrainingSet(object):
 
         for result in results_list:
             if result is not None:
-                fit_values, spectrum, location, signal_ranges, rms, rchi2, index, i = result
+                fit_values, spectrum, location, signal_ranges, rms, rchi2, pvalue, index, i = result
                 # the next four lines are added to deal with the use_all=True feature
                 if rchi2 is None:
                     continue
-                if rchi2 > self.rchi2_limit:
+                if pvalue < self.min_pvalue:
                     continue
                 amps, fwhms, means = ([] for i in range(3))
                 if fit_values is not None:
@@ -169,6 +171,7 @@ class GaussPyTrainingSet(object):
                 data['index'] = data.get('index', []) + [index]
                 data['error'] = data.get('error', []) + [[rms]]
                 data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
+                data['pvalue'] = data.get('pvalue', []) + [pvalue]
                 data['amplitudes'] = data.get('amplitudes', []) + [amps]
                 data['fwhms'] = data.get('fwhms', []) + [fwhms]
                 data['means'] = data.get('means', []) + [means]
@@ -221,12 +224,12 @@ class GaussPyTrainingSet(object):
             mask_signal = None
 
         maxima = self.get_maxima(spectrum, rms)
-        fit_values, rchi2 = self.gaussian_fitting(
+        fit_values, rchi2, pvalue = self.gaussian_fitting(
             spectrum, maxima, rms, mask_signal=mask_signal)
         # TODO: change the rchi2_limit value??
-        if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
+        if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
             return [fit_values, spectrum, location, signal_ranges, rms,
-                    rchi2, index, i]
+                    rchi2, pvalue, index, i]
         else:
             return None
 
@@ -283,7 +286,11 @@ class GaussPyTrainingSet(object):
             rchi2 = goodness_of_fit(spectrum, combined_gauss, rms, comps, mask=mask_signal)
         else:
             rchi2 = None
-        return fit_values, rchi2
+
+        pvalue = get_pvalue_from_normaltest(
+            spectrum - combined_gauss, mask=mask_signal)
+
+        return fit_values, rchi2, pvalue
 
     def check_fit_parameters(self, fit_values, gaussians, rms):
         improve = False

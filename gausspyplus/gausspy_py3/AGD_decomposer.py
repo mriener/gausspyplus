@@ -445,7 +445,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
                 signal_ranges=signal_ranges, noise_spike_ranges=noise_spike_ranges)
 
         params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-            rchi2, aicc, new_fit, params_min, params_max = best_fit_list
+            rchi2, aicc, new_fit, params_min, params_max, pvalue = best_fit_list
 
         ncomps_gf = ncomps_fit
 
@@ -548,6 +548,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     if dct['improve_fitting']:
         odict['rchi2'] = rchi2
         odict['aicc'] = aicc
+        odict['pvalue'] = pvalue
 
         odict['N_negative_residuals'] = N_negative_residuals
         odict['N_blended'] = N_blended

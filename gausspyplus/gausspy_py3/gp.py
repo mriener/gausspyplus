@@ -140,7 +140,7 @@ class GaussianDecomposer(object):
         new_keys = ['index_fit', 'amplitudes_fit', 'fwhms_fit', 'means_fit',
                     'index_initial', 'amplitudes_initial', 'fwhms_initial', 'means_initial',
                     'amplitudes_fit_err', 'fwhms_fit_err', 'means_fit_err', 'best_fit_rchi2',
-                    'best_fit_aicc', 'N_components', 'N_negative_residuals', 'N_blended', 'log_gplus']
+                    'best_fit_aicc', 'N_components', 'N_negative_residuals', 'N_blended', 'log_gplus', 'pvalue']
 
         output_data = dict((key, []) for key in new_keys)
 
@@ -188,12 +188,14 @@ class GaussianDecomposer(object):
                 Nresidual = result['N_negative_residuals'] if 'N_negative_residuals' in result else None
                 Nblended = result['N_blended'] if 'N_blended' in result else None
                 log_gplus = result['log_gplus'] if 'log_gplus' in result else None
+                pvalue = result['pvalue'] if 'pvalue' in result else None
 
                 output_data['best_fit_rchi2'].append(rchi2)
                 output_data['best_fit_aicc'].append(aicc)
                 output_data['N_negative_residuals'].append(Nresidual)
                 output_data['N_blended'].append(Nblended)
                 output_data['log_gplus'].append(log_gplus)
+                output_data['pvalue'].append(pvalue)
             else:
                 for key in new_keys:
                     output_data[key].append(None)

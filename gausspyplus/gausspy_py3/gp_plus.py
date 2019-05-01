@@ -12,7 +12,7 @@ from lmfit import minimize as lmfit_minimize
 from lmfit import Parameters
 
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
-from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
+from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, get_pvalue_from_normaltest
 from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
@@ -608,7 +608,7 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     first : bool
         Default is 'False'. If set to 'True', the new fit will be assigned as best fit and returned in best_fit_list.
     best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     signal_ranges : list
         Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
     signal_mask : numpy.ndarray
@@ -623,7 +623,7 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     """
     # Objective functions for final fit
     def objective_leastsq(paramslm):
@@ -667,18 +667,20 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     residual = data - best_fit
 
+    pvalue = get_pvalue_from_normaltest(residual, mask=signal_mask)
+
     #  return the list of best fit results if there was no old list of best fit results for comparison
     if first:
         new_fit = True
         return [params_fit, params_errs, ncomps_fit, best_fit, residual, rchi2,
-                aicc, new_fit, params_min, params_max]
+                aicc, new_fit, params_min, params_max, pvalue]
 
     #  return new best_fit_list if the AICc value is smaller
     aicc_old = best_fit_list[6]
     if ((aicc < aicc_old) and not np.isclose(aicc, aicc_old, atol=1e-1)) or force_accept:
         new_fit = True
         return [params_fit, params_errs, ncomps_fit, best_fit, residual, rchi2,
-                aicc, new_fit, params_min, params_max]
+                aicc, new_fit, params_min, params_max, pvalue]
 
     #  return old best_fit_list if the aicc value is higher
     best_fit_list[7] = False
@@ -704,7 +706,7 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
     errors : numpy.ndarray
         Root-mean-square noise values.
     best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     dct : dict
         Dictionary containing parameter settings for the improved fitting.
     signal_ranges : list
@@ -721,7 +723,7 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
 
     """
     params_fit = best_fit_list[0]
@@ -808,7 +810,7 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     errors : numpy.ndarray
         Root-mean-square noise values.
     best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     dct : dict
         Dictionary containing parameter settings for the improved fitting.
     exclude_idx : int
@@ -825,7 +827,7 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
 
     """
     params_fit = best_fit_list[0]
@@ -915,7 +917,7 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     errors : numpy.ndarray
         Root-mean-square noise values.
     best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     dct : dict
         Dictionary containing parameter settings for the improved fitting.
     signal_ranges : list
@@ -928,7 +930,7 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
 
     """
     best_fit_list[7] = False
@@ -1003,7 +1005,7 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
     errors : numpy.ndarray
         Root-mean-square noise values.
     best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     dct : dict
         Dictionary containing parameter settings for the improved fitting.
     signal_ranges : list
@@ -1016,7 +1018,7 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
 
     """
     params_fit = best_fit_list[0]
@@ -1082,7 +1084,7 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
 
     """
     if ncomps_fit == 0:
@@ -1094,7 +1096,9 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
         rchi2, aicc = goodness_of_fit(
             data, best_fit_final, errors, ncomps_fit, mask=signal_mask, get_aicc=True)
 
-        best_fit_list = [params_fit, params_errs, ncomps_fit, best_fit_final, residual, rchi2, aicc, new_fit, params_min, params_max]
+        pvalue = get_pvalue_from_normaltest(data, mask=signal_mask)
+
+        best_fit_list = [params_fit, params_errs, ncomps_fit, best_fit_final, residual, rchi2, aicc, new_fit, params_min, params_max, pvalue]
 
         return best_fit_list
 
@@ -1121,7 +1125,7 @@ def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
     errors : numpy.ndarray
         Root-mean-square noise values.
     best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     dct : dict
         Dictionary containing parameter settings for the improved fitting.
     fitted_residual_peaks : list
@@ -1140,7 +1144,7 @@ def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     fitted_residual_peaks : list
         Updated list of initial mean position guesses for new fit components determined from residual peaks.
 
@@ -1231,7 +1235,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
     N_negative_residuals : int
         Number of negative residual features that occur in the best fit of the spectrum.
     N_blended : int
@@ -1252,14 +1256,15 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         signal_ranges=signal_ranges, signal_mask=signal_mask)
 
     params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-        rchi2, aicc, new_fit, params_min, params_max = best_fit_list
+        rchi2, aicc, new_fit, params_min, params_max, pvalue = best_fit_list
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
     fitted_residual_peaks = []
     log_gplus = []
 
-    while (rchi2 > dct['rchi2_limit']) or first_run:
+    # while (rchi2 > dct['rchi2_limit']) or first_run:
+    while (best_fit_list[10] < dct['min_pvalue']) or first_run:
         new_fit = True
         new_peaks = False
 
@@ -1310,6 +1315,8 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
                 new_fit = best_fit_list[7]
                 log_gplus = log_new_fit(new_fit, log_gplus, mode='blended')
 
+        if not first_run:
+            break
         first_run = False
 
     N_negative_residuals = check_for_negative_residual(

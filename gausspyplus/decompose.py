@@ -92,6 +92,7 @@ class GaussPyDecompose(object):
         self.refit_blended = True
         self.separation_factor = 0.8493218
         self.fwhm_factor = 2.
+        self.min_pvalue = 0.01
 
         self.main_beam_efficiency = None
         self.vel_unit = u.km / u.s
@@ -197,10 +198,22 @@ class GaussPyDecompose(object):
             self.snr2_thresh = self.snr
 
         self.fitting = {
-            'improve_fitting': self.improve_fitting, 'min_fwhm': self.min_fwhm, 'max_fwhm': self.max_fwhm, 'snr': self.snr, 'snr_fit': self.snr_fit, 'significance': self.significance, 'snr_negative': self.snr_negative, 'rchi2_limit': self.rchi2_limit, 'max_amp_factor': self.max_amp_factor, 'negative_residual': self.refit_residual,
-            'broad': self.refit_broad, 'blended': self.refit_blended, 'fwhm_factor': self.fwhm_factor,
+            'improve_fitting': self.improve_fitting,
+            'min_fwhm': self.min_fwhm,
+            'max_fwhm': self.max_fwhm,
+            'snr': self.snr,
+            'snr_fit': self.snr_fit,
+            'significance': self.significance,
+            'snr_negative': self.snr_negative,
+            'rchi2_limit': self.rchi2_limit,
+            'max_amp_factor': self.max_amp_factor,
+            'negative_residual': self.refit_residual,
+            'broad': self.refit_broad,
+            'blended': self.refit_blended,
+            'fwhm_factor': self.fwhm_factor,
             'separation_factor': self.separation_factor,
-            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range}
+            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range,
+            'min_pvalue': self.min_pvalue}
 
         string_gausspy = str(
             '\ndecomposition settings:'
@@ -295,7 +308,7 @@ class GaussPyDecompose(object):
 
         dct_final_guesses = {}
 
-        for key in ["index_fit", "best_fit_rchi2", "best_fit_aicc",
+        for key in ["index_fit", "best_fit_rchi2", "best_fit_aicc", "pvalue",
                     "amplitudes_fit", "amplitudes_fit_err", "fwhms_fit",
                     "fwhms_fit_err", "means_fit", "means_fit_err", "log_gplus",
                     "N_negative_residuals", "N_blended", "N_components"]:
