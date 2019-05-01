@@ -60,11 +60,13 @@ class SpatialFitting(object):
         self.flag_blended = None
         self.flag_residual = None
         self.flag_rchi2 = None
+        self.flag_pvalue = None
         self.flag_broad = None
         self.flag_ncomps = None
         self.refit_blended = False
         self.refit_residual = False
         self.refit_rchi2 = False
+        self.refit_pvalue = False
         self.refit_broad = False
         self.refit_ncomps = False
 
@@ -512,12 +514,15 @@ class SpatialFitting(object):
             'N_negative_residuals', 0, self.flag_residual)
         self.mask_rchi2_flagged = self.define_mask(
             'best_fit_rchi2', self.rchi2_limit, self.flag_rchi2)
+        self.mask_pvalue = self.define_mask(
+            'pvalue', self.min_pvalue, self.flag_pvalue)
         self.mask_broad_flagged = self.define_mask_broad(self.flag_broad)
         self.mask_broad_limit, self.n_broad = self.define_mask_broad_limit(
             self.flag_broad)
 
         mask_flagged = self.mask_blended + self.mask_residual\
-            + self.mask_broad_flagged + self.mask_rchi2_flagged
+            + self.mask_broad_flagged + self.mask_rchi2_flagged\
+            + self.mask_pvalue
 
         self.mask_ncomps, self.ncomps_jumps, self.ncomps =\
             self.define_mask_neighbor_ncomps(
@@ -532,6 +537,7 @@ class SpatialFitting(object):
             n_flagged_residual = np.count_nonzero(self.mask_residual)
             n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
             n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
+            n_flagged_pvalue = np.count_nonzero(self.mask_pvalue)
             n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
             text = str(
@@ -541,6 +547,7 @@ class SpatialFitting(object):
                 "\n - {c} spectra w/ broad feature"
                 "\n   (info: {d} spectra w/ a FWHM > {e} channels)"
                 "\n - {f} spectra w/ high rchi2 value"
+                "\n - {h} spectra w/ residual not passing normality test"
                 "\n - {g} spectra w/ differing number of components").format(
                     a=n_flagged_blended,
                     b=n_flagged_residual,
@@ -548,7 +555,8 @@ class SpatialFitting(object):
                     d=np.count_nonzero(self.mask_broad_limit),
                     e=int(self.max_fwhm),
                     f=n_flagged_rchi2,
-                    g=n_flagged_ncomps
+                    g=n_flagged_ncomps,
+                    h=n_flagged_pvalue
                 )
 
             say(text, logger=self.logger)
@@ -564,6 +572,8 @@ class SpatialFitting(object):
             mask_refit += self.mask_broad_refit
         if self.refit_rchi2:
             mask_refit += self.mask_rchi2_refit
+        if self.refit_pvalue:
+            mask_refit += self.mask_pvalue
         if self.refit_ncomps:
             mask_refit += self.mask_ncomps
 
@@ -598,6 +608,7 @@ class SpatialFitting(object):
         n_flagged_residual = np.count_nonzero(self.mask_residual)
         n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
         n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
+        n_flagged_pvalue = np.count_nonzero(self.mask_pvalue)
         n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
         n_refit_blended, n_refit_residual, n_refit_ncomps = (
@@ -608,12 +619,13 @@ class SpatialFitting(object):
             n_refit_residual = n_flagged_residual
         n_refit_broad = np.count_nonzero(self.mask_broad_refit)
         n_refit_rchi2 = np.count_nonzero(self.mask_rchi2_refit)
+        n_refit_pvalue = np.count_nonzero(self.mask_pvalue)
         if self.refit_ncomps:
             n_refit_ncomps = n_flagged_ncomps
 
         n_refit_list = [
             n_refit_blended, n_refit_residual, n_refit_broad,
-            n_refit_rchi2, n_refit_ncomps]
+            n_refit_rchi2, n_refit_pvalue, n_refit_ncomps]
 
         text = str(
             "\n{a} out of {b} spectra ({c:.2%}) selected for refitting:"
@@ -622,6 +634,7 @@ class SpatialFitting(object):
             "\n - {h} spectra w/ broad feature ({i} flagged)"
             "\n   (info: {j} spectra w/ a FWHM > {k} channels)"
             "\n - {m} spectra w/ high rchi2 value ({n} flagged)"
+            "\n - {q} spectra w/ residual not passing normality test ({r} flagged)"
             "\n - {o} spectra w/ differing number of components ({p} flagged)").format(
                 a=n_indices_refit,
                 b=n_spectra,
@@ -637,7 +650,9 @@ class SpatialFitting(object):
                 m=n_refit_rchi2,
                 n=n_flagged_rchi2,
                 o=n_refit_ncomps,
-                p=n_flagged_ncomps
+                p=n_flagged_ncomps,
+                q=n_refit_pvalue,
+                r=n_flagged_pvalue
             )
 
         say(text, logger=self.logger)
@@ -1409,6 +1424,27 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
+    def get_flags_pvalue(self, dictResults, index, dct_new_fit=None):
+        flag_old, flag_new = (0 for _ in range(2))
+
+        if not self.flag_pvalue:
+            return flag_old, flag_new
+
+        pvalue_old = self.get_dictionary_value(
+            'pvalue', index, dct_new_fit=dct_new_fit)
+        pvalue_new = dictResults['pvalue']
+
+        if pvalue_old < self.min_pvalue:
+            flag_old += 1
+        if pvalue_new < self.min_pvalue:
+            flag_new += 1
+
+        #  punish fit if pvalue got worse
+        if pvalue_new < pvalue_old:
+            flag_new += 1
+
+        return flag_old, flag_new
+
     def get_flags_broad(self, dictResults, index, dct_new_fit=None):
         """Check how the refit affected the number of components flagged as broad.
 
@@ -1597,6 +1633,9 @@ class SpatialFitting(object):
         flag_rchi2_old, flag_rchi2_new = self.get_flags_rchi2(
             dictResults, index, dct_new_fit=dct_new_fit)
 
+        flag_pvalue_old, flag_pvalue_new = self.get_flags_pvalue(
+            dictResults, index, dct_new_fit=dct_new_fit)
+
         flag_broad_old, flag_broad_new = self.get_flags_broad(
             dictResults, index, dct_new_fit=dct_new_fit)
 
@@ -1617,6 +1656,7 @@ class SpatialFitting(object):
             + flag_residual_old\
             + flag_broad_old\
             + flag_rchi2_old\
+            + flag_pvalue_old\
             + flag_ncomps_old\
             + flag_centroids_old
 
@@ -1624,6 +1664,7 @@ class SpatialFitting(object):
             + flag_residual_new\
             + flag_broad_new\
             + flag_rchi2_new\
+            + flag_pvalue_new\
             + flag_ncomps_new\
             + flag_centroids_new
 
