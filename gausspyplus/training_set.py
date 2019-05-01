@@ -44,7 +44,7 @@ class GaussPyTrainingSet(object):
         self.pad_channels = 5
         self.min_channels = 100
         self.snr_noise_spike = 5.
-        self.min_pvalue = 0.01
+        # self.min_pvalue = 0.01
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.rchi2_limit = 1.5
         self.use_all = False
@@ -156,7 +156,7 @@ class GaussPyTrainingSet(object):
                 # the next four lines are added to deal with the use_all=True feature
                 if rchi2 is None:
                     continue
-                if pvalue < self.min_pvalue:
+                if rchi2 > self.rchi2_limit:
                     continue
                 amps, fwhms, means = ([] for i in range(3))
                 if fit_values is not None:
@@ -227,7 +227,7 @@ class GaussPyTrainingSet(object):
         fit_values, rchi2, pvalue = self.gaussian_fitting(
             spectrum, maxima, rms, mask_signal=mask_signal)
         # TODO: change the rchi2_limit value??
-        if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
+        if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
             return [fit_values, spectrum, location, signal_ranges, rms,
                     rchi2, pvalue, index, i]
         else:
