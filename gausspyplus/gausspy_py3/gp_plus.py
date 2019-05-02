@@ -762,9 +762,9 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
 
     #  in case of multiple negative residual features, sort them in order of increasing amplitude values
     sort = np.argsort(amp_guesses)
-    amp_guesses = amp_guesses[sort]
-    fwhm_guesses = fwhm_guesses[sort]
-    offset_guesses = offset_guesses[sort]
+    amp_guesses = np.array(amp_guesses)[sort]
+    fwhm_guesses = np.array(fwhm_guesses)[sort]
+    offset_guesses = np.array(offset_guesses)[sort]
 
     for amp, fwhm, offset in zip(amp_guesses, fwhm_guesses, offset_guesses):
         idx_low = max(0, int(offset - fwhm))
