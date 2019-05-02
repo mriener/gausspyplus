@@ -445,7 +445,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
                 signal_ranges=signal_ranges, noise_spike_ranges=noise_spike_ranges)
 
         params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-            rchi2, aicc, new_fit, params_min, params_max, pvalue = best_fit_list
+            rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
 
         ncomps_gf = ncomps_fit
 
@@ -553,6 +553,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         odict['N_negative_residuals'] = N_negative_residuals
         odict['N_blended'] = N_blended
         odict['log_gplus'] = log_gplus
+        odict['quality_control'] = quality_control
 
     if (perform_final_fit is True) and (ncomps_gf > 0):
         odict['best_fit_parameters'] = params_fit

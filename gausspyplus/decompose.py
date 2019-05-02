@@ -311,7 +311,8 @@ class GaussPyDecompose(object):
         for key in ["index_fit", "best_fit_rchi2", "best_fit_aicc", "pvalue",
                     "amplitudes_fit", "amplitudes_fit_err", "fwhms_fit",
                     "fwhms_fit_err", "means_fit", "means_fit_err", "log_gplus",
-                    "N_negative_residuals", "N_blended", "N_components"]:
+                    "N_negative_residuals", "N_blended", "N_components",
+                    "quality_control"]:
             dct_final_guesses[key] = self.decomposition[key]
 
         dct_final_guesses["gausspy_settings"] = dct_gausspy_settings

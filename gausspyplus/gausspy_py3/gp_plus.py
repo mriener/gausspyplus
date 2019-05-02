@@ -137,7 +137,8 @@ def remove_components_from_sublists(lst, remove_indices):
     return lst
 
 
-def check_params_fit(data, params_fit, params_errs, vel, rms, max_amp,
+def check_params_fit(data, params_fit, params_errs, vel, rms, quality_control,
+                     max_amp,
                      max_fwhm, snr=3., significance=5., snr_fit=3.,
                      min_fwhm=None, signal_ranges=None,
                      params_min=None, params_max=None,
@@ -211,16 +212,24 @@ def check_params_fit(data, params_fit, params_errs, vel, rms, max_amp,
         if exclude_means_outside_channel_range:
             if (offset < np.min(vel)) or (offset > np.max(vel)):
                 remove_indices.append(i)
+                quality_control['channel_range'] += 1
                 continue
 
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
-        if (amp < snr_fit*rms) or (amp > max_amp):
+        if amp < snr_fit*rms:
             remove_indices.append(i)
+            quality_control['snr'] += 1
+            continue
+
+        if amp > max_amp:
+            remove_indices.append(i)
+            quality_control['high_amp'] += 1
             continue
 
         #  discard the Gaussian component if it does not satisfy the significance criterion
         if determine_significance(amp, fwhm, rms) < significance:
             remove_indices.append(i)
+            quality_control['significance'] += 1
             continue
 
         #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
@@ -233,6 +242,7 @@ def check_params_fit(data, params_fit, params_errs, vel, rms, max_amp,
                         data, rms, [(low, upp)], snr=snr,
                         significance=significance):
                     remove_indices.append(i)
+                    quality_control['signal_range'] += 1
                     continue
 
     remove_indices = list(set(remove_indices))
@@ -255,7 +265,7 @@ def check_params_fit(data, params_fit, params_errs, vel, rms, max_amp,
             [amps_max, fwhms_max, offsets_max], remove_indices)
         params_max = amps_max + fwhms_max + offsets_max
 
-    return params_fit, params_errs, len(amps_fit), params_min, params_max
+    return params_fit, params_errs, len(amps_fit), params_min, params_max, quality_control
 
 
 def check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit,
@@ -584,6 +594,12 @@ def remove_components(params_fit, remove_indices):
     return params_fit
 
 
+def initiate_quality_control():
+    keys = ['channel_range', 'snr', 'high_amp', 'significance',
+            'signal_range']
+    return {key: 0 for key in keys}
+
+
 def get_best_fit(vel, data, errors, params_fit, dct, first=False,
                  best_fit_list=None, signal_ranges=None, signal_mask=None,
                  force_accept=False, params_min=None, params_max=None):
@@ -633,6 +649,9 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     if not first:
         best_fit_list[7] = False
+        quality_control = best_fit_list[11]
+    else:
+        quality_control = initiate_quality_control()
 
     ncomps_fit = number_of_components(params_fit)
 
@@ -652,8 +671,8 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     #  check if fit components satisfy mandatory criteria
     if ncomps_fit > 0:
-        params_fit, params_errs, ncomps_fit, params_min, params_max = check_params_fit(
-            data, params_fit, params_errs, vel, errors[0], dct['max_amp'],
+        params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control = check_params_fit(
+            data, params_fit, params_errs, vel, errors[0], quality_control, dct['max_amp'],
             dct['max_fwhm'], min_fwhm=dct['min_fwhm'], snr=dct['snr'],
             significance=dct['significance'], snr_fit=dct['snr_fit'],
             signal_ranges=signal_ranges, exclude_means_outside_channel_range=exclude_means_outside_channel_range)
@@ -673,14 +692,14 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     if first:
         new_fit = True
         return [params_fit, params_errs, ncomps_fit, best_fit, residual, rchi2,
-                aicc, new_fit, params_min, params_max, pvalue]
+                aicc, new_fit, params_min, params_max, pvalue, quality_control]
 
     #  return new best_fit_list if the AICc value is smaller
     aicc_old = best_fit_list[6]
     if ((aicc < aicc_old) and not np.isclose(aicc, aicc_old, atol=1e-1)) or force_accept:
         new_fit = True
         return [params_fit, params_errs, ncomps_fit, best_fit, residual, rchi2,
-                aicc, new_fit, params_min, params_max, pvalue]
+                aicc, new_fit, params_min, params_max, pvalue, quality_control]
 
     #  return old best_fit_list if the aicc value is higher
     best_fit_list[7] = False
@@ -1098,7 +1117,11 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
 
         pvalue = get_pvalue_from_kstest(data, errors, mask=signal_mask)
 
-        best_fit_list = [params_fit, params_errs, ncomps_fit, best_fit_final, residual, rchi2, aicc, new_fit, params_min, params_max, pvalue]
+        quality_control = initiate_quality_control()
+
+        best_fit_list = [params_fit, params_errs, ncomps_fit, best_fit_final,
+                         residual, rchi2, aicc, new_fit, params_min,
+                         params_max, pvalue, quality_control]
 
         return best_fit_list
 
@@ -1256,7 +1279,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         signal_ranges=signal_ranges, signal_mask=signal_mask)
 
     params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-        rchi2, aicc, new_fit, params_min, params_max, pvalue = best_fit_list
+        rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
