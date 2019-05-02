@@ -219,21 +219,34 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
 
     rms = errors[0]
 
-    exclude_means_outside_channel_range = True
-    if 'exclude_means_outside_channel_range' in dct.keys():
-        exclude_means_outside_channel_range = dct['exclude_means_outside_channel_range']
+    # exclude_means_outside_channel_range = True
+    # if 'exclude_means_outside_channel_range' in dct.keys():
+    #     exclude_means_outside_channel_range = dct['exclude_means_outside_channel_range']
 
     #  check if Gaussian components satisfy quality criteria
 
     remove_indices = []
     for i, (amp, fwhm, offset) in enumerate(
             zip(amps_fit, fwhms_fit, offsets_fit)):
-        #  discard the Gaussian component if its mean position falls outside the covered spectral channels
-        if exclude_means_outside_channel_range:
-            if (offset < np.min(vel)) or (offset > np.max(vel)):
-                remove_indices.append(i)
-                quality_control.append(1)
-                continue
+        # #  discard the Gaussian component if its mean position falls outside the covered spectral channels
+        # if exclude_means_outside_channel_range:
+        #     if (offset < np.min(vel)) or (offset > np.max(vel)):
+        #         remove_indices.append(i)
+        #         quality_control.append(1)
+        #         continue
+
+        #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
+        if signal_ranges:
+            if not any(low <= offset <= upp for low, upp in signal_ranges):
+                low = max(0, int(offset - fwhm))
+                upp = int(offset + fwhm) + 2
+
+                if not check_if_intervals_contain_signal(
+                        data, rms, [(low, upp)], snr=dct['snr'],
+                        significance=dct['significance']):
+                    remove_indices.append(i)
+                    quality_control.append(1)
+                    continue
 
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
         if amp < dct['snr_fit']*rms:
@@ -252,18 +265,18 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
             quality_control.append(3)
             continue
 
-        #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
-        if signal_ranges:
-            if not any(low <= offset <= upp for low, upp in signal_ranges):
-                low = max(0, int(offset - fwhm))
-                upp = int(offset + fwhm) + 2
-
-                if not check_if_intervals_contain_signal(
-                        data, rms, [(low, upp)], snr=dct['snr'],
-                        significance=dct['significance']):
-                    remove_indices.append(i)
-                    quality_control.append(4)
-                    continue
+        # #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
+        # if signal_ranges:
+        #     if not any(low <= offset <= upp for low, upp in signal_ranges):
+        #         low = max(0, int(offset - fwhm))
+        #         upp = int(offset + fwhm) + 2
+        #
+        #         if not check_if_intervals_contain_signal(
+        #                 data, rms, [(low, upp)], snr=dct['snr'],
+        #                 significance=dct['significance']):
+        #             remove_indices.append(i)
+        #             quality_control.append(4)
+        #             continue
 
     remove_indices = list(set(remove_indices))
 
