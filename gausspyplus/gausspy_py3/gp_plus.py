@@ -188,7 +188,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
     params_max : list
         List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
     quality_control : list
-        Log containing information about which in-built quality control parameters were not fulfilled (1: 'channel_range', 2: 'snr', 3: 'high_amp', 4: 'significance', 5: 'signal_range'])
+        Log containing information about which in-built quality control parameters were not fulfilled (1: 'channel_range', 2: 'snr', 3: 'significance', 4: 'signal_range'])
 
     Returns
     -------
@@ -241,15 +241,15 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
             quality_control.append(2)
             continue
 
-        if amp > dct['max_amp']:
-            remove_indices.append(i)
-            quality_control.append(3)
-            continue
+        # if amp > dct['max_amp']:
+        #     remove_indices.append(i)
+        #     quality_control.append(3)
+        #     continue
 
         #  discard the Gaussian component if it does not satisfy the significance criterion
         if determine_significance(amp, fwhm, rms) < dct['significance']:
             remove_indices.append(i)
-            quality_control.append(4)
+            quality_control.append(3)
             continue
 
         #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
@@ -262,7 +262,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
                         data, rms, [(low, upp)], snr=dct['snr'],
                         significance=dct['significance']):
                     remove_indices.append(i)
-                    quality_control.append(5)
+                    quality_control.append(4)
                     continue
 
     remove_indices = list(set(remove_indices))
@@ -487,56 +487,6 @@ def get_initial_guesses(residual, rms, snr, significance, peak='positive',
     return amp_guesses, fwhm_guesses, offset_guesses
 
 
-# def get_fully_blended_gaussians(params_fit, get_count=False):
-#     """Return information about blended Gaussian fit components.
-#
-#     A Gaussian fit component i is blended with another component if its mean position is contained within the standard deviation interval (mean - std, mean + std) of the other component.
-#
-#     Parameters
-#     ----------
-#     params_fit : list
-#         Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-#     get_count : bool
-#         Default is 'False'. If set to 'True' only the number of blended components is returned.
-#
-#     Returns
-#     -------
-#     indices_blended : numpy.ndarray
-#         Indices of fitted Gaussian components that satisfy the criterion for blendedness, sorted from lowest to highest amplitude values.
-#
-#     """
-#     ncomps_fit = number_of_components(params_fit)
-#     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
-#     stddevs_fit = list(np.array(fwhms_fit) / 2.354820045)
-#     indices_blended = np.array([])
-#     blended_pairs = []
-#     items = list(range(ncomps_fit))
-#
-#     N_blended = 0
-#
-#     for idx1, idx2 in itertools.combinations(items, 2):
-#         min1 = offsets_fit[idx1] - stddevs_fit[idx1]
-#         max1 = offsets_fit[idx1] + stddevs_fit[idx1]
-#
-#         min2 = offsets_fit[idx2] - stddevs_fit[idx2]
-#         max2 = offsets_fit[idx2] + stddevs_fit[idx2]
-#
-#         if (min1 < offsets_fit[idx2] < max1) or (
-#                 min2 < offsets_fit[idx1] < max2):
-#             indices_blended = np.append(indices_blended, np.array([idx1, idx2]))
-#             blended_pairs.append([idx1, idx2])
-#             N_blended += 1
-#
-#     if get_count:
-#         return N_blended
-#
-#     indices_blended = np.unique(indices_blended).astype('int')
-#     #  sort the identified blended components from lowest to highest amplitude value
-#     sort = np.argsort(np.array(amps_fit)[indices_blended])
-#
-#     return indices_blended[sort]
-
-
 def get_fully_blended_gaussians(params_fit, get_count=False,
                                 separation_factor=0.8493218002991817):
     """Return information about blended Gaussian fit components.
@@ -664,12 +614,6 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
         List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
 
     """
-    # # Objective functions for final fit
-    # def objective_leastsq(paramslm):
-    #     params = vals_vec_from_lmfit(paramslm)
-    #     resids = (func(vel, *params).ravel() - data.ravel()) / errors
-    #     return resids
-
     if not first:
         best_fit_list[7] = False
         quality_control = best_fit_list[11]
@@ -677,16 +621,6 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
         quality_control = []
 
     ncomps_fit = number_of_components(params_fit)
-
-    # #  get new best fit
-    # lmfit_params = paramvec_to_lmfit(
-    #     params_fit, max_amp=dct['max_amp'], max_fwhm=None,
-    #     params_min=params_min, params_max=params_max)
-    # result = lmfit_minimize(
-    #     objective_leastsq, lmfit_params, method='leastsq')
-    # params_fit = vals_vec_from_lmfit(result.params)
-    # params_errs = errs_vec_from_lmfit(result.params)
-    # ncomps_fit = number_of_components(params_fit)
 
     params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
         vel, data, errors, params_fit, dct, params_min=None, params_max=None)
