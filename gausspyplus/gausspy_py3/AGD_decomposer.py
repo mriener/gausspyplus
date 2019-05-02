@@ -546,8 +546,8 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     odict['N_components'] = ncomps_gf
     odict['index'] = idx
     if dct['improve_fitting']:
-        odict['rchi2'] = rchi2
-        odict['aicc'] = aicc
+        odict['best_fit_rchi2'] = rchi2
+        odict['best_fit_aicc'] = aicc
         odict['pvalue'] = pvalue
 
         odict['N_negative_residuals'] = N_negative_residuals

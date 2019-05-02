@@ -182,7 +182,7 @@ class GaussianDecomposer(object):
                 output_data['fwhms_fit_err'].append(fwhms_err)
                 output_data['means_fit_err'].append(offsets_err)
 
-                for key in ['rchi2', 'aicc', 'N_negative_residuals',
+                for key in ['best_fit_rchi2', 'best_fit_aicc', 'N_negative_residuals',
                             'N_blended', 'log_gplus', 'pvalue',
                             'quality_control']:
                     output_data[key].append(
