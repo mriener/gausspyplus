@@ -120,6 +120,7 @@ class SpatialFitting(object):
         if all(refit is False for refit in [self.refit_blended,
                                             self.refit_residual,
                                             self.refit_rchi2,
+                                            self.refit_pvalue,
                                             self.refit_broad,
                                             self.refit_ncomps]):
             raise Exception(
@@ -131,6 +132,8 @@ class SpatialFitting(object):
             self.flag_residual = self.refit_residual
         if self.flag_rchi2 is None:
             self.flag_rchi2 = self.refit_rchi2
+        if self.flag_pvalue is None:
+            self.flag_pvalue = self.refit_pvalue
         if self.flag_broad is None:
             self.flag_broad = self.refit_broad
         if self.flag_ncomps is None:
@@ -307,6 +310,15 @@ class SpatialFitting(object):
         array = np.array(self.decomposition[key])
         array[self.nanMask] = 0
         mask = array > limit
+        return mask
+
+    def define_mask_pvalue(self, key, limit, flag):
+        if not flag:
+            return np.zeros(self.length).astype('bool')
+
+        array = np.array(self.decomposition[key])
+        array[self.nanMask] = 0
+        mask = array < limit
         return mask
 
     def define_mask_broad_limit(self, flag):
@@ -514,7 +526,7 @@ class SpatialFitting(object):
             'N_negative_residuals', 0, self.flag_residual)
         self.mask_rchi2_flagged = self.define_mask(
             'best_fit_rchi2', self.rchi2_limit, self.flag_rchi2)
-        self.mask_pvalue = self.define_mask(
+        self.mask_pvalue = self.define_mask_pvalue(
             'pvalue', self.min_pvalue, self.flag_pvalue)
         self.mask_broad_flagged = self.define_mask_broad(self.flag_broad)
         self.mask_broad_limit, self.n_broad = self.define_mask_broad_limit(
