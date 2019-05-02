@@ -116,6 +116,27 @@ def paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
     return params
 
 
+def perform_least_squares_fit(vel, data, errors, params_fit, dct,
+                              params_min=None, params_max=None):
+    # Objective functions for final fit
+    def objective_leastsq(paramslm):
+        params = vals_vec_from_lmfit(paramslm)
+        resids = (func(vel, *params).ravel() - data.ravel()) / errors
+        return resids
+
+    #  get new best fit
+    lmfit_params = paramvec_to_lmfit(
+        params_fit, max_amp=dct['max_amp'], max_fwhm=None,
+        params_min=params_min, params_max=params_max)
+    result = lmfit_minimize(
+        objective_leastsq, lmfit_params, method='leastsq')
+    params_fit = vals_vec_from_lmfit(result.params)
+    params_errs = errs_vec_from_lmfit(result.params)
+    ncomps_fit = number_of_components(params_fit)
+
+    return params_fit, params_errs, ncomps_fit
+
+
 def remove_components_from_sublists(lst, remove_indices):
     """Remove items with indices idx1, ..., idxN from all sublists of a nested list.
 
@@ -137,12 +158,9 @@ def remove_components_from_sublists(lst, remove_indices):
     return lst
 
 
-def check_params_fit(data, params_fit, params_errs, vel, rms, quality_control,
-                     max_amp,
-                     max_fwhm, snr=3., significance=5., snr_fit=3.,
-                     min_fwhm=None, signal_ranges=None,
-                     params_min=None, params_max=None,
-                     exclude_means_outside_channel_range=True):
+def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
+                     quality_control, signal_ranges=None,
+                     params_min=None, params_max=None):
     """Perform quality checks for the fitted Gaussians components.
 
     All Gaussian components that are not satisfying the criteria are discarded from the fit.
@@ -203,6 +221,12 @@ def check_params_fit(data, params_fit, params_errs, vel, rms, quality_control,
     if params_max is not None:
         amps_max, fwhms_max, offsets_max = split_params(params_max, ncomps_fit)
 
+    rms = errors[0]
+
+    exclude_means_outside_channel_range = True
+    if 'exclude_means_outside_channel_range' in dct.keys():
+        exclude_means_outside_channel_range = dct['exclude_means_outside_channel_range']
+
     #  check if Gaussian components satisfy quality criteria
 
     remove_indices = []
@@ -216,18 +240,18 @@ def check_params_fit(data, params_fit, params_errs, vel, rms, quality_control,
                 continue
 
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
-        if amp < snr_fit*rms:
+        if amp < dct['snr_fit']*rms:
             remove_indices.append(i)
             quality_control['snr'] += 1
             continue
 
-        if amp > max_amp:
+        if amp > dct['max_amp']:
             remove_indices.append(i)
             quality_control['high_amp'] += 1
             continue
 
         #  discard the Gaussian component if it does not satisfy the significance criterion
-        if determine_significance(amp, fwhm, rms) < significance:
+        if determine_significance(amp, fwhm, rms) < dct['significance']:
             remove_indices.append(i)
             quality_control['significance'] += 1
             continue
@@ -239,33 +263,41 @@ def check_params_fit(data, params_fit, params_errs, vel, rms, quality_control,
                 upp = int(offset + fwhm) + 2
 
                 if not check_if_intervals_contain_signal(
-                        data, rms, [(low, upp)], snr=snr,
-                        significance=significance):
+                        data, rms, [(low, upp)], snr=dct['snr'],
+                        significance=dct['significance']):
                     remove_indices.append(i)
                     quality_control['signal_range'] += 1
                     continue
 
     remove_indices = list(set(remove_indices))
 
-    amps_fit, fwhms_fit, offsets_fit = remove_components_from_sublists(
-        [amps_fit, fwhms_fit, offsets_fit], remove_indices)
-    params_fit = amps_fit + fwhms_fit + offsets_fit
+    refit = False
 
-    amps_errs, fwhms_errs, offsets_errs = remove_components_from_sublists(
-        [amps_errs, fwhms_errs, offsets_errs], remove_indices)
-    params_errs = amps_errs + fwhms_errs + offsets_errs
+    if len(remove_indices) > 0:
+        amps_fit, fwhms_fit, offsets_fit = remove_components_from_sublists(
+            [amps_fit, fwhms_fit, offsets_fit], remove_indices)
+        params_fit = amps_fit + fwhms_fit + offsets_fit
 
-    if params_min is not None:
-        amps_min, fwhms_min, offsets_min = remove_components_from_sublists(
-            [amps_min, fwhms_min, offsets_min], remove_indices)
-        params_min = amps_min + fwhms_min + offsets_min
+        amps_errs, fwhms_errs, offsets_errs = remove_components_from_sublists(
+            [amps_errs, fwhms_errs, offsets_errs], remove_indices)
+        params_errs = amps_errs + fwhms_errs + offsets_errs
 
-    if params_max is not None:
-        amps_max, fwhms_max, offsets_max = remove_components_from_sublists(
-            [amps_max, fwhms_max, offsets_max], remove_indices)
-        params_max = amps_max + fwhms_max + offsets_max
+        if params_min is not None:
+            amps_min, fwhms_min, offsets_min = remove_components_from_sublists(
+                [amps_min, fwhms_min, offsets_min], remove_indices)
+            params_min = amps_min + fwhms_min + offsets_min
 
-    return params_fit, params_errs, len(amps_fit), params_min, params_max, quality_control
+        if params_max is not None:
+            amps_max, fwhms_max, offsets_max = remove_components_from_sublists(
+                [amps_max, fwhms_max, offsets_max], remove_indices)
+            params_max = amps_max + fwhms_max + offsets_max
+
+        params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
+            vel, data, errors, params_fit, dct, params_min=None, params_max=None)
+
+        refit = True
+
+    return params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit
 
 
 def check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit,
@@ -640,12 +672,13 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     -------
     best_fit_list : list
         List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
+
     """
-    # Objective functions for final fit
-    def objective_leastsq(paramslm):
-        params = vals_vec_from_lmfit(paramslm)
-        resids = (func(vel, *params).ravel() - data.ravel()) / errors
-        return resids
+    # # Objective functions for final fit
+    # def objective_leastsq(paramslm):
+    #     params = vals_vec_from_lmfit(paramslm)
+    #     resids = (func(vel, *params).ravel() - data.ravel()) / errors
+    #     return resids
 
     if not first:
         best_fit_list[7] = False
@@ -655,27 +688,26 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     ncomps_fit = number_of_components(params_fit)
 
-    #  get new best fit
-    lmfit_params = paramvec_to_lmfit(
-        params_fit, max_amp=dct['max_amp'], max_fwhm=None,
-        params_min=params_min, params_max=params_max)
-    result = lmfit_minimize(
-        objective_leastsq, lmfit_params, method='leastsq')
-    params_fit = vals_vec_from_lmfit(result.params)
-    params_errs = errs_vec_from_lmfit(result.params)
-    ncomps_fit = number_of_components(params_fit)
+    # #  get new best fit
+    # lmfit_params = paramvec_to_lmfit(
+    #     params_fit, max_amp=dct['max_amp'], max_fwhm=None,
+    #     params_min=params_min, params_max=params_max)
+    # result = lmfit_minimize(
+    #     objective_leastsq, lmfit_params, method='leastsq')
+    # params_fit = vals_vec_from_lmfit(result.params)
+    # params_errs = errs_vec_from_lmfit(result.params)
+    # ncomps_fit = number_of_components(params_fit)
 
-    exclude_means_outside_channel_range = True
-    if 'exclude_means_outside_channel_range' in dct.keys():
-        exclude_means_outside_channel_range = dct['exclude_means_outside_channel_range']
+    params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
+        vel, data, errors, params_fit, dct, params_min=None, params_max=None)
 
     #  check if fit components satisfy mandatory criteria
     if ncomps_fit > 0:
-        params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control = check_params_fit(
-            data, params_fit, params_errs, vel, errors[0], quality_control, dct['max_amp'],
-            dct['max_fwhm'], min_fwhm=dct['min_fwhm'], snr=dct['snr'],
-            significance=dct['significance'], snr_fit=dct['snr_fit'],
-            signal_ranges=signal_ranges, exclude_means_outside_channel_range=exclude_means_outside_channel_range)
+        refit = True
+        while refit:
+            params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = check_params_fit(
+                vel, data, errors, params_fit, params_errs, dct,
+                quality_control, signal_ranges=signal_ranges)
 
         best_fit = func(vel, *params_fit).ravel()
     else:
