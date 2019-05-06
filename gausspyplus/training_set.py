@@ -48,6 +48,7 @@ class GaussPyTrainingSet(object):
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.rchi2_limit = 1.5
         self.use_all = False
+        self.save_all = False
         self.mask_out_ranges = []
 
         self.verbose = True
@@ -77,7 +78,6 @@ class GaussPyTrainingSet(object):
         if self.path_to_file is not None:
             self.dirname = os.path.dirname(self.path_to_file)
             self.filename = os.path.basename(self.path_to_file)
-            self.hdu = fits.open(self.path_to_file)[0]
 
         if self.dirpath_gpy is not None:
             self.dirname = self.dirpath_gpy
@@ -142,6 +142,8 @@ class GaussPyTrainingSet(object):
 
         if self.use_all:
             self.n_spectra = nSpectra
+            self.filename_out = '{}-training_set-{}_spectra{}.pickle'.format(
+                self.filename, self.n_spectra, self.suffix)
 
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([indices, [self]])
@@ -151,31 +153,32 @@ class GaussPyTrainingSet(object):
         print('SUCCESS\n')
 
         for result in results_list:
-            if result is not None:
-                fit_values, spectrum, location, signal_ranges, rms, rchi2, pvalue, index, i = result
-                # the next four lines are added to deal with the use_all=True feature
-                if rchi2 is None:
-                    continue
-                if rchi2 > self.rchi2_limit:
-                    continue
-                amps, fwhms, means = ([] for i in range(3))
-                if fit_values is not None:
-                    for item in fit_values:
-                        amps.append(item[0])
-                        means.append(item[1])
-                        fwhms.append(item[2]*2.355)
+            if result is None:
+                continue
+            fit_values, spectrum, location, signal_ranges, rms, rchi2, pvalue, index, i = result
+            # the next four lines are added to deal with the use_all=True feature
+            if rchi2 is None:
+                continue
+            if not self.save_all and (rchi2 > self.rchi2_limit):
+                continue
+            amps, fwhms, means = ([] for i in range(3))
+            if fit_values is not None:
+                for item in fit_values:
+                    amps.append(item[0])
+                    means.append(item[1])
+                    fwhms.append(item[2]*2.355)
 
-                data['data_list'] = data.get('data_list', []) + [spectrum]
-                if self.header:
-                    data['location'] = data.get('location', []) + [location]
-                data['index'] = data.get('index', []) + [index]
-                data['error'] = data.get('error', []) + [[rms]]
-                data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
-                data['pvalue'] = data.get('pvalue', []) + [pvalue]
-                data['amplitudes'] = data.get('amplitudes', []) + [amps]
-                data['fwhms'] = data.get('fwhms', []) + [fwhms]
-                data['means'] = data.get('means', []) + [means]
-                data['signal_ranges'] = data.get('signal_ranges', []) + [signal_ranges]
+            data['data_list'] = data.get('data_list', []) + [spectrum]
+            if self.header:
+                data['location'] = data.get('location', []) + [location]
+            data['index'] = data.get('index', []) + [index]
+            data['error'] = data.get('error', []) + [[rms]]
+            data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
+            data['pvalue'] = data.get('pvalue', []) + [pvalue]
+            data['amplitudes'] = data.get('amplitudes', []) + [amps]
+            data['fwhms'] = data.get('fwhms', []) + [fwhms]
+            data['means'] = data.get('means', []) + [means]
+            data['signal_ranges'] = data.get('signal_ranges', []) + [signal_ranges]
         data['x_values'] = self.channels
         if self.header:
             data['header'] = self.header
