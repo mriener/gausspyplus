@@ -35,7 +35,7 @@ def get_max_consecutive_channels(n_channels, p_limit):
         less than p_limit to be due to chance.
 
     """
-    for consec_channels in range(1, 30):
+    for consec_channels in range(2, 30):
         a = np.zeros((consec_channels, consec_channels))
         for i in range(consec_channels - 1):
             a[i, 0] = a[i, i + 1] = 0.5
@@ -194,7 +194,7 @@ def get_rms_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
     spectrum : numpy.ndarray
         Original data of the spectrum.
     max_consecutive_channels : int
-        Determined maximum number of consecutive positive or negative channels of a (signal?) feature before it gets masked out.
+        Determined minimum number of consecutive positive or negative channels a (signal?) feature has to have to get masked out.
     pad_channels : int
         Number of additional channels that get masked out on both sides of an identified (signal?) feature.
     average_rms : float
@@ -215,7 +215,7 @@ def get_rms_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
     #  Step 1: remove broad features based on number of consecutive channels
     n_channels = len(spectrum)
     consecutive_channels, ranges = determine_peaks(spectrum)
-    mask = consecutive_channels > max_consecutive_channels
+    mask = consecutive_channels >= max_consecutive_channels
     mask_1 = mask_channels(n_channels, ranges[mask], pad_channels=pad_channels)
 
     #  use average rms value or mask out spectrum in case all spectral channels were masked out in step 1
