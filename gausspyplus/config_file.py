@@ -289,6 +289,10 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': 'None',
             'description': "Defaults to 'rchi2_limit' if not specified. [float]",
             'simple': False}),
+        ('max_diff_comps', {
+            'default': '1',
+            'description': "Maximum allowed difference in the number of fitted components compared to weighted median of immediate neighbors [int]",
+            'simple': True}),
         ('max_jump_comps', {
             'default': '2',
             'description': "Maximum allowed difference in the number of fitted components between individual neighboring spectra [int]",

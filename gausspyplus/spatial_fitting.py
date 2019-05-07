@@ -53,8 +53,9 @@ class SpatialFitting(object):
         self.max_fwhm = None
         self.rchi2_limit = 1.5
         self.rchi2_limit_refit = None
+        self.max_diff_comps = 1
         self.max_jump_comps = 2
-        self.n_max_jump_comps = 2
+        self.n_max_jump_comps = 1
         self.max_refitting_iteration = 30
 
         self.flag_blended = None
@@ -444,6 +445,37 @@ class SpatialFitting(object):
 
         return mask_broad
 
+    def weighted_median(data):
+        """Adapted from: https://gist.github.com/tinybike/d9ff1dad515b66cc0d87"""
+        w_1 = 1
+        w_2 = w_1 / np.sqrt(2)
+        weights = np.array([w_2, w_1, w_2, w_1, w_1, w_2, w_1, w_2])
+        central_value = data[4]
+        #  Skip if central spectrum was masked out.
+        if np.isnan(central_value):
+            return 0
+        data = np.delete(data, 4)
+        #  Remove all neighbors that are NaN.
+        mask = ~np.isnan(data)
+        data = data[mask]
+        weights = weights[mask]
+        #  Skip if there are no valid available neighbors.
+        if data.size == 0:
+            return 0
+
+        s_data, s_weights = map(np.array, zip(*sorted(zip(data, weights))))
+        midpoint = 0.5 * sum(s_weights)
+        if any(weights > midpoint):
+            w_median = (data[weights == np.max(weights)])[0]
+        else:
+            cs_weights = np.cumsum(s_weights)
+            idx = np.where(cs_weights <= midpoint)[0][-1]
+            if cs_weights[idx] == midpoint:
+                w_median = np.mean(s_data[idx:idx + 2])
+            else:
+                w_median = s_data[idx + 1]
+        return w_median
+
     def number_of_component_jumps(self, values):
         """Determine the number of component jumps towards neighboring fits.
 
@@ -472,7 +504,7 @@ class SpatialFitting(object):
                 counter += 1
         return counter
 
-    def define_mask_neighbor_ncomps(self, nanmask_1d, flag):
+    def define_mask_neighbor_ncomps(self, flag):
         """Create a boolean mask indicating the location of component jumps.
 
         Parameters
@@ -495,9 +527,9 @@ class SpatialFitting(object):
         if not flag:
             return np.zeros(self.length).astype('bool'), None, None
 
-        nanmask_1d += self.nanMask  # not really necessary
-        if self.only_print_flags:
-            nanmask_1d = self.nanMask
+        # nanmask_1d += self.nanMask  # not really necessary
+        # if self.only_print_flags:
+        nanmask_1d = self.nanMask
         nanmask_2d = nanmask_1d.reshape(self.shape)
         ncomps_1d = np.empty(self.length)
         ncomps_1d.fill(np.nan)
@@ -506,17 +538,21 @@ class SpatialFitting(object):
         ncomps_2d = ncomps_1d.astype('float').reshape(self.shape)
         ncomps_2d[nanmask_2d] = np.nan
 
+        mask_neighbor = np.zeros(self.length)
         footprint = np.ones((3, 3))
+
+        ncomps_wmedian = ndimage.generic_filter(
+            ncomps_2d, self.weighted_median, footprint=footprint, mode='reflect').flatten()
+        mask_neighbor[~self.nanMask] = ncomps_wmedian[~self.nanMask] > self.max_diff_comps
 
         ncomps_jumps = ndimage.generic_filter(
             ncomps_2d, self.number_of_component_jumps, footprint=footprint,
             mode='reflect').flatten()
-
-        mask_neighbor = np.zeros(self.length)
-
         mask_neighbor[~self.nanMask] = ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
+
         mask_neighbor = mask_neighbor.astype('bool')
-        return mask_neighbor, ncomps_jumps, ncomps_1d
+
+        return mask_neighbor, ncomps_wmedian, ncomps_jumps, ncomps_1d
 
     def determine_spectra_for_flagging(self):
         """Flag spectra not satisfying user-defined flagging criteria."""
@@ -531,16 +567,12 @@ class SpatialFitting(object):
         self.mask_broad_flagged = self.define_mask_broad(self.flag_broad)
         self.mask_broad_limit, self.n_broad = self.define_mask_broad_limit(
             self.flag_broad)
+        self.mask_ncomps, self.ncomps_wmedian, self.ncomps_jumps, self.ncomps =\
+            self.define_mask_neighbor_ncomps(self.flag_ncomps)
 
         mask_flagged = self.mask_blended + self.mask_residual\
             + self.mask_broad_flagged + self.mask_rchi2_flagged\
-            + self.mask_pvalue
-
-        self.mask_ncomps, self.ncomps_jumps, self.ncomps =\
-            self.define_mask_neighbor_ncomps(
-                mask_flagged.copy(), self.flag_ncomps)
-
-        mask_flagged += self.mask_ncomps
+            + self.mask_pvalue + self.mask_ncomps
         self.indices_flagged = np.array(
             self.decomposition['index_fit'])[mask_flagged]
 
@@ -1535,21 +1567,30 @@ class SpatialFitting(object):
 
         loc = self.location[index]
         indices = get_neighbors(
-            loc, exclude_p=False, shape=self.shape, nNeighbors=1,
+            loc, exclude_p=True, shape=self.shape, nNeighbors=1,
             get_indices=True)
-        ncomps = self.ncomps[indices]
+        mask_indices = get_neighbors(
+            loc, exclude_p=True, shape=self.shape, nNeighbors=1,
+            get_mask=True)
+
+        ncomps = np.ones(8) * np.nan
+        ncomps[mask_indices] = self.ncomps[indices]
         ncomps_central = self.get_dictionary_value(
-            'N_components', index, dct_new_fit=dct_new_fit)
-        while ncomps.size < 8:
-            ncomps = np.append(ncomps, np.nan)
+             'N_components', index, dct_new_fit=dct_new_fit)
         ncomps = np.insert(ncomps, 4, ncomps_central)
         njumps_new = self.number_of_component_jumps(ncomps)
 
-        if njumps_old > self.n_max_jump_comps:
+        ncomps_wmedian = self.ncomps_wmedian[index]
+        ndiff_old = abs(ncomps_wmedian - self.ncomps[index])
+        ndiff_new = abs(ncomps_wmedian - ncomps_central)
+
+        if (njumps_old > self.n_max_jump_comps) or (
+                ndiff_old > self.max_diff_comps):
             flag_old = 1
-        if njumps_new > self.n_max_jump_comps:
+        if (njumps_new > self.n_max_jump_comps) or (
+                ndiff_new > self.max_diff_comps):
             flag_new = 1
-        if njumps_new > njumps_old:
+        if (njumps_new > njumps_old) or (ndiff_new > ndiff_old):
             flag_new += 1
 
         return flag_old, flag_new
