@@ -439,13 +439,13 @@ class SpatialFitting(object):
 
         broad_fwhm_values = ndimage.generic_filter(
             broad_2d, self.broad_components, footprint=footprint,
-            mode='reflect').flatten()
+            mode='constant', cval=np.nan).flatten()
         mask_broad = mask_broad.astype('bool')
         mask_broad += broad_fwhm_values.astype('bool')
 
         return mask_broad
 
-    def weighted_median(data):
+    def weighted_median(self, data):
         """Adapted from: https://gist.github.com/tinybike/d9ff1dad515b66cc0d87"""
         w_1 = 1
         w_2 = w_1 / np.sqrt(2)
@@ -542,12 +542,13 @@ class SpatialFitting(object):
         footprint = np.ones((3, 3))
 
         ncomps_wmedian = ndimage.generic_filter(
-            ncomps_2d, self.weighted_median, footprint=footprint, mode='reflect').flatten()
+            ncomps_2d, self.weighted_median, footprint=footprint,
+            mode='constant', cval=np.nan).flatten()
         mask_neighbor[~self.nanMask] = ncomps_wmedian[~self.nanMask] > self.max_diff_comps
 
         ncomps_jumps = ndimage.generic_filter(
             ncomps_2d, self.number_of_component_jumps, footprint=footprint,
-            mode='reflect').flatten()
+            mode='reflect', cval=np.nan).flatten()
         mask_neighbor[~self.nanMask] = ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
 
         mask_neighbor = mask_neighbor.astype('bool')
