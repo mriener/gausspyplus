@@ -1189,7 +1189,7 @@ def log_new_fit(new_fit, log_gplus, mode='residual'):
         If 'True', the spectrum was successfully refit.
     log_gplus : list
         Log of all previous successful refits of the spectrum.
-    mode : str ('residual', 'negative_residual', 'broad', 'blended')
+    mode : str ('positive_residual_peak', 'negative_residual_peak', 'broad', 'blended')
         Specifies the feature that was refit or used for a new successful refit.
 
     Returns
@@ -1201,7 +1201,7 @@ def log_new_fit(new_fit, log_gplus, mode='residual'):
     if not new_fit:
         return log_gplus
 
-    modes = {'residual': 1, 'negative_residual': 2, 'broad': 3, 'blended': 4}
+    modes = {'positive_residual_peak': 1, 'negative_residual_peak': 2, 'broad': 3, 'blended': 4}
     log_gplus.append(modes[mode])
     return log_gplus
 
@@ -1233,7 +1233,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
     -------
     best_fit_list : list
         List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    N_negative_residuals : int
+    N_neg_res_peak : int
         Number of negative residual features that occur in the best fit of the spectrum.
     N_blended : int
         Number of blended Gaussian components that occur in the best fit of the spectrum.
@@ -1272,7 +1272,8 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
                 vel, data, errors, best_fit_list, dct, fitted_residual_peaks,
                 signal_ranges=signal_ranges, signal_mask=signal_mask)
             new_fit = best_fit_list[7]
-            log_gplus = log_new_fit(new_fit, log_gplus, mode='residual')
+            log_gplus = log_new_fit(new_fit, log_gplus,
+                                    mode='positive_residual_peak')
         count_new = len(fitted_residual_peaks)
 
         if count_old != count_new:
@@ -1283,13 +1284,13 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             break
 
         #  try to refit negative residual feature
-        if dct['negative_residual']:
+        if dct['neg_res_peak']:
             best_fit_list = check_for_negative_residual(
                 vel, data, errors, best_fit_list, dct,
                 signal_ranges=signal_ranges, signal_mask=signal_mask)
             new_fit = best_fit_list[7]
             log_gplus = log_new_fit(new_fit, log_gplus,
-                                    mode='negative_residual')
+                                    mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
         if dct['broad']:
@@ -1316,7 +1317,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             break
         first_run = False
 
-    N_negative_residuals = check_for_negative_residual(
+    N_neg_res_peak = check_for_negative_residual(
         vel, data, errors, best_fit_list, dct,
         signal_ranges=signal_ranges, signal_mask=signal_mask,
         get_count=True)
@@ -1325,4 +1326,4 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
     N_blended = get_fully_blended_gaussians(
         params_fit, get_count=True, separation_factor=dct['separation_factor'])
 
-    return best_fit_list, N_negative_residuals, N_blended, log_gplus
+    return best_fit_list, N_neg_res_peak, N_blended, log_gplus

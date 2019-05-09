@@ -106,13 +106,17 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': 'True',
             'description': "Refit broad components. [True/False]",
             'simple': True}),
-        ('refit_residual', {
+        ('refit_neg_res_peak', {
             'default': 'True',
             'description': "Refit negative residual features. [True/False]",
             'simple': True}),
         ('refit_rchi2', {
-            'default': 'True',
+            'default': 'False',
             'description': "Refit spectra with high reduced chi-square value. [True/False]",
+            'simple': True}),
+        ('refit_residual', {
+            'default': 'True',
+            'description': "Flag spectra with non-Gaussian distributed residuals. [True/False]",
             'simple': True}),
         ('refit_ncomps', {
             'default': 'True',
@@ -309,13 +313,17 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': 'True',
             'description': "Flag spectra with blended fit components. [bool]",
             'simple': False}),
-        ('flag_residual', {
+        ('flag_neg_res_peak', {
             'default': 'True',
             'description': "Flag spectra with negative residual features. [bool]",
             'simple': False}),
         ('flag_rchi2', {
             'default': 'True',
             'description': "Flag spectra with high reduced chi-square values. [bool]",
+            'simple': False}),
+        ('flag_residual', {
+            'default': 'True',
+            'description': "Flag spectra with non-Gaussian distributed residuals. [bool]",
             'simple': False}),
         ('flag_broad', {
             'default': 'True',

@@ -87,7 +87,7 @@ class GaussPyDecompose(object):
         self.snr_negative = None
         self.rchi2_limit = 1.5
         self.max_amp_factor = 1.1
-        self.refit_residual = True
+        self.refit_neg_res_peak = True
         self.refit_broad = True
         self.refit_blended = True
         self.separation_factor = 0.8493218
@@ -207,7 +207,7 @@ class GaussPyDecompose(object):
             'snr_negative': self.snr_negative,
             'rchi2_limit': self.rchi2_limit,
             'max_amp_factor': self.max_amp_factor,
-            'negative_residual': self.refit_residual,
+            'neg_res_peak': self.refit_neg_res_peak,
             'broad': self.refit_broad,
             'blended': self.refit_blended,
             'fwhm_factor': self.fwhm_factor,
@@ -311,7 +311,7 @@ class GaussPyDecompose(object):
         for key in ["index_fit", "best_fit_rchi2", "best_fit_aicc", "pvalue",
                     "amplitudes_fit", "amplitudes_fit_err", "fwhms_fit",
                     "fwhms_fit_err", "means_fit", "means_fit_err", "log_gplus",
-                    "N_negative_residuals", "N_blended", "N_components",
+                    "N_neg_res_peak", "N_blended", "N_components",
                     "quality_control"]:
             dct_final_guesses[key] = self.decomposition[key]
 
