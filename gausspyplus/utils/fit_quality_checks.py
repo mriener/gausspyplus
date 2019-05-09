@@ -89,15 +89,18 @@ def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None,
     return rchi2
 
 
-def get_pvalue_from_normaltest(data, mask=None):
+def check_mask(mask, n_channels):
     if mask is None:
-        mask = np.ones(len(data))
+        mask = np.ones(n_channels)
     elif len(mask) == 0:
-        mask = np.ones(len(data))
+        mask = np.ones(n_channels)
     elif np.count_nonzero(mask) == 0:
-        mask = np.ones(len(data))
-    mask = mask.astype('bool')
+        mask = np.ones(n_channels)
+    return mask.astype('bool')
 
+
+def get_pvalue_from_normaltest(data, mask=None):
+    mask = check_mask(mask, len(data))
     statistic, pvalue = normaltest(data[mask])
 
     return pvalue
@@ -106,17 +109,23 @@ def get_pvalue_from_normaltest(data, mask=None):
 def get_pvalue_from_kstest(data, errors, mask=None):
     if type(errors) is not np.ndarray:
         errors = np.ones(len(data)) * errors
-    if mask is None:
-        mask = np.ones(len(data))
-    elif len(mask) == 0:
-        mask = np.ones(len(data))
-    elif np.count_nonzero(mask) == 0:
-        mask = np.ones(len(data))
-    mask = mask.astype('bool')
-
+    mask = check_mask(mask, len(data))
     statistic, pvalue = kstest(data[mask] / errors[mask], 'norm')
 
     return pvalue
+
+
+def check_residual_for_normality(data, errors, mask=None,
+                                 noise_spike_mask=None):
+    n_channels = len(data)
+    if type(errors) is not np.ndarray:
+        errors = np.ones(n_channels) * errors
+    mask = check_mask(mask, n_channels)
+    noise_spike_mask = check_mask(noise_spike_mask, n_channels)
+    ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
+    statistic, pvalue = normaltest(data[noise_spike_mask])
+
+    return min(ks_pvalue, pvalue)
 
 
 def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):

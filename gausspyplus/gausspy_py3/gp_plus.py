@@ -12,7 +12,7 @@ from lmfit import minimize as lmfit_minimize
 from lmfit import Parameters
 
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
-from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, get_pvalue_from_kstest
+from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, check_residual_for_normality
 from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
@@ -592,7 +592,8 @@ def remove_components(params_fit, remove_indices):
 
 def get_best_fit(vel, data, errors, params_fit, dct, first=False,
                  best_fit_list=None, signal_ranges=None, signal_mask=None,
-                 force_accept=False, params_min=None, params_max=None):
+                 force_accept=False, params_min=None, params_max=None,
+                 noise_spike_mask=None):
     """Determine new best fit for spectrum.
 
     If this is the first fit iteration for the spectrum a new best fit is assigned and its parameters are returned in best_fit_list.
@@ -660,7 +661,7 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     residual = data - best_fit
 
-    pvalue = get_pvalue_from_kstest(residual, errors, mask=signal_mask)
+    pvalue = check_residual_for_normality(residual, errors, mask=signal_mask)
 
     #  return the list of best fit results if there was no old list of best fit results for comparison
     if first:
@@ -683,7 +684,7 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
                                 signal_ranges=None, signal_mask=None,
                                 force_accept=False, get_count=False,
-                                get_idx=False):
+                                get_idx=False, noise_spike_mask=None):
     """Check for negative residual features and try to refit them.
 
     We define negative residual features as negative peaks in the residual that were introduced by the fit. These negative peaks have to have a minimum negative signal-to-noise ratio of dct['snr_negative'].
@@ -778,7 +779,8 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
         best_fit_list = get_best_fit(
             vel, data, errors, params_fit, dct, first=False,
             best_fit_list=best_fit_list, signal_ranges=signal_ranges,
-            signal_mask=signal_mask, force_accept=force_accept)
+            signal_mask=signal_mask, force_accept=force_accept,
+            noise_spike_mask=noise_spike_mask)
 
         params_fit = best_fit_list[0]
         ncomps_fit = best_fit_list[2]
@@ -789,7 +791,7 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
 def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
                                 exclude_idx, signal_ranges=None,
                                 signal_mask=None, force_accept=False,
-                                baseline_shift_snr=0):
+                                baseline_shift_snr=0, noise_spike_mask=None):
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we determine guesses for additional fit components from the residual that is produced if the component (i) is discarded and try a new fit. We only accept the new fit solution if it yields a better fit as determined by the AICc value.
@@ -840,7 +842,8 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     best_fit_list_new = get_best_fit(
         vel, data, errors, params_fit_new, dct, first=True,
         best_fit_list=None, signal_ranges=signal_ranges,
-        signal_mask=signal_mask, force_accept=force_accept)
+        signal_mask=signal_mask, force_accept=force_accept,
+        noise_spike_mask=noise_spike_mask)
 
     #  return new best fit with excluded component if its AICc value is lower
     aicc = best_fit_list_new[6]
@@ -878,7 +881,8 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     best_fit_list_new = get_best_fit(
         vel, data, errors, params_fit_new, dct, first=False,
         best_fit_list=best_fit_list_new, signal_ranges=signal_ranges,
-        signal_mask=signal_mask, force_accept=force_accept)
+        signal_mask=signal_mask, force_accept=force_accept,
+        noise_spike_mask=noise_spike_mask)
 
     #  return new best fit if its AICc value is lower
     aicc = best_fit_list_new[6]
@@ -890,7 +894,7 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
 
 def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
                             signal_ranges=None, signal_mask=None,
-                            force_accept=False):
+                            force_accept=False, noise_spike_mask=None):
     """Check for broad features and try to refit them.
 
     We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the second broadest component in the spectrum.
@@ -949,7 +953,8 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
         best_fit_list = get_best_fit(
             vel, data, errors, params_fit, dct, first=False,
             best_fit_list=best_fit_list, signal_ranges=signal_ranges,
-            signal_mask=signal_mask, force_accept=force_accept)
+            signal_mask=signal_mask, force_accept=force_accept,
+            noise_spike_mask=noise_spike_mask)
 
     if best_fit_list[7]:
         return best_fit_list
@@ -973,14 +978,14 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     best_fit_list = try_fit_with_new_components(
         vel, data, errors, best_fit_list, dct, exclude_idx,
         signal_ranges=signal_ranges, signal_mask=signal_mask,
-        force_accept=force_accept)
+        force_accept=force_accept, noise_spike_mask=noise_spike_mask)
 
     return best_fit_list
 
 
 def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
                               signal_ranges=None, signal_mask=None,
-                              force_accept=False):
+                              force_accept=False, noise_spike_mask=None):
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard deviation interval (mean - std, mean + std) of another fit component.
@@ -1030,7 +1035,7 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
         best_fit_list = try_fit_with_new_components(
             vel, data, errors, best_fit_list, dct, exclude_idx,
             signal_ranges=signal_ranges, signal_mask=signal_mask,
-            force_accept=force_accept)
+            force_accept=force_accept, noise_spike_mask=noise_spike_mask)
         if best_fit_list[7]:
             break
         # for baseline_shift_snr in range(int(dct['snr'])):
@@ -1046,7 +1051,7 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
 
 def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
                   signal_ranges=None, signal_mask=None,
-                  params_min=None, params_max=None):
+                  params_min=None, params_max=None, noise_spike_mask=None):
     """Quality check for GaussPy best fit results.
 
     All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
@@ -1089,7 +1094,8 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
         rchi2, aicc = goodness_of_fit(
             data, best_fit_final, errors, ncomps_fit, mask=signal_mask, get_aicc=True)
 
-        pvalue = get_pvalue_from_kstest(data, errors, mask=signal_mask)
+        pvalue = check_residual_for_normality(
+            data, errors, mask=signal_mask, noise_spike_mask=noise_spike_mask)
 
         quality_control = []
 
@@ -1102,7 +1108,7 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
     best_fit_list = get_best_fit(
         vel, data, errors, params_fit, dct, first=True,
         best_fit_list=None, signal_ranges=signal_ranges,
-        signal_mask=signal_mask)
+        signal_mask=signal_mask, noise_spike_mask=noise_spike_mask)
 
     return best_fit_list
 
@@ -1110,7 +1116,7 @@ def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
 def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
                                 fitted_residual_peaks, signal_ranges=None,
                                 signal_mask=None, force_accept=False,
-                                params_min=None, params_max=None):
+                                params_min=None, params_max=None, noise_spike_mask=None):
     """Try fit by adding new components, whose initial parameters were determined from residual peaks.
 
     Parameters
@@ -1175,7 +1181,8 @@ def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
         vel, data, errors, params_fit, dct, first=False,
         best_fit_list=best_fit_list, signal_ranges=signal_ranges,
         signal_mask=signal_mask, force_accept=force_accept,
-        params_min=params_min, params_max=params_max)
+        params_min=params_min, params_max=params_max,
+        noise_spike_mask=noise_spike_mask)
 
     return best_fit_list, fitted_residual_peaks
 
@@ -1241,16 +1248,24 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         Log of all successful refits of the spectrum.
 
     """
+    n_channels = len(data)
     if signal_ranges:
-        signal_mask = mask_channels(len(data), signal_ranges,
+        signal_mask = mask_channels(n_channels, signal_ranges,
                                     remove_intervals=noise_spike_ranges)
     else:
         signal_mask = None
 
+    if noise_spike_ranges:
+        noise_spike_mask = mask_channels(n_channels, [[0, n_channels]],
+                                         remove_intervals=noise_spike_ranges)
+    else:
+        noise_spike_mask = None
+
     #  Check the quality of the final fit from GaussPy
     best_fit_list = quality_check(
         vel, data, errors, params_fit, ncomps_fit, dct,
-        signal_ranges=signal_ranges, signal_mask=signal_mask)
+        signal_ranges=signal_ranges, signal_mask=signal_mask,
+        noise_spike_mask=noise_spike_mask)
 
     params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
         rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
@@ -1270,7 +1285,8 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             best_fit_list[7] = False
             best_fit_list, fitted_residual_peaks = check_for_peaks_in_residual(
                 vel, data, errors, best_fit_list, dct, fitted_residual_peaks,
-                signal_ranges=signal_ranges, signal_mask=signal_mask)
+                signal_ranges=signal_ranges, signal_mask=signal_mask,
+                noise_spike_mask=noise_spike_mask)
             new_fit = best_fit_list[7]
             log_gplus = log_new_fit(new_fit, log_gplus,
                                     mode='positive_residual_peak')
@@ -1287,7 +1303,8 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         if dct['neg_res_peak']:
             best_fit_list = check_for_negative_residual(
                 vel, data, errors, best_fit_list, dct,
-                signal_ranges=signal_ranges, signal_mask=signal_mask)
+                signal_ranges=signal_ranges, signal_mask=signal_mask,
+                noise_spike_mask=noise_spike_mask)
             new_fit = best_fit_list[7]
             log_gplus = log_new_fit(new_fit, log_gplus,
                                     mode='negative_residual_peak')
@@ -1298,7 +1315,8 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             while new_fit:
                 best_fit_list[7] = False
                 best_fit_list = check_for_broad_feature(
-                    vel, data, errors, best_fit_list, dct, signal_ranges=signal_ranges, signal_mask=signal_mask)
+                    vel, data, errors, best_fit_list, dct, signal_ranges=signal_ranges, signal_mask=signal_mask,
+                    noise_spike_mask=noise_spike_mask)
                 new_fit = best_fit_list[7]
                 log_gplus = log_new_fit(new_fit, log_gplus, mode='broad')
 
@@ -1309,7 +1327,8 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
                 best_fit_list[7] = False
                 best_fit_list = check_for_blended_feature(
                     vel, data, errors, best_fit_list, dct,
-                    signal_ranges=signal_ranges, signal_mask=signal_mask)
+                    signal_ranges=signal_ranges, signal_mask=signal_mask,
+                    noise_spike_mask=noise_spike_mask)
                 new_fit = best_fit_list[7]
                 log_gplus = log_new_fit(new_fit, log_gplus, mode='blended')
 
