@@ -159,7 +159,8 @@ class GaussPyTrainingSet(object):
             # the next four lines are added to deal with the use_all=True feature
             if rchi2 is None:
                 continue
-            if not self.save_all and (rchi2 > self.rchi2_limit):
+            # if not self.save_all and (rchi2 > self.rchi2_limit):
+            if not self.save_all and (pvalue < self.min_pvalue):
                 continue
             amps, fwhms, means = ([] for i in range(3))
             if fit_values is not None:
@@ -230,7 +231,8 @@ class GaussPyTrainingSet(object):
         fit_values, rchi2, pvalue = self.gaussian_fitting(
             spectrum, maxima, rms, mask_signal=mask_signal)
         # TODO: change the rchi2_limit value??
-        if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
+        # if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
+        if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
             return [fit_values, spectrum, location, signal_ranges, rms,
                     rchi2, pvalue, index, i]
         else:
