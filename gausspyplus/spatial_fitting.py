@@ -1990,6 +1990,13 @@ class SpatialFitting(object):
         else:
             n_channels = len(channels)
 
+        if noise_spike_ranges:
+            noise_spike_mask = mask_channels(
+                n_channels, [[0, n_channels]],
+                remove_intervals=noise_spike_ranges)
+        else:
+            noise_spike_mask = None
+
         errors = np.ones(n_channels)*rms
 
         #  correct dictionary key
@@ -2008,7 +2015,8 @@ class SpatialFitting(object):
         best_fit_list = get_best_fit(
             channels, spectrum, errors, params, dct, first=True,
             signal_ranges=signal_ranges, signal_mask=signal_mask,
-            params_min=params_min, params_max=params_max)
+            params_min=params_min, params_max=params_max,
+            noise_spike_mask=noise_spike_mask)
 
         # #  get a new best fit that is unconstrained
         # params = best_fit_list[0]
@@ -2027,7 +2035,7 @@ class SpatialFitting(object):
             best_fit_list, fitted_residual_peaks = check_for_peaks_in_residual(
                 channels, spectrum, errors, best_fit_list, dct,
                 fitted_residual_peaks, signal_ranges=signal_ranges,
-                signal_mask=signal_mask)
+                signal_mask=signal_mask, noise_spike_mask=noise_spike_mask)
             new_fit = best_fit_list[7]
 
         params = best_fit_list[0]

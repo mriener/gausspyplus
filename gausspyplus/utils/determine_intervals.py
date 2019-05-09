@@ -235,8 +235,7 @@ def check_if_intervals_contain_signal(spectrum, rms, ranges, snr=3.,
     return ranges_new
 
 
-def get_signal_ranges(spectrum, rms, max_consecutive_channels=14,
-                      pad_channels=5, snr=3., significance=5.,
+def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
                       min_channels=100, remove_intervals=None):
     """Determine ranges in the spectrum that could contain signal.
 
@@ -246,8 +245,6 @@ def get_signal_ranges(spectrum, rms, max_consecutive_channels=14,
         Array of the data values of the spectrum.
     rms : float
         Root-mean-square noise of the spectrum.
-    max_consecutive_channels : int
-        Determined maximum number of consecutive positive or negative channels of a (signal?) feature before it gets masked out.
     pad_channels : int
         Number of additional channels that get masked out on both sides of an identified (signal?) feature.
     snr : float
@@ -291,7 +288,7 @@ def get_signal_ranges(spectrum, rms, max_consecutive_channels=14,
     return ranges
 
 
-def get_noise_spike_ranges(spectrum, rms, snr_noise_spike=3.5):
+def get_noise_spike_ranges(spectrum, rms, snr_noise_spike=5):
     """Determine ranges in the spectrum that could contain noise spikes.
 
     Parameters
