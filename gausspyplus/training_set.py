@@ -19,7 +19,7 @@ from scipy.signal import argrelextrema
 from .config_file import get_values_from_config_file
 from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from .utils.fit_quality_checks import determine_significance, goodness_of_fit,\
-    get_pvalue_from_kstest
+    check_residual_for_normality
 from .utils.gaussian_functions import gaussian
 from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise
 from .utils.output import check_if_all_values_are_none
@@ -44,7 +44,7 @@ class GaussPyTrainingSet(object):
         self.pad_channels = 5
         self.min_channels = 100
         self.snr_noise_spike = 5.
-        # self.min_pvalue = 0.01
+        self.min_pvalue = 0.01
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.rchi2_limit = 1.5
         self.use_all = False
@@ -159,8 +159,8 @@ class GaussPyTrainingSet(object):
             # the next four lines are added to deal with the use_all=True feature
             if rchi2 is None:
                 continue
-            # if not self.save_all and (rchi2 > self.rchi2_limit):
-            if not self.save_all and (pvalue < self.min_pvalue):
+            if not self.save_all and (rchi2 > self.rchi2_limit):
+            # if not self.save_all and (pvalue < self.min_pvalue):
                 continue
             amps, fwhms, means = ([] for i in range(3))
             if fit_values is not None:
@@ -231,8 +231,8 @@ class GaussPyTrainingSet(object):
         fit_values, rchi2, pvalue = self.gaussian_fitting(
             spectrum, maxima, rms, mask_signal=mask_signal)
         # TODO: change the rchi2_limit value??
-        # if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
-        if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
+        # if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
+        if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
             return [fit_values, spectrum, location, signal_ranges, rms,
                     rchi2, pvalue, index, i]
         else:
@@ -292,7 +292,7 @@ class GaussPyTrainingSet(object):
         else:
             rchi2 = None
 
-        pvalue = get_pvalue_from_kstest(
+        pvalue = check_residual_for_normality(
             spectrum - combined_gauss, rms, mask=mask_signal)
 
         return fit_values, rchi2, pvalue
