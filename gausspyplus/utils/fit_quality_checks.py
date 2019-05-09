@@ -123,9 +123,11 @@ def check_residual_for_normality(data, errors, mask=None,
     mask = check_mask(mask, n_channels)
     noise_spike_mask = check_mask(noise_spike_mask, n_channels)
     ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
-    statistic, pvalue = normaltest(data[noise_spike_mask])
+    if n_channels > 20:
+        statistic, pvalue = normaltest(data[noise_spike_mask])
+        return min(ks_pvalue, pvalue)
 
-    return min(ks_pvalue, pvalue)
+    return ks_pvalue
 
 
 def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):

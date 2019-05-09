@@ -288,7 +288,7 @@ class GaussPyPrepare(object):
                 noise_spike_ranges += self.mask_out_ranges
             if self.signal_mask:
                 signal_ranges = get_signal_ranges(
-                    spectrum, rms, snr=self.snr, significance=self.significance, max_consecutive_channels=self.max_consecutive_channels,
+                    spectrum, rms, snr=self.snr, significance=self.significance,
                     pad_channels=self.pad_channels, min_channels=self.min_channels,
                     remove_intervals=noise_spike_ranges)
 

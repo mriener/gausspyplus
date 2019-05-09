@@ -1,4 +1,4 @@
-neg_res_peak# @Author: Robert Lindner
+# @Author: Robert Lindner
 # @Date:   2018-12-19T17:30:53+01:00
 # @Filename: gp.py
 # @Last modified by:   riener

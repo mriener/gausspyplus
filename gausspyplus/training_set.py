@@ -218,7 +218,6 @@ class GaussPyTrainingSet(object):
 
         signal_ranges = get_signal_ranges(
             spectrum, rms, snr=self.snr, significance=self.significance,
-            max_consecutive_channels=self.max_consecutive_channels,
             pad_channels=self.pad_channels, min_channels=self.min_channels,
             remove_intervals=noise_spike_ranges)
 

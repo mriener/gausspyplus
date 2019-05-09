@@ -13,7 +13,6 @@ import scipy.ndimage as ndimage
 
 from functools import reduce
 from networkx.algorithms.components.connected import connected_components
-from scipy.stats import kstest
 from tqdm import tqdm
 
 from .config_file import get_values_from_config_file
