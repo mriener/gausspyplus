@@ -188,7 +188,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
     params_max : list
         List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
     quality_control : list
-        Log containing information about which in-built quality control parameters were not fulfilled (1: 'snr', 2: 'significance', 3: 'channel_range', 4: 'signal_range'])
+        Log containing information about which in-built quality control parameters were not fulfilled (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range'])
 
     Returns
     -------
@@ -228,6 +228,18 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
     remove_indices = []
     for i, (amp, fwhm, offset) in enumerate(
             zip(amps_fit, fwhms_fit, offsets_fit)):
+        if dct['max_fwhm'] is not None:
+            if fwhm > dct['max_fwhm']:
+                remove_indices.append(i)
+                quality_control.append(0)
+                continue
+
+        if dct['min_fwhm'] is not None:
+            if fwhm < dct['min_fwhm']:
+                remove_indices.append(i)
+                quality_control.append(1)
+                continue
+
         # #  discard the Gaussian component if its mean position falls outside the covered spectral channels
         # if exclude_means_outside_channel_range:
         #     if (offset < np.min(vel)) or (offset > np.max(vel)):
@@ -238,7 +250,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
         if amp < dct['snr_fit']*rms:
             remove_indices.append(i)
-            quality_control.append(1)
+            quality_control.append(2)
             continue
 
         # if amp > dct['max_amp']:
@@ -249,7 +261,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
         #  discard the Gaussian component if it does not satisfy the significance criterion
         if determine_significance(amp, fwhm, rms) < dct['significance']:
             remove_indices.append(i)
-            quality_control.append(2)
+            quality_control.append(3)
             continue
 
         # #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
@@ -268,7 +280,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
         #  If the Gaussian component was fit outside the determined signal ranges, we check the significance of signal feature fitted by the Gaussian component. We remove the Gaussian component if the signal feature does not satisfy the significance criterion.
         if (offset < np.min(vel)) or (offset > np.max(vel)):
             remove_indices.append(i)
-            quality_control.append(3)
+            quality_control.append(4)
             continue
 
         if signal_ranges:
@@ -280,7 +292,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
                         data, rms, [(low, upp)], snr=dct['snr'],
                         significance=dct['significance']):
                     remove_indices.append(i)
-                    quality_control.append(4)
+                    quality_control.append(5)
                     continue
 
     remove_indices = list(set(remove_indices))
