@@ -125,7 +125,8 @@ def check_residual_for_normality(data, errors, mask=None,
     ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
     if n_channels > 20:
         statistic, pvalue = normaltest(data[noise_spike_mask])
-        return min(ks_pvalue, pvalue)
+        statistic, pvalue_mask = normaltest(data[mask])
+        return min(ks_pvalue, pvalue, pvalue_mask)
 
     return ks_pvalue
 
