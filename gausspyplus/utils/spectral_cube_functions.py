@@ -159,10 +159,14 @@ def change_wcs_header_reproject(header, header_new, ppv=True):
         wcs = WCS(correct_header(header))
         wcs_header = wcs.to_header()
         wcs_header_diff = fits.HeaderDiff(wcs_header, wcs_header_new)
-        update_header(header, remove_keywords=wcs_header_diff.diff_keywords[0],
+        remove_keywords = []
+        if wcs_header_diff.diff_keywords:
+            remove_keywords = wcs_header_diff.diff_keywords[0]
+        update_header(header, remove_keywords=remove_keywords,
                       update_keywords=header_diff.diff_keyword_values,
                       write_meta=False)
-        header.remove('NAXIS3')
+        if 'NAXIS3' in header.keys():
+            header.remove('NAXIS3')
         header['NAXIS'] = 2
 
     header['NAXIS1'] = header_new['NAXIS1']
@@ -606,6 +610,10 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
 
     if data.ndim == 2:
         data = convolve(data, kernel, normalize_kernel=True)
+        if reproject:
+            data_reprojected = reproject_data(
+                (data, wcs_pp), output_projection, shape_out)
+            header = change_wcs_header_reproject(header, header_projection)
     else:
         nSpectra = data.shape[0]
         if reproject:
