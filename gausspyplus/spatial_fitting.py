@@ -50,7 +50,7 @@ class SpatialFitting(object):
 
         self.exclude_flagged = False
         self.max_fwhm = None
-        self.rchi2_limit = 1.5
+        self.rchi2_limit = None
         self.rchi2_limit_refit = None
         self.max_diff_comps = 1
         self.max_jump_comps = 2
@@ -132,6 +132,9 @@ class SpatialFitting(object):
             self.flag_neg_res_peak = self.refit_neg_res_peak
         if self.flag_rchi2 is None:
             self.flag_rchi2 = self.refit_rchi2
+        if self.flag_rchi2 and (self.rchi2_limit is None):
+            raise Exception(
+                "Need to set 'rchi2_limit' if 'flag_rchi2=True' or 'refit_rchi2=True'")
         if self.flag_residual is None:
             self.flag_residual = self.refit_residual
         if self.flag_broad is None:

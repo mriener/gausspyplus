@@ -85,7 +85,7 @@ class GaussPyDecompose(object):
         self.snr_fit = None
         self.significance = 5.
         self.snr_negative = None
-        self.rchi2_limit = 1.5
+        self.rchi2_limit = None
         self.max_amp_factor = 1.1
         self.refit_neg_res_peak = True
         self.refit_broad = True

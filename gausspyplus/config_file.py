@@ -84,10 +84,6 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '2.',
             'description': "factor by which the FWHM value of a fit component has to exceed all other (neighboring) fit components to get flagged [float]",
             'simple': False}),
-        ('rchi2_limit', {
-            'default': '1.5',
-            'description': "maximium value for the reduced chi-squared above which the fit gets flagged [float]",
-            'simple': True}),
         ('min_pvalue', {
             'default': '0.01',
             'description': "p-value for the null hypothesis that the residual resembles a normal distribution. [float]",
@@ -113,7 +109,7 @@ def make(all_keywords=False, description=True, output_directory='',
         ('refit_rchi2', {
             'default': 'False',
             'description': "Refit spectra with high reduced chi-square value. [True/False]",
-            'simple': True}),
+            'simple': False}),
         ('refit_residual', {
             'default': 'True',
             'description': "Flag spectra with non-Gaussian distributed residuals. [True/False]",
@@ -172,6 +168,10 @@ def make(all_keywords=False, description=True, output_directory='',
         ('order', {
             'default': '6',
             'description': "Minimum number of spectral channels a peak has to contain on either side [int]",
+            'simple': True}),
+        ('rchi2_limit', {
+            'default': '1.5',
+            'description': "maximium value of reduced chi-squared for decomposition result [float]",
             'simple': True}),
         ('use_all', {
             'default': 'False',
@@ -288,6 +288,10 @@ def make(all_keywords=False, description=True, output_directory='',
         ('exclude_flagged', {
             'default': 'False',
             'description': "Exclude all flagged spectra as possible refit solutions. [bool]",
+            'simple': False}),
+        ('rchi2_limit', {
+            'default': None,
+            'description': "maximium value for the reduced chi-squared above which the fit gets flagged [float]",
             'simple': False}),
         ('rchi2_limit_refit', {
             'default': 'None',
