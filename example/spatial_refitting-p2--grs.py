@@ -2,7 +2,7 @@
 # @Date:   2019-04-02T18:21:34+02:00
 # @Filename: spatial_refitting-p1--grs.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:44:24+02:00
+# @Last modified time: 31-05-2019
 
 
 import os
@@ -26,15 +26,17 @@ sp.path_to_decomp_file = os.path.join(
 #  Try to refit blended fit components
 sp.refit_blended = True
 #  Try to refit spectra with negative residual features
-sp.refit_residual = True
+sp.refit_neg_res_peak = True
 #  Try to refit broad fit components
 sp.refit_broad = True
-#  Flag spectra with reduced chi-square values above sp.rchi2_limit
-sp.flag_rchi2 = True
-#  Do not try to refit spectra with reduced chi-square values above sp.rchi2_limit
-sp.refit_rchi2 = False
+#  Flag spectra with non-Gaussian distributed residuals
+sp.flag_residual = True
+#  Do not try to refit spectra with non-Gaussian distributed residuals
+sp.refit_residual = False
 #  Try to refit spectra for which the number of fit components is incompatible with its direct neighbors
 sp.refit_ncomps = True
+#  We set the maximum allowed difference in the number of fitted components compared to the weighted median of all immediate neighbors to 1
+sp.max_diff_comps = 1
 #  We set the maximum allowed difference in the number of fitted components between individual neighboring spectra to 2
 sp.max_jump_comps = 2
 #  We will flag and try to refit all spectra which show jumps in the number of components of more than 2 to at least two direct neighbors
@@ -49,7 +51,7 @@ sp.min_weight = 0.5
 #  Start phase 2 of the spatially coherent refitting
 sp.spatial_fitting(continuity=True)
 
-#  (Optional )Plot maps of the reduced chi-square values and the number of fitted components
+#  (Optional) Plot maps of the reduced chi-square values and the number of fitted components
 
 #  Initialize the 'GaussPyDecompose' class and read in the parameter settings from 'gausspy+.ini'.
 decompose = GaussPyDecompose(config_file='gausspy+.ini')

@@ -2,7 +2,7 @@
 # @Date:   2019-04-02T17:42:46+02:00
 # @Filename: decompose--grs.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:33:48+02:00
+# @Last modified time: 31-05-2019
 
 
 import os
@@ -22,8 +22,6 @@ decompose.path_to_pickle_file = os.path.join(
 decompose.alpha1 = 2.58
 #  Second smoothing parameter
 decompose.alpha2 = 5.14
-#  We set the upper limit for the reduced chi-square deliberately to a low value to enforce the best fitting results for each individual spectrum.
-decompose.rchi2_limit = 1.2
 #  Suffix for the filename of the pickled dictionary with the decomposition results.
 decompose.suffix = '_g+'
 #  Start the decomposition.
