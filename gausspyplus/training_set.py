@@ -190,7 +190,7 @@ class GaussPyTrainingSet(object):
 
         path_to_file = os.path.join(dirname, self.filename_out)
         pickle.dump(data, open(path_to_file, 'wb'), protocol=2)
-        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(dirname, self.filename_out))
+        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(self.filename_out, dirname))
 
     def decompose(self, index, i):
         if self.header:

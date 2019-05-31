@@ -218,7 +218,7 @@ def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss, pvalue)
 
     ncomps_string = ''
     if ncomps is not None:
-        ncomps_string = ', N={}'.format(ncomps)
+        ncomps_string = ', N$_{{comp}}$={}'.format(ncomps)
 
     rchi2_string = ''
     if rchi2 is not None:

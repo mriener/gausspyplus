@@ -229,7 +229,8 @@ class SpatialFitting(object):
             '\n   or'
             '\n   >= {d} times any FWHM in >= {e:.0%} of its neigbors'
             '\n - High reduced chi2 values (> {f}): {g}'
-            '\n - Differing number of components: {h}').format(
+            '\n - Non-Gaussian distributed residuals: {h}'
+            '\n - Differing number of components: {i}').format(
                 a=self.flag_blended,
                 b=self.flag_neg_res_peak,
                 c=self.flag_broad,
@@ -237,7 +238,8 @@ class SpatialFitting(object):
                 e=self.broad_neighbor_fraction,
                 f=self.rchi2_limit,
                 g=self.flag_rchi2,
-                h=self.flag_ncomps)
+                h=self.flag_residual,
+                i=self.flag_ncomps)
         say(string, logger=self.logger)
 
         string = str(
@@ -256,7 +258,8 @@ class SpatialFitting(object):
             '\n   or'
             '\n   >= {d} times any FWHM in >= {e:.0%} of its neigbors'
             '\n - High reduced chi2 values (> {f}): {g}'
-            '\n - Differing number of components: {h}').format(
+            '\n - Non-Gaussian distributed residuals: {h}'
+            '\n - Differing number of components: {i}').format(
                 a=self.refit_blended,
                 b=self.refit_neg_res_peak,
                 c=self.refit_broad,
@@ -264,7 +267,8 @@ class SpatialFitting(object):
                 e=self.broad_neighbor_fraction,
                 f=self.rchi2_limit_refit,
                 g=self.refit_rchi2,
-                h=self.refit_ncomps)
+                h=self.refit_residual,
+                i=self.refit_ncomps)
         if not self.phase_two:
             say(string, logger=self.logger)
 
@@ -581,10 +585,10 @@ class SpatialFitting(object):
 
         if self.phase_two:
             n_flagged_blended = np.count_nonzero(self.mask_blended)
-            n_flagged_residual = np.count_nonzero(self.mask_residual)
+            n_flagged_neg_res_peak = np.count_nonzero(self.mask_residual)
             n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
             n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
-            n_flagged_pvalue = np.count_nonzero(self.mask_pvalue)
+            n_flagged_residual = np.count_nonzero(self.mask_pvalue)
             n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
             text = str(
@@ -597,13 +601,13 @@ class SpatialFitting(object):
                 "\n - {h} spectra w/ residual not passing normality test"
                 "\n - {g} spectra w/ differing number of components").format(
                     a=n_flagged_blended,
-                    b=n_flagged_residual,
+                    b=n_flagged_neg_res_peak,
                     c=n_flagged_broad,
                     d=np.count_nonzero(self.mask_broad_limit),
                     e=int(self.max_fwhm),
                     f=n_flagged_rchi2,
                     g=n_flagged_ncomps,
-                    h=n_flagged_pvalue
+                    h=n_flagged_residual
                 )
 
             say(text, logger=self.logger)
@@ -630,6 +634,12 @@ class SpatialFitting(object):
         self.locations_refit = np.take(
             np.array(self.location), self.indices_refit, axis=0)
 
+    def get_n_refit(self, flag, n_refit):
+        if flag:
+            return n_refit
+        else:
+            return 0
+
     def determine_spectra_for_refitting(self):
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
         say('\ndetermine spectra that need refitting...', logger=self.logger)
@@ -652,23 +662,24 @@ class SpatialFitting(object):
                          if x is not None])
         n_indices_refit = len(self.indices_refit)
         n_flagged_blended = np.count_nonzero(self.mask_blended)
-        n_flagged_residual = np.count_nonzero(self.mask_residual)
+        n_flagged_neg_res_peak = np.count_nonzero(self.mask_residual)
         n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
         n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
-        n_flagged_pvalue = np.count_nonzero(self.mask_pvalue)
+        n_flagged_residual = np.count_nonzero(self.mask_pvalue)
         n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
-        n_refit_blended, n_refit_neg_res_peak, n_refit_ncomps = (
-            0 for _ in range(3))
-        if self.refit_blended:
-            n_refit_blended = n_flagged_blended
-        if self.refit_neg_res_peak:
-            n_refit_neg_res_peak = n_flagged_residual
-        n_refit_broad = np.count_nonzero(self.mask_broad_refit)
-        n_refit_rchi2 = np.count_nonzero(self.mask_rchi2_refit)
-        n_refit_residual = np.count_nonzero(self.mask_pvalue)
-        if self.refit_ncomps:
-            n_refit_ncomps = n_flagged_ncomps
+        n_refit_blended = self.get_n_refit(
+            self.refit_blended, n_flagged_blended)
+        n_refit_neg_res_peak = self.get_n_refit(
+            self.refit_neg_res_peak, n_flagged_neg_res_peak)
+        n_refit_broad = self.get_n_refit(
+            self.refit_broad, np.count_nonzero(self.mask_broad_refit))
+        n_refit_rchi2 = self.get_n_refit(
+            self.refit_rchi2, np.count_nonzero(self.mask_rchi2_refit))
+        n_refit_residual = self.get_n_refit(
+            self.refit_residual, np.count_nonzero(self.mask_pvalue))
+        n_refit_ncomps = self.get_n_refit(
+            self.refit_ncomps, n_flagged_ncomps)
 
         n_refit_list = [
             n_refit_blended, n_refit_neg_res_peak, n_refit_broad,
@@ -689,7 +700,7 @@ class SpatialFitting(object):
                 d=n_refit_blended,
                 e=n_flagged_blended,
                 f=n_refit_neg_res_peak,
-                g=n_flagged_residual,
+                g=n_flagged_neg_res_peak,
                 h=n_refit_broad,
                 i=n_flagged_broad,
                 j=np.count_nonzero(self.mask_broad_limit),
@@ -699,7 +710,7 @@ class SpatialFitting(object):
                 o=n_refit_ncomps,
                 p=n_flagged_ncomps,
                 q=n_refit_residual,
-                r=n_flagged_pvalue
+                r=n_flagged_residual
             )
 
         say(text, logger=self.logger)

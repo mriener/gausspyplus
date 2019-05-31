@@ -86,7 +86,7 @@ def make(all_keywords=False, description=True, output_directory='',
             'simple': False}),
         ('min_pvalue', {
             'default': '0.01',
-            'description': "p-value for the null hypothesis that the residual resembles a normal distribution. [float]",
+            'description': "p-value for the null hypothesis that the normalised residual resembles a normal distribution. [float]",
             'simple': False}),
 
         ('two_phase_decomposition', {
@@ -112,7 +112,7 @@ def make(all_keywords=False, description=True, output_directory='',
             'simple': False}),
         ('refit_residual', {
             'default': 'True',
-            'description': "Flag spectra with non-Gaussian distributed residuals. [True/False]",
+            'description': "Refit spectra with non-Gaussian distributed residuals. [True/False]",
             'simple': True}),
         ('refit_ncomps', {
             'default': 'True',
