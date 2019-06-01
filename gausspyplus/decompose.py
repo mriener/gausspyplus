@@ -114,13 +114,6 @@ class GaussPyDecompose(object):
         heading = '\n' + banner + '\n' + string + '\n' + banner
         say(heading, logger=self.logger)
 
-    # def say(self, message):
-    #     """Diagnostic messages."""
-    #     if self.log_output:
-    #         self.logger.info(message)
-    #     if self.verbose:
-    #         print(message)
-
     def initialize_data(self):
         self.logger = False
         if self.log_output:
@@ -318,11 +311,6 @@ class GaussPyDecompose(object):
         dct_final_guesses["gausspy_settings"] = dct_gausspy_settings
 
         dct_final_guesses["improve_fit_settings"] = self.fitting
-        # else:
-        #     dct_final_guesses["header"] = self.header
-        #     dct_final_guesses["location"] = self.location
-        #     dct_final_guesses["data_list"] = self.data
-        #     dct_final_guesses["error"] = self.errors
 
         filename = '{}{}_fit_fin.pickle'.format(self.filename, self.suffix)
         pathname = os.path.join(self.decomp_dirname, filename)
@@ -419,15 +407,6 @@ class GaussPyDecompose(object):
         array[self.nan_mask] = np.nan
 
         comments = [comment]
-        # if self.gausspy_decomposition:
-        #     for name, value in zip(
-        #             ['SNR_1', 'SNR_2', 'ALPHA1'],
-        #             [self.snr_thresh, self.snr2_thresh, self.alpha1]):
-        #         comments.append('GaussPy+ parameter {}={}'.format(name, value))
-        #
-        #     if self.two_phase_decomposition:
-        #         comments.append('GaussPy+ parameter {}={}'.format(
-        #             'ALPHA2', self.alpha2))
 
         self.header = update_header(
             self.header, comments=comments, write_meta=True)

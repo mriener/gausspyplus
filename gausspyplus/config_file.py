@@ -32,6 +32,25 @@ def append_keywords(config_file, dct, all_keywords=False, description=True):
 
 def make(all_keywords=False, description=True, output_directory='',
          filename='gausspy+.ini'):
+    """Create a GaussPy+ configuration file.
+
+    Parameters
+    ----------
+    all_keywords : bool
+        Default is `False`, which includes only the most essential parameters. If set to `True`, include all parameters in the configuration file.
+    description : bool
+        Default is `True`, which includes descriptions of the parameters in the configuration file.
+    output_directory : string
+        Directory to which configuration file gets saved.
+    filename : string
+        Name of the configuration file.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
     config_file = str('#  Configuration file for GaussPy+\n\n')
 
     default = [
@@ -413,7 +432,7 @@ def get_values_from_config_file(self, config_file, config_key='DEFAULT'):
     config_file : str
         Filepath to configuration file of GaussPy+.
     config_key : str
-        Section of GaussPy+nconfiguration, whose parameters should be read in in addtion to 'DEFAULT'.
+        Section of GaussPy+ configuration file, whose parameters should be read in addition to 'DEFAULT'.
 
     """
     config = configparser.ConfigParser()

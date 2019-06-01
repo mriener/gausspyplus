@@ -23,6 +23,10 @@ def check_if_value_is_none(condition, value, varname_condition, varname_value,
         Selected condition.
     value : type
         Value for the condition.
+    varname_condition : str
+        Variable name of `condition`.
+    varname_value : str
+        Variable name of `value`.
 
     """
     if condition and (value is None):
@@ -41,6 +45,10 @@ def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2,
         Description of parameter `value1`.
     value2 : type
         Description of parameter `value2`.
+    varname_value1 : str
+        Variable name of `value1`.
+    varname_value2 : str
+        Variable name of `value2`.
 
     """
     if (value1 is None) and (value2 is None):

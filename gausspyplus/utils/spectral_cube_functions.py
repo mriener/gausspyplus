@@ -28,6 +28,7 @@ warnings.showwarning = format_warning
 
 
 def transform_header_from_crota_to_pc(header):
+    """Replace CROTA* keywords with PC*_* keywords."""
     cdelt1 = header['CDELT1']
     cdelt2 = header['CDELT2']
 
@@ -65,7 +66,7 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
     check_keywords : dict
         Dictionary of FITS header keywords and corresponding values. The FITS header is checked for the presence of these keywords; if the keyword is not existing they are written to the header with the supplied values.
     keep_only_wcs_keywords : bool
-        Default is 'False'. If set to 'True', the FITS header is stripped of all keywords other than the required minimum WCS keywords.
+        Default is `False`. If set to `True`, the FITS header is stripped of all keywords other than the required minimum WCS keywords.
 
     Returns
     -------
@@ -110,9 +111,9 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
     update_keywords : dict
         Dictionary of FITS header keywords that get updated.
     remove_old_comments : bool
-        Default is 'False'. If set to 'True', existing 'COMMENT' keywords of the FITS header are removed.
+        Default is `False`. If set to `True`, existing 'COMMENT' keywords of the FITS header are removed.
     write_meta : bool
-        Default is 'True'. Adds or updates 'AUTHOR', 'ORIGIN', and 'DATE' FITS header keywords.
+        Default is `True`. Adds or updates 'AUTHOR', 'ORIGIN', and 'DATE' FITS header keywords.
 
     Returns
     -------
@@ -143,6 +144,23 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
 
 
 def change_wcs_header_reproject(header, header_new, ppv=True):
+    """Change the WCS information of a header for reprojection purposes.
+
+    Parameters
+    ----------
+    header : astropy.io.fits.Header
+        Header of the FITS array.
+    header_new : astropy.io.fits.Header
+        Header of the FITS array to which the data gets reprojected.
+    ppv : bool
+        Default is `True`, if the header should remain in the PPV format. If set to `False`, the header will be transformed to a PP format.
+
+    Returns
+    -------
+    header : astropy.io.fits.Header
+        Updated header of the FITS array.
+
+    """
     wcs_new = WCS(correct_header(header_new))
     while wcs_new.wcs.naxis > 2:
         axes = range(wcs_new.wcs.naxis)
@@ -189,7 +207,7 @@ def remove_additional_axes(data, header, max_dim=3,
     max_dim : int
         Maximum number of dimensions the final data array should have. The default value is '3'.
     keep_only_wcs_keywords : bool
-        Default is 'False'. If set to 'True', the FITS header is stripped of all keywords other than the required minimum WCS keywords.
+        Default is `False`. If set to `True`, the FITS header is stripped of all keywords other than the required minimum WCS keywords.
 
     Returns
     -------
@@ -327,14 +345,14 @@ def get_slice_parameters(path_to_file=None, header=None, wcs=None,
     z_unit : astropy.units.quantity.Quantity
         Unit of z coordinates (default is u.m/u.s).
     include_max_val : bool
-        Default is 'True'. Includes the upper coordinate value in the slice parameters.
+        Default is `True`. Includes the upper coordinate value in the slice parameters.
     get_slices : bool
-        Default is 'True'. If set to 'False', a tuple of the slice parameters is returned instead of the slices.
+        Default is `True`. If set to `False`, a tuple of the slice parameters is returned instead of the slices.
 
     Returns
     -------
     slices : tuple
-        Slice parameters given in pixel values in the form (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax)). If 'get_slices' is set to 'False', ((zmin, zmax), (ymin, ymax), (xmin, xmax)) is returned instead.
+        Slice parameters given in pixel values in the form (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax)). If 'get_slices' is set to `False`, ((zmin, zmax), (ymin, ymax), (xmin, xmax)) is returned instead.
 
     """
     if x_unit is None:
@@ -472,7 +490,7 @@ def save_fits(data, header, path_to_file, verbose=True):
     path_to_file : str
         Filepath to which FITS array should get saved.
     verbose : bool
-        Default is 'True'. Writes message to terminal about where the FITS file was saved.
+        Default is `True`. Writes message to terminal about where the FITS file was saved.
 
     """
     if not os.path.exists(os.path.dirname(path_to_file)):
@@ -491,15 +509,15 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
     path_to_file : str
         Filepath to FITS array.
     get_hdu : bool
-        Default is 'False'. If set to 'True', an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
+        Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
     get_data : bool
-        Default is 'True'. Returns a numpy.ndarray of the FITS array.
+        Default is `True`. Returns a numpy.ndarray of the FITS array.
     get_header : bool
-        Default is 'True'. Returns a astropy.io.fits.Header of the FITS array.
+        Default is `True`. Returns a astropy.io.fits.Header of the FITS array.
     remove_stokes : bool
-        Default is 'True'. If the FITS array contains more than three axes, these additional axes are removed so that the FITS array contains only ('NAXIS1', 'NAXIS2', 'NAXIS3').
+        Default is `True`. If the FITS array contains more than three axes, these additional axes are removed so that the FITS array contains only ('NAXIS1', 'NAXIS2', 'NAXIS3').
     check_wcs : bool
-        Default is 'True'. Corrects the FITS header with the default settings.
+        Default is `True`. Corrects the FITS header with the default settings.
 
     Returns
     -------
@@ -527,6 +545,23 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
 
 
 def reproject_data(input_data, output_projection, shape_out):
+    """Reproject data to a different projection.
+
+    Parameters
+    ----------
+    input_data : type
+        Description of parameter `input_data`.
+    output_projection : type
+        Description of parameter `output_projection`.
+    shape_out : type
+        Description of parameter `shape_out`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
     data_reprojected, footprint = reproject_interp(
         input_data, output_projection, shape_out=shape_out)
     return data_reprojected
@@ -547,7 +582,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     header : astropy.io.fits.Header
         Header of the FITS cube.
     save : bool
-        Default is 'False'. If set to 'True', the smoothed FITS cube is saved under 'path_to_output_file'.
+        Default is `False`. If set to `True`, the smoothed FITS cube is saved under 'path_to_output_file'.
     path_to_output_file : str
         Filepath to which smoothed FITS cube gets saved.
     suffix : str
@@ -557,7 +592,11 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     target_resolution : astropy.units.quantity.Quantity
         Final resolution element after smoothing.
     verbose : bool
-        Default is 'True'. Writes diagnostic messages to the terminal.
+        Default is `True`. Writes diagnostic messages to the terminal.
+    reproject : bool
+        Default is `False`. Set to `True` if data should be reprojected to `header_projection`.
+    header_projection : astropy.io.fits.Header
+        Header of the FITS array to which data should be reprojected to.
 
     Returns
     -------
@@ -630,20 +669,6 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
             data = data_reprojected
             header = change_wcs_header_reproject(header, header_projection)
 
-    # if reproject:
-    #     if data.ndim == 2:
-    #         data = convolve(data, kernel)
-    #     else:
-    #         nSpectra = data.shape[0]
-    #         data_reprojected = np.zeros((data.shape[0], shape_out[0], shape_out[1]))
-    #         for i in tqdm(range(nSpectra)):
-    #             channel = data[i, :, :]
-    #             data_reprojected[i, :, :] = reproject_data(
-    #                 (channel, wcs_pp), output_projection, shape_out)
-    #         data = data_reprojected
-    #
-    #     header = change_wcs_header_reproject(header, header_projection)
-
     comments = ['spatially smoothed to a resolution of {}'.format(
         target_resolution)]
     header = update_header(header, comments=comments)
@@ -666,7 +691,7 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
     header : astropy.io.fits.Header
         Header of the FITS cube.
     save : bool
-        Default is 'False'. If set to 'True', the smoothed FITS cube is saved under 'path_to_output_file'.
+        Default is `False`. If set to `True`, the smoothed FITS cube is saved under 'path_to_output_file'.
     path_to_output_file : str
         Filepath to which smoothed FITS cube gets saved.
     suffix : str
@@ -676,7 +701,7 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
     target_resolution : astropy.units.quantity.Quantity
         Final spectral resolution element after smoothing.
     verbose : bool
-        Default is 'True'. Writes diagnostic messages to the terminal.
+        Default is `True`. Writes diagnostic messages to the terminal.
 
     Returns
     -------
@@ -731,60 +756,25 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
     return data, header
 
 
-# def determine_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
-#                     idx=None, average_rms=None, random_seed=111):
-#     np.random.seed(random_seed)
-#     if not np.isnan(spectrum).all():
-#         if np.isnan(spectrum).any():
-#             # TODO: Case where spectrum contains nans and only positive values
-#             nans = np.isnan(spectrum)
-#             error = get_rms_noise(spectrum[~nans], max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
-#             spectrum[nans] = np.random.randn(len(spectrum[nans])) * error
-#
-#         elif (spectrum >= 0).all():
-#             warnings.warn('Masking spectra that contain only values >= 0')
-#             error = np.NAN
-#         else:
-#             error = get_rms_noise(spectrum, max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
-#     else:
-#         error = np.NAN
-#     return error
-
-
-# def calculate_average_rms_noise(data, number_rms_spectra, random_seed=111,
-#                                 max_consecutive_channels=14, pad_channels=5):
-#     import random
-#
-#     random.seed(random_seed)
-#     yValues = np.arange(data.shape[1])
-#     xValues = np.arange(data.shape[2])
-#     locations = list(itertools.product(yValues, xValues))
-#     if len(locations) > number_rms_spectra:
-#         locations = random.sample(locations, len(locations))
-#     rmsList = []
-#     counter = 0
-#     pbar = tqdm(total=number_rms_spectra)
-#     for y, x in locations:
-#         spectrum = data[:, y, x]
-#         error = determine_noise(
-#             spectrum, max_consecutive_channels=max_consecutive_channels,
-#             pad_channels=pad_channels)
-#
-#         if not np.isnan(error):
-#             rmsList.append(error)
-#             counter += 1
-#             pbar.update(1)
-#
-#         if counter >= number_rms_spectra:
-#             break
-#
-#     pbar.close()
-#     return np.nanmean(rmsList)
-#     # return np.nanmedian(rmsList), median_absolute_deviation(rmsList, ignore_nan=True)
-
-
 def get_path_to_output_file(path_to_file, suffix='_',
                             filename='foo.fits'):
+    """Determine filepath for output file.
+
+    Parameters
+    ----------
+    path_to_file : str
+        Filepath of the input data.
+    suffix : str
+        Suffix to add to the filename.
+    filename : str
+        Name of the output file.
+
+    Returns
+    -------
+    path_to_output_file
+        Filepath for the output file.
+
+    """
     if path_to_file is None:
         path_to_output_file = os.path.join(os.getcwd(), filename)
     else:
@@ -799,6 +789,32 @@ def get_path_to_output_file(path_to_file, suffix='_',
 def add_noise(average_rms, path_to_file=None, hdu=None, save=False,
               overwrite=True, path_to_output_file=None, get_hdu=False,
               get_data=True, get_header=True, random_seed=111):
+    """Add noise to spectral cube.
+
+    Parameters
+    ----------
+    average_rms : type
+        Description of parameter `average_rms`.
+    path_to_file : str
+        Filepath to the FITS cube.
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the FITS cube.
+    save : bool
+        Default is `False`. If set to `True`, the resulting FITS cube is saved under 'path_to_output_file'.
+    overwrite : bool
+        If set to `True`, overwrites any already existing files saved in `path_to_output_file`.
+    path_to_output_file : str
+        Filepath to which FITS cube with added noise gets saved.
+    get_hdu : bool
+        Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
+    get_data : bool
+        Default is `True`. Returns a numpy.ndarray of the FITS array.
+    get_header : bool
+        Default is `True`. Returns a astropy.io.fits.Header of the FITS array.
+    random_seed : int
+        Initializer for np.random package.
+
+    """
     print('\nadding noise (rms = {}) to data...'.format(average_rms))
 
     check_if_all_values_are_none(hdu, path_to_file, 'hdu', 'path_to_file')
@@ -838,6 +854,21 @@ def add_noise(average_rms, path_to_file=None, hdu=None, save=False,
 
 
 def transform_coordinates_to_pixel(coordinates, header):
+    """Transform PPV coordinates to pixel positions within the PPV cube.
+
+    Parameters
+    ----------
+    coordinates : list
+        List of coordinates given as [position_coord_1, position_coord_2, velocity_coord]. The coordinates must be specified with astropy.units.
+    header : astropy.io.fits.Header
+        Header of the FITS cube.
+
+    Returns
+    -------
+    list
+        List of corresponding pixel positions within the PPV cube.
+
+    """
     if not isinstance(coordinates, list):
         coordinates = list(coordinates)
     wcs = WCS(header)
@@ -857,6 +888,32 @@ def transform_coordinates_to_pixel(coordinates, header):
 def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
                  save=False, overwrite=True, path_to_output_file=None,
                  get_hdu=False, get_data=True, get_header=True):
+    """Extract subcube from a spectral cube.
+
+    Parameters
+    ----------
+    slice_params : list
+        List of slice parameters for cube, if only a subset of the data should be used.
+    path_to_file : str
+        Filepath to the FITS cube.
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the FITS cube.
+    dtype : str
+        Data type to which the array should be transformed. Default is `float32`.
+    save : bool
+        Default is `False`. If set to `True`, the resulting FITS cube is saved under 'path_to_output_file'.
+    overwrite : bool
+        If set to `True`, overwrites any already existing files saved in `path_to_output_file`.
+    path_to_output_file : type
+        Filepath to which subcube gets saved.
+    get_hdu : bool
+        Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
+    get_data : bool
+        Default is `True`. Returns a numpy.ndarray of the FITS array.
+    get_header : bool
+        Default is `True`. Returns a astropy.io.fits.Header of the FITS array.
+
+    """
     print('\nmaking subcube with the slice parameters {}...'.format(
         slice_params))
 
@@ -899,8 +956,33 @@ def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
 
 def clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
                                slice_params=(slice(None), slice(None)),
-                               p_limit=0.025, pad_channels=5, use_ncpus=None):
-    """"""
+                               p_limit=0.02, pad_channels=5, use_ncpus=None):
+    """Set all data values below a specified signal-to-noise ratio to zero.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        3D array of the input data.
+    snr : int, float
+        Signal-to-noise ratio for `apply_noise_threshold`.
+    path_to_noise_map : str
+        Filepath to the noise map of the input FITS cube.
+    slice_params : list
+        List of slice parameters for cube, if only a subset of the data should be used.
+    p_limit : float
+        Maximum probability for consecutive positive/negative channels being
+        due to chance.
+    pad_channels : int
+        Number of channels by which an interval (low, upp) gets extended on both sides, resulting in (low - pad_channels, upp + pad_channels).
+    use_ncpus : int
+        Number of CPUs used in parallel processing. By default 75% of all CPUs on the machine are used.
+
+    Returns
+    -------
+    data : numpy.ndarray
+        3D array of the input data with all values below 'snr' set to zero.
+
+    """
     yMax = data.shape[1]
     xMax = data.shape[2]
     n_channels = data.shape[0]
@@ -959,6 +1041,27 @@ def clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
 
 
 def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
+    """Change the FITS header of a file.
+
+    Parameters
+    ----------
+    header : astropy.io.fits.Header
+        Header of the FITS array.
+    format : 'pp' or 'pv'
+        Describes the format of the resulting 2D header: 'pp' for position-position data and 'pv' for position-velocity data.
+    keep_axis : '1' or '2'
+        If format is set to 'pv', this specifies which spatial axis is kept: '1' - NAXIS1 stays and NAXIS2 gets removed, '2' - NAXIS2 stays and NAXIS1 gets removed
+    comments : list
+        Comments that are added to the FITS header under the COMMENT keyword.
+    dct_keys : dict
+        Dictionary that specifies which keywords and corresponding values should be added to the FITS header.
+
+    Returns
+    -------
+    astropy.io.fits.Header
+        Updated FITS header.
+
+    """
     prihdr = fits.Header()
     for key in ['SIMPLE', 'BITPIX']:
         prihdr[key] = header[key]
@@ -1000,8 +1103,26 @@ def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
     return prihdr
 
 
-def get_moment_map(data, header, order=0, linewidth='sigma', vel_unit=u.km/u.s):
-    """"""
+def get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
+    """Produce moment map.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Data of the FITS array.
+    header : astropy.io.fits.Header
+        Header of the FITS array.
+    order : int
+        Specify the moment map that should be produced: 0 - zeroth moment map, 1 - first moment map, 2 - second moment map.
+    vel_unit : astropy.units.quantity.Quantity
+        Valid unit to which the values of the spectral axis will be converted.
+
+    Returns
+    -------
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the resulting FITS array.
+
+    """
     wcs = WCS(header)
 
     #  convert from the velocity unit of the cube to the desired unit
@@ -1048,16 +1169,58 @@ def get_moment_map(data, header, order=0, linewidth='sigma', vel_unit=u.km/u.s):
 
 def moment_map(hdu=None, path_to_file=None, slice_params=None,
                path_to_output_file=None,
-               apply_noise_threshold=False, snr=3, order=0, linewidth='sigma',
-               p_limit=0.025, pad_channels=5,
+               apply_noise_threshold=False, snr=3, order=0,
+               p_limit=0.02, pad_channels=5,
                vel_unit=u.km/u.s, path_to_noise_map=None,
                save=False, get_hdu=True, use_ncpus=None,
                restore_nans=False, nan_mask=None):
-    """
-    Previously called 'make_moment_fits'
-    """
-    # from astropy.wcs import WCS
+    """Create a moment map of the input data.
 
+    The type of moment map can be specified with the 'order' keyword:
+    0 - zeroth moment map
+    1 - first moment map
+    2 - second moment map
+
+    Parameters
+    ----------
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the FITS cube.
+    path_to_file : str
+        Filepath to the FITS cube.
+    slice_params : list
+        List of slice parameters for cube, if only a subset of the data should be used.
+    path_to_output_file : str
+        Filepath to which FITS array of PV map gets saved.
+    path_to_noise_map : str
+        Filepath to the noise map of the input FITS cube.
+    apply_noise_threshold : bool
+        Default is `False`. If set to `True`, all data values with a signal-to-noise ratio below `snr` are set to zero.
+    snr : int, float
+        Signal-to-noise ratio for `apply_noise_threshold`.
+    order : int
+        Specify the moment map that should be produced: 0 - zeroth moment map, 1 - first moment map, 2 - second moment map.
+    p_limit : float
+        Maximum probability for consecutive positive/negative channels being
+        due to chance.
+    pad_channels : int
+        Number of channels by which an interval (low, upp) gets extended on both sides, resulting in (low - pad_channels, upp + pad_channels).
+    vel_unit : astropy.units.quantity.Quantity
+        Valid unit to which the values of the spectral axis will be converted.
+    path_to_noise_map : str
+        Filepath to the noise map of the input FITS cube.
+    save : bool
+        Default is `False`. If set to `True`, the resulting FITS array is saved under 'path_to_output_file'.
+    get_hdu : bool
+        Default is `True`, which returns an astropy.io.fits.HDUList of the resulting PV map.
+    use_ncpus : int
+        Number of CPUs used in parallel processing. By default 75% of all CPUs on the machine are used.
+    restore_nans : bool
+        Default is `False`. If set to `True` restore NaN values present in the input FITS cube. [Nota bene: Not sure if the current implementation is correct!]
+    nan_mask : numpy.array
+        Array of boolean values specifying whether NaN values are present.
+
+
+    """
     print('\ncreate a moment{} fits file from the cube'.format(order))
 
     check_if_value_is_none(restore_nans, nan_mask, 'restore_nans', 'nan_mask')
@@ -1082,9 +1245,9 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                                           p_limit=p_limit, pad_channels=pad_channels,
                                           use_ncpus=use_ncpus)
 
-    hdu = get_moment_map(data, header, order=order, linewidth=linewidth,
-                         vel_unit=vel_unit)
+    hdu = get_moment_map(data, header, order=order, vel_unit=vel_unit)
 
+    # TODO: check if this is correct
     if restore_nans:
         locations = list(
             itertools.product(
@@ -1094,10 +1257,7 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                 hdu.data[ypos, xpos] = np.nan
 
     if save:
-        if order == 2:
-            suffix = 'mom2_map_{}'.format(linewidth)
-        else:
-            suffix = 'mom{}_map'.format(order)
+        suffix = 'mom{}_map'.format(order)
         if path_to_output_file is None:
             path_to_output_file = get_path_to_output_file(
                 path_to_file, suffix=suffix,
@@ -1109,8 +1269,29 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
         return hdu
 
 
-def get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None), vel_unit=u.km/u.s):
-    """"""
+def get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None),
+               vel_unit=u.km/u.s):
+    """Produce a position-velocity map.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Data of the FITS array.
+    header : astropy.io.fits.Header
+        Header of the FITS array.
+    sum_over_axis : int
+        Specify spatial axis over which the data should be integrated for position-velocity map.
+    slice_z : slice
+        Specified slice parameters in case only subset of velocity axis should be used.
+    vel_unit : astropy.units.quantity.Quantity
+        Valid unit to which the values of the spectral axis will be converted.
+
+    Returns
+    -------
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the resulting FITS array.
+
+    """
     wcs = WCS(header)
     if wcs.wcs.cunit[2] == '':
         warnings.warn('Assuming m/s as spectral unit')
@@ -1137,11 +1318,43 @@ def get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None), vel_uni
 
 def pv_map(path_to_file=None, hdu=None, slice_params=None,
            path_to_output_file=None, path_to_noise_map=None,
-           apply_noise_threshold=False, snr=3, p_limit=0.025, pad_channels=5,
+           apply_noise_threshold=False, snr=3, p_limit=0.02, pad_channels=5,
            sum_over_latitude=True, vel_unit=u.km/u.s,
            save=False, get_hdu=True, use_ncpus=None):
-    """
-    Previously called 'make_pv_fits'
+    """Create a position-velocity map of the input data.
+
+    Parameters
+    ----------
+    path_to_file : str
+        Filepath to the FITS cube.
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the FITS cube.
+    slice_params : list
+        List of slice parameters for cube, if only a subset of the data should be used.
+    path_to_output_file : str
+        Filepath to which FITS array of PV map gets saved.
+    path_to_noise_map : str
+        Filepath to the noise map of the input FITS cube.
+    apply_noise_threshold : bool
+        Default is `False`. If set to `True`, all data values with a signal-to-noise ratio below `snr` are set to zero.
+    snr : int, float
+        Signal-to-noise ratio for `apply_noise_threshold`.
+    p_limit : float
+        Maximum probability for consecutive positive/negative channels being
+        due to chance.
+    pad_channels : int
+        Number of channels by which an interval (low, upp) gets extended on both sides, resulting in (low - pad_channels, upp + pad_channels).
+    sum_over_latitude : bool
+        Default is `True`. Integrate over latitude axis (NAXIS2) for the PV map.
+    vel_unit : astropy.units.quantity.Quantity
+        Valid unit to which the values of the spectral axis will be converted.
+    save : bool
+        Default is `False`. If set to `True`, the resulting FITS array is saved under 'path_to_output_file'.
+    get_hdu : bool
+        Default is `True`, which returns an astropy.io.fits.HDUList of the resulting PV map.
+    use_ncpus : int
+        Number of CPUs used in parallel processing. By default 75% of all CPUs on the machine are used.
+
     """
     print('\ncreate a PV fits file from the cube')
 
@@ -1202,15 +1415,15 @@ def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
     nrows : int
         Number of fields in the Y direction.
     save : bool
-        Set to 'True' if the resulting mosaicked file should be saved.
+        Set to `True` if the resulting mosaicked file should be saved.
     header : astropy.io.fits.header.Header
         FITS header that will be used for the combined mosaic.
     path_to_output_file : str
-        Filepath to which the combined mosaic gets saved if 'save' is set to 'True'.
+        Filepath to which the combined mosaic gets saved if 'save' is set to `True`.
     comment : str
         Comment that will be written in the FITS header of the combined mosaic.
     verbose : bool
-        Set to 'False' if diagnostic messages should not be printed to the terminal.
+        Set to `False` if diagnostic messages should not be printed to the terminal.
 
     Returns
     -------
@@ -1260,16 +1473,3 @@ def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
         save_fits(data_combined, header, path_to_output_file, verbose=verbose)
 
     return data, header
-
-
-def get_center_coordinates_for_swarp(header):
-    wcs = WCS(header)
-
-    x_wcs_min, y_wcs_min, z_wcs_min = wcs.wcs_pix2world(0, 0, 0, 0)
-    x_wcs_max, y_wcs_max, z_wcs_max = wcs.wcs_pix2world(
-        header['NAXIS1'] - 1, header['NAXIS2'] - 1, 0, 0)
-
-    x_wcs_ctr = (x_wcs_min + x_wcs_max) / 2
-    y_wcs_ctr = (y_wcs_min + y_wcs_max) / 2
-
-    return x_wcs_ctr, y_wcs_ctr
