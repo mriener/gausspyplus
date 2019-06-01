@@ -18,7 +18,6 @@ from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 from astropy.io import fits
 from astropy.wcs import WCS
 from datetime import datetime
-from reproject import reproject_interp
 from tqdm import tqdm
 
 from .output import check_if_value_is_none, check_if_all_values_are_none, format_warning, save_file
@@ -562,6 +561,8 @@ def reproject_data(input_data, output_projection, shape_out):
         Description of returned object.
 
     """
+    from reproject import reproject_interp
+    
     data_reprojected, footprint = reproject_interp(
         input_data, output_projection, shape_out=shape_out)
     return data_reprojected
