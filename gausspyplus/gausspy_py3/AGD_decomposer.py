@@ -439,13 +439,13 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             ncomps_fit = 0
             params_fit = []
         #  TODO: check if ncomps_fit should be ncomps_gf
-        best_fit_list, N_negative_residuals, N_blended, log_gplus =\
+        best_fit_list, N_neg_res_peak, N_blended, log_gplus =\
             try_to_improve_fitting(
                 vel, data, errors, params_fit, ncomps_fit, dct,
                 signal_ranges=signal_ranges, noise_spike_ranges=noise_spike_ranges)
 
         params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-            rchi2, aicc, new_fit, params_min, params_max = best_fit_list
+            rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
 
         ncomps_gf = ncomps_fit
 
@@ -546,12 +546,14 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     odict['N_components'] = ncomps_gf
     odict['index'] = idx
     if dct['improve_fitting']:
-        odict['rchi2'] = rchi2
-        odict['aicc'] = aicc
+        odict['best_fit_rchi2'] = rchi2
+        odict['best_fit_aicc'] = aicc
+        odict['pvalue'] = pvalue
 
-        odict['N_negative_residuals'] = N_negative_residuals
+        odict['N_neg_res_peak'] = N_neg_res_peak
         odict['N_blended'] = N_blended
         odict['log_gplus'] = log_gplus
+        odict['quality_control'] = quality_control
 
     if (perform_final_fit is True) and (ncomps_gf > 0):
         odict['best_fit_parameters'] = params_fit

@@ -32,6 +32,25 @@ def append_keywords(config_file, dct, all_keywords=False, description=True):
 
 def make(all_keywords=False, description=True, output_directory='',
          filename='gausspy+.ini'):
+    """Create a GaussPy+ configuration file.
+
+    Parameters
+    ----------
+    all_keywords : bool
+        Default is `False`, which includes only the most essential parameters. If set to `True`, include all parameters in the configuration file.
+    description : bool
+        Default is `True`, which includes descriptions of the parameters in the configuration file.
+    output_directory : string
+        Directory to which configuration file gets saved.
+    filename : string
+        Name of the configuration file.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
     config_file = str('#  Configuration file for GaussPy+\n\n')
 
     default = [
@@ -84,10 +103,10 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '2.',
             'description': "factor by which the FWHM value of a fit component has to exceed all other (neighboring) fit components to get flagged [float]",
             'simple': False}),
-        ('rchi2_limit', {
-            'default': '1.5',
-            'description': "maximium value for the reduced chi-squared above which the fit gets flagged [float]",
-            'simple': True}),
+        ('min_pvalue', {
+            'default': '0.01',
+            'description': "p-value for the null hypothesis that the normalised residual resembles a normal distribution. [float]",
+            'simple': False}),
 
         ('two_phase_decomposition', {
             'default': 'True',
@@ -102,13 +121,17 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': 'True',
             'description': "Refit broad components. [True/False]",
             'simple': True}),
-        ('refit_residual', {
+        ('refit_neg_res_peak', {
             'default': 'True',
             'description': "Refit negative residual features. [True/False]",
             'simple': True}),
         ('refit_rchi2', {
-            'default': 'True',
+            'default': 'False',
             'description': "Refit spectra with high reduced chi-square value. [True/False]",
+            'simple': False}),
+        ('refit_residual', {
+            'default': 'True',
+            'description': "Refit spectra with non-Gaussian distributed residuals. [True/False]",
             'simple': True}),
         ('refit_ncomps', {
             'default': 'True',
@@ -164,6 +187,10 @@ def make(all_keywords=False, description=True, output_directory='',
         ('order', {
             'default': '6',
             'description': "Minimum number of spectral channels a peak has to contain on either side [int]",
+            'simple': True}),
+        ('rchi2_limit', {
+            'default': '1.5',
+            'description': "maximium value of reduced chi-squared for decomposition result [float]",
             'simple': True}),
         ('use_all', {
             'default': 'False',
@@ -281,10 +308,18 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': 'False',
             'description': "Exclude all flagged spectra as possible refit solutions. [bool]",
             'simple': False}),
+        ('rchi2_limit', {
+            'default': None,
+            'description': "maximium value for the reduced chi-squared above which the fit gets flagged [float]",
+            'simple': False}),
         ('rchi2_limit_refit', {
             'default': 'None',
             'description': "Defaults to 'rchi2_limit' if not specified. [float]",
             'simple': False}),
+        ('max_diff_comps', {
+            'default': '1',
+            'description': "Maximum allowed difference in the number of fitted components compared to weighted median of immediate neighbors [int]",
+            'simple': True}),
         ('max_jump_comps', {
             'default': '2',
             'description': "Maximum allowed difference in the number of fitted components between individual neighboring spectra [int]",
@@ -301,13 +336,17 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': 'True',
             'description': "Flag spectra with blended fit components. [bool]",
             'simple': False}),
-        ('flag_residual', {
+        ('flag_neg_res_peak', {
             'default': 'True',
             'description': "Flag spectra with negative residual features. [bool]",
             'simple': False}),
         ('flag_rchi2', {
             'default': 'True',
             'description': "Flag spectra with high reduced chi-square values. [bool]",
+            'simple': False}),
+        ('flag_residual', {
+            'default': 'True',
+            'description': "Flag spectra with non-Gaussian distributed residuals. [bool]",
             'simple': False}),
         ('flag_broad', {
             'default': 'True',
@@ -338,10 +377,6 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '0.5',
             'description': "Minimum weight threshold for phase 2 of spatially coherent refitting. [float]",
             'simple': True}),
-        ('min_pvalue', {
-            'default': '0.01',
-            'description': "p-value for the null hypothesis that the residual resembles a normal distribution. [float]",
-            'simple': False}),
         ('weight_factor', {
             'default': '2',
             'description': "Factor that determines the weight given to neighboring spectra located at a distance of 1 and 2 pixels. [int/float]",
@@ -397,7 +432,7 @@ def get_values_from_config_file(self, config_file, config_key='DEFAULT'):
     config_file : str
         Filepath to configuration file of GaussPy+.
     config_key : str
-        Section of GaussPy+nconfiguration, whose parameters should be read in in addtion to 'DEFAULT'.
+        Section of GaussPy+ configuration file, whose parameters should be read in addition to 'DEFAULT'.
 
     """
     config = configparser.ConfigParser()

@@ -5,7 +5,7 @@ import networkx
 
 
 def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
-                  get_indices=False, direction=None):
+                  get_indices=False, direction=None, get_mask=False):
     """Determine pixel coordinates of neighboring pixels.
 
     Includes also all pixels that neighbor diagonally.
@@ -61,6 +61,9 @@ def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
     if shape is not None:
         valid = np.all((neighbours < np.array(shape)) & (neighbours >= 0), axis=1)
         neighbours = neighbours[valid]
+
+    if get_mask:
+        return valid
 
     if get_indices:
         indices_neighbours = np.array([])

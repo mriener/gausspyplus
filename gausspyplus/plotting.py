@@ -206,7 +206,7 @@ def plot_signal_ranges(ax, data, idx, fig_channels):
             ax.axvspan(fig_channels[low], fig_channels[upp - 1], alpha=0.1, color='indianred')
 
 
-def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss):
+def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss, pvalue):
     idx_string = ''
     if index_data is not None:
         if index_data != idx:
@@ -218,7 +218,7 @@ def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss):
 
     ncomps_string = ''
     if ncomps is not None:
-        ncomps_string = ', N={}'.format(ncomps)
+        ncomps_string = ', N$_{{comp}}$={}'.format(ncomps)
 
     rchi2_string = ''
     if rchi2 is not None:
@@ -226,11 +226,17 @@ def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss):
 
     rchi2gauss_string = ''
     if rchi2gauss is not None:
-        rchi2gauss_string = '\\chi_{{red, gauss}}^{{2}}$={:.3f}'.format(
+        rchi2gauss_string = ', $\\chi_{{red, gauss}}^{{2}}$={:.3f}'.format(
             rchi2gauss)
 
-    title = 'Idx={}{}{}{}{}{}'.format(
-        idx, idx_string, loc_string, ncomps_string, rchi2_string, rchi2gauss_string)
+    pvalue_string = ''
+    # if pvalue is not None:
+    #     pvalue_string = ', $p_{{value}}$={:.3f}'.format(
+    #         pvalue)
+
+    title = 'Idx={}{}{}{}{}{}{}'.format(
+        idx, idx_string, loc_string, ncomps_string, rchi2_string,
+        rchi2gauss_string, pvalue_string)
     return title
 
 
@@ -344,7 +350,7 @@ def plot_spectra(pathToDataPickle, *args,
 
         ax.step(fig_channels, y, color='black', lw=0.5, where='mid')
 
-        ncomps, rchi2, rchi2gauss = None, None, None
+        ncomps, rchi2, rchi2gauss, pvalue = None, None, None, None
 
         if decomposition or training_set:
             combined_gauss = combined_gaussian(
@@ -362,6 +368,9 @@ def plot_spectra(pathToDataPickle, *args,
 
         if training_set:
             rchi2 = data['best_fit_rchi2'][idx]
+            if 'pvalue' in data.keys():
+                pvalue = data['pvalue'][idx]
+
         elif decomposition:
             rchi2 = decomp['best_fit_rchi2'][idx]
 
@@ -372,7 +381,7 @@ def plot_spectra(pathToDataPickle, *args,
         # TODO: incorporate rchi2_gauss
 
         title = get_title_string(idx, index_data, xi, yi, ncomps,
-                                 rchi2, rchi2gauss)
+                                 rchi2, rchi2gauss, pvalue)
         ax.set_title(title, fontsize=fontsize)
 
         add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,

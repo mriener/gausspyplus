@@ -13,7 +13,6 @@ import scipy.ndimage as ndimage
 
 from functools import reduce
 from networkx.algorithms.components.connected import connected_components
-from scipy.stats import normaltest
 from tqdm import tqdm
 
 from .config_file import get_values_from_config_file
@@ -51,20 +50,23 @@ class SpatialFitting(object):
 
         self.exclude_flagged = False
         self.max_fwhm = None
-        self.rchi2_limit = 1.5
+        self.rchi2_limit = None
         self.rchi2_limit_refit = None
+        self.max_diff_comps = 1
         self.max_jump_comps = 2
-        self.n_max_jump_comps = 2
+        self.n_max_jump_comps = 1
         self.max_refitting_iteration = 30
 
         self.flag_blended = None
-        self.flag_residual = None
+        self.flag_neg_res_peak = None
         self.flag_rchi2 = None
+        self.flag_residual = None
         self.flag_broad = None
         self.flag_ncomps = None
         self.refit_blended = False
-        self.refit_residual = False
+        self.refit_neg_res_peak = False
         self.refit_rchi2 = False
+        self.refit_residual = False
         self.refit_broad = False
         self.refit_ncomps = False
 
@@ -116,8 +118,9 @@ class SpatialFitting(object):
             self.fwhm_factor_refit = self.fwhm_factor
 
         if all(refit is False for refit in [self.refit_blended,
-                                            self.refit_residual,
+                                            self.refit_neg_res_peak,
                                             self.refit_rchi2,
+                                            self.refit_residual,
                                             self.refit_broad,
                                             self.refit_ncomps]):
             raise Exception(
@@ -125,10 +128,15 @@ class SpatialFitting(object):
 
         if self.flag_blended is None:
             self.flag_blended = self.refit_blended
-        if self.flag_residual is None:
-            self.flag_residual = self.refit_residual
+        if self.flag_neg_res_peak is None:
+            self.flag_neg_res_peak = self.refit_neg_res_peak
         if self.flag_rchi2 is None:
             self.flag_rchi2 = self.refit_rchi2
+        if self.flag_rchi2 and (self.rchi2_limit is None):
+            raise Exception(
+                "Need to set 'rchi2_limit' if 'flag_rchi2=True' or 'refit_rchi2=True'")
+        if self.flag_residual is None:
+            self.flag_residual = self.refit_residual
         if self.flag_broad is None:
             self.flag_broad = self.refit_broad
         if self.flag_ncomps is None:
@@ -221,15 +229,17 @@ class SpatialFitting(object):
             '\n   or'
             '\n   >= {d} times any FWHM in >= {e:.0%} of its neigbors'
             '\n - High reduced chi2 values (> {f}): {g}'
-            '\n - Differing number of components: {h}').format(
+            '\n - Non-Gaussian distributed residuals: {h}'
+            '\n - Differing number of components: {i}').format(
                 a=self.flag_blended,
-                b=self.flag_residual,
+                b=self.flag_neg_res_peak,
                 c=self.flag_broad,
                 d=self.fwhm_factor,
                 e=self.broad_neighbor_fraction,
                 f=self.rchi2_limit,
                 g=self.flag_rchi2,
-                h=self.flag_ncomps)
+                h=self.flag_residual,
+                i=self.flag_ncomps)
         say(string, logger=self.logger)
 
         string = str(
@@ -248,15 +258,17 @@ class SpatialFitting(object):
             '\n   or'
             '\n   >= {d} times any FWHM in >= {e:.0%} of its neigbors'
             '\n - High reduced chi2 values (> {f}): {g}'
-            '\n - Differing number of components: {h}').format(
+            '\n - Non-Gaussian distributed residuals: {h}'
+            '\n - Differing number of components: {i}').format(
                 a=self.refit_blended,
-                b=self.refit_residual,
+                b=self.refit_neg_res_peak,
                 c=self.refit_broad,
                 d=self.fwhm_factor_refit,
                 e=self.broad_neighbor_fraction,
                 f=self.rchi2_limit_refit,
                 g=self.refit_rchi2,
-                h=self.refit_ncomps)
+                h=self.refit_residual,
+                i=self.refit_ncomps)
         if not self.phase_two:
             say(string, logger=self.logger)
 
@@ -287,7 +299,7 @@ class SpatialFitting(object):
         Parameters
         ----------
         key : str
-            Dictionary key of the parameter: 'N_blended', 'N_negative_residuals', or 'best_fit_rchi2'.
+            Dictionary key of the parameter: 'N_blended', 'N_neg_res_peak', or 'best_fit_rchi2'.
         limit : int or float
             Upper limit of the corresponding value.
         flag : bool
@@ -305,6 +317,15 @@ class SpatialFitting(object):
         array = np.array(self.decomposition[key])
         array[self.nanMask] = 0
         mask = array > limit
+        return mask
+
+    def define_mask_pvalue(self, key, limit, flag):
+        if not flag:
+            return np.zeros(self.length).astype('bool')
+
+        array = np.array(self.decomposition[key])
+        array[self.nanMask] = 0
+        mask = array < limit
         return mask
 
     def define_mask_broad_limit(self, flag):
@@ -424,11 +445,42 @@ class SpatialFitting(object):
 
         broad_fwhm_values = ndimage.generic_filter(
             broad_2d, self.broad_components, footprint=footprint,
-            mode='reflect').flatten()
+            mode='constant', cval=np.nan).flatten()
         mask_broad = mask_broad.astype('bool')
         mask_broad += broad_fwhm_values.astype('bool')
 
         return mask_broad
+
+    def weighted_median(self, data):
+        """Adapted from: https://gist.github.com/tinybike/d9ff1dad515b66cc0d87"""
+        w_1 = 1
+        w_2 = w_1 / np.sqrt(2)
+        weights = np.array([w_2, w_1, w_2, w_1, w_1, w_2, w_1, w_2])
+        central_value = data[4]
+        #  Skip if central spectrum was masked out.
+        if np.isnan(central_value):
+            return 0
+        data = np.delete(data, 4)
+        #  Remove all neighbors that are NaN.
+        mask = ~np.isnan(data)
+        data = data[mask]
+        weights = weights[mask]
+        #  Skip if there are no valid available neighbors.
+        if data.size == 0:
+            return 0
+
+        s_data, s_weights = map(np.array, zip(*sorted(zip(data, weights))))
+        midpoint = 0.5 * sum(s_weights)
+        if any(weights > midpoint):
+            w_median = (data[weights == np.max(weights)])[0]
+        else:
+            cs_weights = np.cumsum(s_weights)
+            idx = np.where(cs_weights <= midpoint)[0][-1]
+            if cs_weights[idx] == midpoint:
+                w_median = np.mean(s_data[idx:idx + 2])
+            else:
+                w_median = s_data[idx + 1]
+        return w_median
 
     def number_of_component_jumps(self, values):
         """Determine the number of component jumps towards neighboring fits.
@@ -458,7 +510,7 @@ class SpatialFitting(object):
                 counter += 1
         return counter
 
-    def define_mask_neighbor_ncomps(self, nanmask_1d, flag):
+    def define_mask_neighbor_ncomps(self, flag):
         """Create a boolean mask indicating the location of component jumps.
 
         Parameters
@@ -481,9 +533,9 @@ class SpatialFitting(object):
         if not flag:
             return np.zeros(self.length).astype('bool'), None, None
 
-        nanmask_1d += self.nanMask  # not really necessary
-        if self.only_print_flags:
-            nanmask_1d = self.nanMask
+        # nanmask_1d += self.nanMask  # not really necessary
+        # if self.only_print_flags:
+        nanmask_1d = self.nanMask
         nanmask_2d = nanmask_1d.reshape(self.shape)
         ncomps_1d = np.empty(self.length)
         ncomps_1d.fill(np.nan)
@@ -492,46 +544,51 @@ class SpatialFitting(object):
         ncomps_2d = ncomps_1d.astype('float').reshape(self.shape)
         ncomps_2d[nanmask_2d] = np.nan
 
+        mask_neighbor = np.zeros(self.length)
         footprint = np.ones((3, 3))
+
+        ncomps_wmedian = ndimage.generic_filter(
+            ncomps_2d, self.weighted_median, footprint=footprint,
+            mode='constant', cval=np.nan).flatten()
+        mask_neighbor[~self.nanMask] = ncomps_wmedian[~self.nanMask] > self.max_diff_comps
 
         ncomps_jumps = ndimage.generic_filter(
             ncomps_2d, self.number_of_component_jumps, footprint=footprint,
-            mode='reflect').flatten()
-
-        mask_neighbor = np.zeros(self.length)
-
+            mode='reflect', cval=np.nan).flatten()
         mask_neighbor[~self.nanMask] = ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
+
         mask_neighbor = mask_neighbor.astype('bool')
-        return mask_neighbor, ncomps_jumps, ncomps_1d
+
+        return mask_neighbor, ncomps_wmedian, ncomps_jumps, ncomps_1d
 
     def determine_spectra_for_flagging(self):
         """Flag spectra not satisfying user-defined flagging criteria."""
         self.mask_blended = self.define_mask(
             'N_blended', 0, self.flag_blended)
         self.mask_residual = self.define_mask(
-            'N_negative_residuals', 0, self.flag_residual)
+            'N_neg_res_peak', 0, self.flag_neg_res_peak)
         self.mask_rchi2_flagged = self.define_mask(
             'best_fit_rchi2', self.rchi2_limit, self.flag_rchi2)
+        self.mask_pvalue = self.define_mask_pvalue(
+            'pvalue', self.min_pvalue, self.flag_residual)
         self.mask_broad_flagged = self.define_mask_broad(self.flag_broad)
         self.mask_broad_limit, self.n_broad = self.define_mask_broad_limit(
             self.flag_broad)
+        self.mask_ncomps, self.ncomps_wmedian, self.ncomps_jumps, self.ncomps =\
+            self.define_mask_neighbor_ncomps(self.flag_ncomps)
 
         mask_flagged = self.mask_blended + self.mask_residual\
-            + self.mask_broad_flagged + self.mask_rchi2_flagged
-
-        self.mask_ncomps, self.ncomps_jumps, self.ncomps =\
-            self.define_mask_neighbor_ncomps(
-                mask_flagged.copy(), self.flag_ncomps)
-
-        mask_flagged += self.mask_ncomps
+            + self.mask_broad_flagged + self.mask_rchi2_flagged\
+            + self.mask_pvalue + self.mask_ncomps
         self.indices_flagged = np.array(
             self.decomposition['index_fit'])[mask_flagged]
 
         if self.phase_two:
             n_flagged_blended = np.count_nonzero(self.mask_blended)
-            n_flagged_residual = np.count_nonzero(self.mask_residual)
+            n_flagged_neg_res_peak = np.count_nonzero(self.mask_residual)
             n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
             n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
+            n_flagged_residual = np.count_nonzero(self.mask_pvalue)
             n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
             text = str(
@@ -541,14 +598,16 @@ class SpatialFitting(object):
                 "\n - {c} spectra w/ broad feature"
                 "\n   (info: {d} spectra w/ a FWHM > {e} channels)"
                 "\n - {f} spectra w/ high rchi2 value"
+                "\n - {h} spectra w/ residual not passing normality test"
                 "\n - {g} spectra w/ differing number of components").format(
                     a=n_flagged_blended,
-                    b=n_flagged_residual,
+                    b=n_flagged_neg_res_peak,
                     c=n_flagged_broad,
                     d=np.count_nonzero(self.mask_broad_limit),
                     e=int(self.max_fwhm),
                     f=n_flagged_rchi2,
-                    g=n_flagged_ncomps
+                    g=n_flagged_ncomps,
+                    h=n_flagged_residual
                 )
 
             say(text, logger=self.logger)
@@ -558,12 +617,14 @@ class SpatialFitting(object):
         mask_refit = np.zeros(self.length).astype('bool')
         if self.refit_blended:
             mask_refit += self.mask_blended
-        if self.refit_residual:
+        if self.refit_neg_res_peak:
             mask_refit += self.mask_residual
         if self.refit_broad:
             mask_refit += self.mask_broad_refit
         if self.refit_rchi2:
             mask_refit += self.mask_rchi2_refit
+        if self.refit_residual:
+            mask_refit += self.mask_pvalue
         if self.refit_ncomps:
             mask_refit += self.mask_ncomps
 
@@ -572,6 +633,12 @@ class SpatialFitting(object):
         # self.indices_refit = self.indices_refit[10495:10500]  # for debugging
         self.locations_refit = np.take(
             np.array(self.location), self.indices_refit, axis=0)
+
+    def get_n_refit(self, flag, n_refit):
+        if flag:
+            return n_refit
+        else:
+            return 0
 
     def determine_spectra_for_refitting(self):
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
@@ -595,25 +662,28 @@ class SpatialFitting(object):
                          if x is not None])
         n_indices_refit = len(self.indices_refit)
         n_flagged_blended = np.count_nonzero(self.mask_blended)
-        n_flagged_residual = np.count_nonzero(self.mask_residual)
+        n_flagged_neg_res_peak = np.count_nonzero(self.mask_residual)
         n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
         n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
+        n_flagged_residual = np.count_nonzero(self.mask_pvalue)
         n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
-        n_refit_blended, n_refit_residual, n_refit_ncomps = (
-            0 for _ in range(3))
-        if self.refit_blended:
-            n_refit_blended = n_flagged_blended
-        if self.refit_residual:
-            n_refit_residual = n_flagged_residual
-        n_refit_broad = np.count_nonzero(self.mask_broad_refit)
-        n_refit_rchi2 = np.count_nonzero(self.mask_rchi2_refit)
-        if self.refit_ncomps:
-            n_refit_ncomps = n_flagged_ncomps
+        n_refit_blended = self.get_n_refit(
+            self.refit_blended, n_flagged_blended)
+        n_refit_neg_res_peak = self.get_n_refit(
+            self.refit_neg_res_peak, n_flagged_neg_res_peak)
+        n_refit_broad = self.get_n_refit(
+            self.refit_broad, np.count_nonzero(self.mask_broad_refit))
+        n_refit_rchi2 = self.get_n_refit(
+            self.refit_rchi2, np.count_nonzero(self.mask_rchi2_refit))
+        n_refit_residual = self.get_n_refit(
+            self.refit_residual, np.count_nonzero(self.mask_pvalue))
+        n_refit_ncomps = self.get_n_refit(
+            self.refit_ncomps, n_flagged_ncomps)
 
         n_refit_list = [
-            n_refit_blended, n_refit_residual, n_refit_broad,
-            n_refit_rchi2, n_refit_ncomps]
+            n_refit_blended, n_refit_neg_res_peak, n_refit_broad,
+            n_refit_rchi2, n_refit_residual, n_refit_ncomps]
 
         text = str(
             "\n{a} out of {b} spectra ({c:.2%}) selected for refitting:"
@@ -622,14 +692,15 @@ class SpatialFitting(object):
             "\n - {h} spectra w/ broad feature ({i} flagged)"
             "\n   (info: {j} spectra w/ a FWHM > {k} channels)"
             "\n - {m} spectra w/ high rchi2 value ({n} flagged)"
+            "\n - {q} spectra w/ residual not passing normality test ({r} flagged)"
             "\n - {o} spectra w/ differing number of components ({p} flagged)").format(
                 a=n_indices_refit,
                 b=n_spectra,
                 c=n_indices_refit/n_spectra,
                 d=n_refit_blended,
                 e=n_flagged_blended,
-                f=n_refit_residual,
-                g=n_flagged_residual,
+                f=n_refit_neg_res_peak,
+                g=n_flagged_neg_res_peak,
                 h=n_refit_broad,
                 i=n_flagged_broad,
                 j=np.count_nonzero(self.mask_broad_limit),
@@ -637,7 +708,9 @@ class SpatialFitting(object):
                 m=n_refit_rchi2,
                 n=n_flagged_rchi2,
                 o=n_refit_ncomps,
-                p=n_flagged_ncomps
+                p=n_flagged_ncomps,
+                q=n_refit_residual,
+                r=n_flagged_residual
             )
 
         say(text, logger=self.logger)
@@ -695,8 +768,8 @@ class SpatialFitting(object):
         keys = ['amplitudes_fit', 'fwhms_fit', 'means_fit',
                 'amplitudes_fit_err', 'fwhms_fit_err', 'means_fit_err',
                 'best_fit_rchi2', 'best_fit_aicc', 'N_components',
-                'gaussians_rchi2', 'gaussians_aicc',
-                'N_negative_residuals', 'N_blended']
+                'gaussians_rchi2', 'gaussians_aicc', 'pvalue',
+                'N_neg_res_peak', 'N_blended']
 
         count_selected, count_refitted = 0, 0
 
@@ -831,7 +904,7 @@ class SpatialFitting(object):
             if self.mask_refitted[indices_neighbors].sum() < 1:
                 return [index, None, indices_neighbors, refit]
 
-        if self.refit_residual and self.mask_residual[index]:
+        if self.refit_neg_res_peak and self.mask_residual[index]:
             flags.append('residual')
         elif self.refit_broad and self.mask_broad_refit[index]:
             flags.append('broad')
@@ -1324,7 +1397,7 @@ class SpatialFitting(object):
                   dct_new_fit=None):
         """Check how the refit affected the number of blended or negative residual features.
 
-        This check will only be performed if the 'self.flag_blended=True' or 'self.flag_residual=True'.
+        This check will only be performed if the 'self.flag_blended=True' or 'self.flag_neg_res_peak=True'.
 
         Parameters
         ----------
@@ -1333,9 +1406,9 @@ class SpatialFitting(object):
         index : int
             Index ('index_fit' keyword) of the spectrum that gets/was refit.
         key : str
-            Dictionary keys, either 'N_blended' or 'N_negative_residuals'.
+            Dictionary keys, either 'N_blended' or 'N_neg_res_peak'.
         flag : bool
-            User-selected flag criterion, either 'self.flag_blended', or 'self.flag_residual'
+            User-selected flag criterion, either 'self.flag_blended', or 'self.flag_neg_res_peak'
         dct_new_fit : dict
             Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
 
@@ -1406,6 +1479,27 @@ class SpatialFitting(object):
         if max(rchi2_old, rchi2_new) < self.rchi2_limit:
             if abs(rchi2_new - 1) < abs(rchi2_old - 1):
                 flag_old += 1
+
+        return flag_old, flag_new
+
+    def get_flags_pvalue(self, dictResults, index, dct_new_fit=None):
+        flag_old, flag_new = (0 for _ in range(2))
+
+        if not self.flag_residual:
+            return flag_old, flag_new
+
+        pvalue_old = self.get_dictionary_value(
+            'pvalue', index, dct_new_fit=dct_new_fit)
+        pvalue_new = dictResults['pvalue']
+
+        if pvalue_old < self.min_pvalue:
+            flag_old += 1
+        if pvalue_new < self.min_pvalue:
+            flag_new += 1
+
+        #  punish fit if pvalue got worse
+        if pvalue_new < pvalue_old:
+            flag_new += 1
 
         return flag_old, flag_new
 
@@ -1487,21 +1581,30 @@ class SpatialFitting(object):
 
         loc = self.location[index]
         indices = get_neighbors(
-            loc, exclude_p=False, shape=self.shape, nNeighbors=1,
+            loc, exclude_p=True, shape=self.shape, nNeighbors=1,
             get_indices=True)
-        ncomps = self.ncomps[indices]
+        mask_indices = get_neighbors(
+            loc, exclude_p=True, shape=self.shape, nNeighbors=1,
+            get_mask=True)
+
+        ncomps = np.ones(8) * np.nan
+        ncomps[mask_indices] = self.ncomps[indices]
         ncomps_central = self.get_dictionary_value(
-            'N_components', index, dct_new_fit=dct_new_fit)
-        while ncomps.size < 8:
-            ncomps = np.append(ncomps, np.nan)
+             'N_components', index, dct_new_fit=dct_new_fit)
         ncomps = np.insert(ncomps, 4, ncomps_central)
         njumps_new = self.number_of_component_jumps(ncomps)
 
-        if njumps_old > self.n_max_jump_comps:
+        ncomps_wmedian = self.ncomps_wmedian[index]
+        ndiff_old = abs(ncomps_wmedian - self.ncomps[index])
+        ndiff_new = abs(ncomps_wmedian - ncomps_central)
+
+        if (njumps_old > self.n_max_jump_comps) or (
+                ndiff_old > self.max_diff_comps):
             flag_old = 1
-        if njumps_new > self.n_max_jump_comps:
+        if (njumps_new > self.n_max_jump_comps) or (
+                ndiff_new > self.max_diff_comps):
             flag_new = 1
-        if njumps_new > njumps_old:
+        if (njumps_new > njumps_old) or (ndiff_new > ndiff_old):
             flag_new += 1
 
         return flag_old, flag_new
@@ -1590,11 +1693,14 @@ class SpatialFitting(object):
             dictResults, index, key='N_blended', flag=self.flag_blended,
             dct_new_fit=dct_new_fit)
 
-        flag_residual_old, flag_residual_new = self.get_flags(
-            dictResults, index, key='N_negative_residuals',
-            flag=self.flag_residual, dct_new_fit=dct_new_fit)
+        flag_neg_res_peak_old, flag_neg_res_peak_new = self.get_flags(
+            dictResults, index, key='N_neg_res_peak',
+            flag=self.flag_neg_res_peak, dct_new_fit=dct_new_fit)
 
         flag_rchi2_old, flag_rchi2_new = self.get_flags_rchi2(
+            dictResults, index, dct_new_fit=dct_new_fit)
+
+        flag_residual_old, flag_residual_new = self.get_flags_pvalue(
             dictResults, index, dct_new_fit=dct_new_fit)
 
         flag_broad_old, flag_broad_new = self.get_flags_broad(
@@ -1614,16 +1720,18 @@ class SpatialFitting(object):
         #  compute total flag values
 
         n_flags_old = flag_blended_old\
-            + flag_residual_old\
+            + flag_neg_res_peak_old\
             + flag_broad_old\
             + flag_rchi2_old\
+            + flag_residual_old\
             + flag_ncomps_old\
             + flag_centroids_old
 
         n_flags_new = flag_blended_new\
-            + flag_residual_new\
+            + flag_neg_res_peak_new\
             + flag_broad_new\
             + flag_rchi2_new\
+            + flag_residual_new\
             + flag_ncomps_new\
             + flag_centroids_new
 
@@ -1633,20 +1741,16 @@ class SpatialFitting(object):
 
         #  if total flag value is the same or decreased there are two ways for the new best fit to get accepted as the new best fit solution:
         #  - accept the new fit if its AICc value is lower than AICc value of the current best fit solution
-        # - if the AICc value of new fit is higher than the AICc value of the current best fit solution, only accept the new fit if the values of the residual are normally distributed, i.e. if it passes the normaltest
+        # - if the AICc value of new fit is higher than the AICc value of the current best fit solution, only accept the new fit if the values of the residual are normally distributed, i.e. if it passes the Kolmogorov-Smirnov test
 
         aicc_old = self.get_dictionary_value(
             'best_fit_aicc', index, dct_new_fit=dct_new_fit)
         aicc_new = dictResults['best_fit_aicc']
-        residual_signal_mask = dictResults['residual_signal_mask']
+        # residual_signal_mask = dictResults['residual_signal_mask']
+        pvalue = dictResults['pvalue']
 
-        if (aicc_new > aicc_old):
-            try:
-                statistic, pvalue = normaltest(residual_signal_mask)
-                if pvalue < self.min_pvalue:
-                    return False
-            except ValueError:
-                return False
+        if (aicc_new > aicc_old) and (pvalue < self.min_pvalue):
+            return False
 
         return True
 
@@ -1899,6 +2003,13 @@ class SpatialFitting(object):
         else:
             n_channels = len(channels)
 
+        if noise_spike_ranges:
+            noise_spike_mask = mask_channels(
+                n_channels, [[0, n_channels]],
+                remove_intervals=noise_spike_ranges)
+        else:
+            noise_spike_mask = None
+
         errors = np.ones(n_channels)*rms
 
         #  correct dictionary key
@@ -1917,7 +2028,8 @@ class SpatialFitting(object):
         best_fit_list = get_best_fit(
             channels, spectrum, errors, params, dct, first=True,
             signal_ranges=signal_ranges, signal_mask=signal_mask,
-            params_min=params_min, params_max=params_max)
+            params_min=params_min, params_max=params_max,
+            noise_spike_mask=noise_spike_mask)
 
         # #  get a new best fit that is unconstrained
         # params = best_fit_list[0]
@@ -1936,7 +2048,7 @@ class SpatialFitting(object):
             best_fit_list, fitted_residual_peaks = check_for_peaks_in_residual(
                 channels, spectrum, errors, best_fit_list, dct,
                 fitted_residual_peaks, signal_ranges=signal_ranges,
-                signal_mask=signal_mask)
+                signal_mask=signal_mask, noise_spike_mask=noise_spike_mask)
             new_fit = best_fit_list[7]
 
         params = best_fit_list[0]
@@ -1946,6 +2058,7 @@ class SpatialFitting(object):
         residual_signal_mask = best_fit_list[4][signal_mask]
         rchi2 = best_fit_list[5]
         aicc = best_fit_list[6]
+        pvalue = best_fit_list[10]
 
         if ncomps == 0:
             return None
@@ -1969,15 +2082,15 @@ class SpatialFitting(object):
         N_blended = get_fully_blended_gaussians(
             params, get_count=True, separation_factor=self.decomposition[
                 'improve_fit_settings']['separation_factor'])
-        N_negative_residuals = check_for_negative_residual(
+        N_neg_res_peak = check_for_negative_residual(
             channels, spectrum, rms, best_fit_list, dct, get_count=True)
 
         keys = ["best_fit_rchi2", "best_fit_aicc", "residual_signal_mask",
-                "gaussians_rchi2", "gaussians_aicc",
-                "N_components", "N_blended", "N_negative_residuals"]
+                "gaussians_rchi2", "gaussians_aicc", "pvalue",
+                "N_components", "N_blended", "N_neg_res_peak"]
         values = [rchi2, aicc, residual_signal_mask,
-                  rchi2_gauss, aicc_gauss,
-                  ncomps, N_blended, N_negative_residuals]
+                  rchi2_gauss, aicc_gauss, pvalue,
+                  ncomps, N_blended, N_neg_res_peak]
         for key, val in zip(keys, values):
             dictResults[key] = val
 

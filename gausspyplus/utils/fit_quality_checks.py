@@ -1,6 +1,7 @@
 """Functions that check the quality of the fit."""
 
 import numpy as np
+from scipy.stats import normaltest, kstest
 
 from .noise_estimation import determine_peaks
 
@@ -86,6 +87,48 @@ def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None,
                 (n_samples - n_params - 1.0))
         return rchi2, aicc
     return rchi2
+
+
+def check_mask(mask, n_channels):
+    if mask is None:
+        mask = np.ones(n_channels)
+    elif len(mask) == 0:
+        mask = np.ones(n_channels)
+    elif np.count_nonzero(mask) == 0:
+        mask = np.ones(n_channels)
+    return mask.astype('bool')
+
+
+def get_pvalue_from_normaltest(data, mask=None):
+    mask = check_mask(mask, len(data))
+    statistic, pvalue = normaltest(data[mask])
+
+    return pvalue
+
+
+def get_pvalue_from_kstest(data, errors, mask=None):
+    if type(errors) is not np.ndarray:
+        errors = np.ones(len(data)) * errors
+    mask = check_mask(mask, len(data))
+    statistic, pvalue = kstest(data[mask] / errors[mask], 'norm')
+
+    return pvalue
+
+
+def check_residual_for_normality(data, errors, mask=None,
+                                 noise_spike_mask=None):
+    n_channels = len(data)
+    if type(errors) is not np.ndarray:
+        errors = np.ones(n_channels) * errors
+    mask = check_mask(mask, n_channels)
+    noise_spike_mask = check_mask(noise_spike_mask, n_channels)
+    ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
+    if n_channels > 20:
+        statistic, pvalue = normaltest(data[noise_spike_mask])
+        statistic, pvalue_mask = normaltest(data[mask])
+        return min(ks_pvalue, pvalue, pvalue_mask)
+
+    return ks_pvalue
 
 
 def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):

@@ -18,7 +18,8 @@ from scipy.signal import argrelextrema
 
 from .config_file import get_values_from_config_file
 from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
-from .utils.fit_quality_checks import determine_significance, goodness_of_fit
+from .utils.fit_quality_checks import determine_significance, goodness_of_fit,\
+    check_residual_for_normality
 from .utils.gaussian_functions import gaussian
 from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise
 from .utils.output import check_if_all_values_are_none
@@ -38,14 +39,16 @@ class GaussPyTrainingSet(object):
         self.significance = 5
         self.min_fwhm = 1.
         self.max_fwhm = None
-        self.p_limit = 0.025
+        self.p_limit = 0.02
         self.signal_mask = True
         self.pad_channels = 5
         self.min_channels = 100
-        self.snr_noise_spike = 4.
+        self.snr_noise_spike = 5.
+        self.min_pvalue = 0.01
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.rchi2_limit = 1.5
         self.use_all = False
+        self.save_all = False
         self.mask_out_ranges = []
 
         self.verbose = True
@@ -75,7 +78,6 @@ class GaussPyTrainingSet(object):
         if self.path_to_file is not None:
             self.dirname = os.path.dirname(self.path_to_file)
             self.filename = os.path.basename(self.path_to_file)
-            self.hdu = fits.open(self.path_to_file)[0]
 
         if self.dirpath_gpy is not None:
             self.dirname = self.dirpath_gpy
@@ -140,6 +142,8 @@ class GaussPyTrainingSet(object):
 
         if self.use_all:
             self.n_spectra = nSpectra
+            self.filename_out = '{}-training_set-{}_spectra{}.pickle'.format(
+                self.filename, self.n_spectra, self.suffix)
 
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([indices, [self]])
@@ -149,30 +153,33 @@ class GaussPyTrainingSet(object):
         print('SUCCESS\n')
 
         for result in results_list:
-            if result is not None:
-                fit_values, spectrum, location, signal_ranges, rms, rchi2, index, i = result
-                # the next four lines are added to deal with the use_all=True feature
-                if rchi2 is None:
-                    continue
-                if rchi2 > self.rchi2_limit:
-                    continue
-                amps, fwhms, means = ([] for i in range(3))
-                if fit_values is not None:
-                    for item in fit_values:
-                        amps.append(item[0])
-                        means.append(item[1])
-                        fwhms.append(item[2]*2.355)
+            if result is None:
+                continue
+            fit_values, spectrum, location, signal_ranges, rms, rchi2, pvalue, index, i = result
+            # the next four lines are added to deal with the use_all=True feature
+            if rchi2 is None:
+                continue
+            if not self.save_all and (rchi2 > self.rchi2_limit):
+            # if not self.save_all and (pvalue < self.min_pvalue):
+                continue
+            amps, fwhms, means = ([] for i in range(3))
+            if fit_values is not None:
+                for item in fit_values:
+                    amps.append(item[0])
+                    means.append(item[1])
+                    fwhms.append(item[2]*2.355)
 
-                data['data_list'] = data.get('data_list', []) + [spectrum]
-                if self.header:
-                    data['location'] = data.get('location', []) + [location]
-                data['index'] = data.get('index', []) + [index]
-                data['error'] = data.get('error', []) + [[rms]]
-                data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
-                data['amplitudes'] = data.get('amplitudes', []) + [amps]
-                data['fwhms'] = data.get('fwhms', []) + [fwhms]
-                data['means'] = data.get('means', []) + [means]
-                data['signal_ranges'] = data.get('signal_ranges', []) + [signal_ranges]
+            data['data_list'] = data.get('data_list', []) + [spectrum]
+            if self.header:
+                data['location'] = data.get('location', []) + [location]
+            data['index'] = data.get('index', []) + [index]
+            data['error'] = data.get('error', []) + [[rms]]
+            data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
+            data['pvalue'] = data.get('pvalue', []) + [pvalue]
+            data['amplitudes'] = data.get('amplitudes', []) + [amps]
+            data['fwhms'] = data.get('fwhms', []) + [fwhms]
+            data['means'] = data.get('means', []) + [means]
+            data['signal_ranges'] = data.get('signal_ranges', []) + [signal_ranges]
         data['x_values'] = self.channels
         if self.header:
             data['header'] = self.header
@@ -183,7 +190,7 @@ class GaussPyTrainingSet(object):
 
         path_to_file = os.path.join(dirname, self.filename_out)
         pickle.dump(data, open(path_to_file, 'wb'), protocol=2)
-        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(dirname, self.filename_out))
+        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(self.filename_out, dirname))
 
     def decompose(self, index, i):
         if self.header:
@@ -211,7 +218,6 @@ class GaussPyTrainingSet(object):
 
         signal_ranges = get_signal_ranges(
             spectrum, rms, snr=self.snr, significance=self.significance,
-            max_consecutive_channels=self.max_consecutive_channels,
             pad_channels=self.pad_channels, min_channels=self.min_channels,
             remove_intervals=noise_spike_ranges)
 
@@ -221,12 +227,13 @@ class GaussPyTrainingSet(object):
             mask_signal = None
 
         maxima = self.get_maxima(spectrum, rms)
-        fit_values, rchi2 = self.gaussian_fitting(
+        fit_values, rchi2, pvalue = self.gaussian_fitting(
             spectrum, maxima, rms, mask_signal=mask_signal)
         # TODO: change the rchi2_limit value??
+        # if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
         if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
             return [fit_values, spectrum, location, signal_ranges, rms,
-                    rchi2, index, i]
+                    rchi2, pvalue, index, i]
         else:
             return None
 
@@ -283,7 +290,11 @@ class GaussPyTrainingSet(object):
             rchi2 = goodness_of_fit(spectrum, combined_gauss, rms, comps, mask=mask_signal)
         else:
             rchi2 = None
-        return fit_values, rchi2
+
+        pvalue = check_residual_for_normality(
+            spectrum - combined_gauss, rms, mask=mask_signal)
+
+        return fit_values, rchi2, pvalue
 
     def check_fit_parameters(self, fit_values, gaussians, rms):
         improve = False

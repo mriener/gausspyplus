@@ -85,13 +85,14 @@ class GaussPyDecompose(object):
         self.snr_fit = None
         self.significance = 5.
         self.snr_negative = None
-        self.rchi2_limit = 1.5
+        self.rchi2_limit = None
         self.max_amp_factor = 1.1
-        self.refit_residual = True
+        self.refit_neg_res_peak = True
         self.refit_broad = True
         self.refit_blended = True
         self.separation_factor = 0.8493218
         self.fwhm_factor = 2.
+        self.min_pvalue = 0.01
 
         self.main_beam_efficiency = None
         self.vel_unit = u.km / u.s
@@ -112,13 +113,6 @@ class GaussPyDecompose(object):
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
         say(heading, logger=self.logger)
-
-    # def say(self, message):
-    #     """Diagnostic messages."""
-    #     if self.log_output:
-    #         self.logger.info(message)
-    #     if self.verbose:
-    #         print(message)
 
     def initialize_data(self):
         self.logger = False
@@ -197,10 +191,22 @@ class GaussPyDecompose(object):
             self.snr2_thresh = self.snr
 
         self.fitting = {
-            'improve_fitting': self.improve_fitting, 'min_fwhm': self.min_fwhm, 'max_fwhm': self.max_fwhm, 'snr': self.snr, 'snr_fit': self.snr_fit, 'significance': self.significance, 'snr_negative': self.snr_negative, 'rchi2_limit': self.rchi2_limit, 'max_amp_factor': self.max_amp_factor, 'negative_residual': self.refit_residual,
-            'broad': self.refit_broad, 'blended': self.refit_blended, 'fwhm_factor': self.fwhm_factor,
+            'improve_fitting': self.improve_fitting,
+            'min_fwhm': self.min_fwhm,
+            'max_fwhm': self.max_fwhm,
+            'snr': self.snr,
+            'snr_fit': self.snr_fit,
+            'significance': self.significance,
+            'snr_negative': self.snr_negative,
+            'rchi2_limit': self.rchi2_limit,
+            'max_amp_factor': self.max_amp_factor,
+            'neg_res_peak': self.refit_neg_res_peak,
+            'broad': self.refit_broad,
+            'blended': self.refit_blended,
+            'fwhm_factor': self.fwhm_factor,
             'separation_factor': self.separation_factor,
-            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range}
+            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range,
+            'min_pvalue': self.min_pvalue}
 
         string_gausspy = str(
             '\ndecomposition settings:'
@@ -295,20 +301,16 @@ class GaussPyDecompose(object):
 
         dct_final_guesses = {}
 
-        for key in ["index_fit", "best_fit_rchi2", "best_fit_aicc",
+        for key in ["index_fit", "best_fit_rchi2", "best_fit_aicc", "pvalue",
                     "amplitudes_fit", "amplitudes_fit_err", "fwhms_fit",
                     "fwhms_fit_err", "means_fit", "means_fit_err", "log_gplus",
-                    "N_negative_residuals", "N_blended", "N_components"]:
+                    "N_neg_res_peak", "N_blended", "N_components",
+                    "quality_control"]:
             dct_final_guesses[key] = self.decomposition[key]
 
         dct_final_guesses["gausspy_settings"] = dct_gausspy_settings
 
         dct_final_guesses["improve_fit_settings"] = self.fitting
-        # else:
-        #     dct_final_guesses["header"] = self.header
-        #     dct_final_guesses["location"] = self.location
-        #     dct_final_guesses["data_list"] = self.data
-        #     dct_final_guesses["error"] = self.errors
 
         filename = '{}{}_fit_fin.pickle'.format(self.filename, self.suffix)
         pathname = os.path.join(self.decomp_dirname, filename)
@@ -405,15 +407,6 @@ class GaussPyDecompose(object):
         array[self.nan_mask] = np.nan
 
         comments = [comment]
-        # if self.gausspy_decomposition:
-        #     for name, value in zip(
-        #             ['SNR_1', 'SNR_2', 'ALPHA1'],
-        #             [self.snr_thresh, self.snr2_thresh, self.alpha1]):
-        #         comments.append('GaussPy+ parameter {}={}'.format(name, value))
-        #
-        #     if self.two_phase_decomposition:
-        #         comments.append('GaussPy+ parameter {}={}'.format(
-        #             'ALPHA2', self.alpha2))
 
         self.header = update_header(
             self.header, comments=comments, write_meta=True)

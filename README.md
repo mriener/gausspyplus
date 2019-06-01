@@ -9,7 +9,7 @@ line spectra.
 Manuel Riener, Jouni Kainulainen, Jonathan D. Henshaw, Jan H. Orkisz,
 Claire E. Murray, Henrik Beuther
 
-[Riener et al. 2019]
+[Riener et al. 2019, subm.]
 
 
 ``GaussPy+`` is based on ``GaussPy``: A python tool for implementing the
@@ -21,7 +21,7 @@ Robert R. Lindner, Carlos Vera-Ciro, Claire E. Murray, Elijah Bernstein-Cooper
 
 # Documentation
 
-The ``GaussPy+`` documentation can be found on ReadTheDocs [here]
+The ``GaussPy+`` documentation can be found on ReadTheDocs [Coming soon]
 
 # Installation
 
@@ -65,7 +65,7 @@ If you wish to use optimization with Fortran code you will need
 
 ### Download ``GaussPy+``
 
-Download GaussPy+ using git `$ git clone (...)`
+Download GaussPy+ using git `$ git clone https://github.com/mriener/gausspyplus`
 
 
 ### Installing Dependencies on Linux
@@ -141,6 +141,8 @@ python setup.py install --user
 You can find an example decomposition run with ``GaussPy+`` in the `example`
 directory. All individual scripts can be run via the Jupyter notebook
 `Tutorial_example-GRS.ipynb`.
+
+The Jupyter notebook `Tutorial_decompose_single_spectrum.ipynb` illustrates the functionality of ``GaussPy+`` and allows users to play around with the different parameter settings to determine their effects on the decomposition.
 
 # Contributing to ``GaussPy+``
 
