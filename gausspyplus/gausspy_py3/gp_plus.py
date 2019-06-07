@@ -188,7 +188,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
     params_max : list
         List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
     quality_control : list
-        Log containing information about which in-built quality control parameters were not fulfilled (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range'])
+        Log containing information about which in-built quality control parameters were not fulfilled (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range')
 
     Returns
     -------
