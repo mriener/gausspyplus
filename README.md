@@ -1,5 +1,5 @@
 <p align="center">
-<img src="docs/gausspyplus_logo.png"  alt="" width = "300" />
+<img src="docs/images/gausspyplus_logo.png"  alt="" width = "300" />
 </p>
 
 # About
