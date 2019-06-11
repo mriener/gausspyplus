@@ -20,9 +20,9 @@ Robert R. Lindner, Carlos Vera-Ciro, Claire E. Murray, Elijah Bernstein-Cooper
 
 [Lindner et al. 2015](https://arxiv.org/abs/1409.2840)
 
-# Documentation
+### Documentation
 
-The ``GaussPy+`` documentation can be found on ReadTheDocs [Coming soon]
+The ``GaussPy+`` documentation can be found on ReadTheDocs [ReadTheDocs](https://gausspyplus.readthedocs.io).
 
 # Installation
 
@@ -145,7 +145,7 @@ directory. All individual scripts can be run via the Jupyter notebook
 
 The Jupyter notebook `Tutorial_decompose_single_spectrum.ipynb` illustrates the functionality of ``GaussPy+`` and allows users to play around with the different parameter settings to determine their effects on the decomposition.
 
-# Some advice for decomposition runs with ``GaussPy+``
+### Some advice for decomposition runs with ``GaussPy+``
 
 We recommend to first test the ``GaussPy+`` settings on a small subsection of the dataset and check whether the chosen parameter values lead to good fitting results. ``GaussPy+`` includes many helper functions that allow users to easily create a subcube of the dataset to use for the test run.
 
@@ -162,8 +162,6 @@ We tested the default settings of ``GaussPy+`` on different spectral cubes of CO
 * If you run ``GaussPy+`` on HI datasets we recommend to set the ``refit_broad`` and ``refit_blended`` parameters to ``False``.
 
 # Coming soon
-
-* Documentation on ReadTheDocs.
 
 * Paper with the full description and testing of ``GaussPy+`` on [arXiv](https://arxiv.org/).
 
