@@ -22,7 +22,7 @@ Robert R. Lindner, Carlos Vera-Ciro, Claire E. Murray, Elijah Bernstein-Cooper
 
 ### Documentation
 
-The ``GaussPy+`` documentation can be found on ReadTheDocs [ReadTheDocs](https://gausspyplus.readthedocs.io).
+The ``GaussPy+`` documentation can be found on [ReadTheDocs](https://gausspyplus.readthedocs.io).
 
 # Installation
 

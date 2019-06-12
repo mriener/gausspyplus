@@ -294,7 +294,7 @@ class GaussPyPrepare(object):
 
         return [idx, spectrum, location, rms, signal_ranges, noise_spike_ranges]
 
-    def produce_noise_map(self):
+    def produce_noise_map(self, dtype='float32'):
         comments = ['noise map']
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
@@ -303,6 +303,7 @@ class GaussPyPrepare(object):
         path_to_file = os.path.join(
             os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
 
-        save_fits(self.errors, header, path_to_file, verbose=False)
+        save_fits(self.errors.astype(dtype), header, path_to_file,
+                  verbose=False)
         say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, os.path.dirname(path_to_file)), logger=self.logger)

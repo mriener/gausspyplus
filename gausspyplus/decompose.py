@@ -545,7 +545,7 @@ class GaussPyDecompose(object):
         say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, tableDirname), logger=self.logger)
 
-    def produce_component_map(self):
+    def produce_component_map(self, dtype='float32'):
         """Create FITS map showing the number of fitted components.
 
         The FITS file in saved in the gpy_maps directory.
@@ -569,9 +569,9 @@ class GaussPyDecompose(object):
         pathToFile = os.path.join(
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
-        save_fits(data, header, pathToFile, verbose=True)
+        save_fits(data.astype(dtype), header, pathToFile, verbose=True)
 
-    def produce_rchi2_map(self):
+    def produce_rchi2_map(self, dtype='float32'):
         """Create FITS map showing the reduced chi-square values of the decomposition.
 
         The FITS file in saved in the gpy_maps directory.
@@ -599,9 +599,9 @@ class GaussPyDecompose(object):
         pathToFile = os.path.join(
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
-        save_fits(data, header, pathToFile, verbose=True)
+        save_fits(data.astype(dtype), header, pathToFile, verbose=True)
 
-    def produce_velocity_dispersion_map(self, mode='average'):
+    def produce_velocity_dispersion_map(self, mode='average', dtype='float32'):
         """Produce map showing the maximum velocity dispersions."""
         say("\nmaking map of maximum velocity dispersions...",
             logger=self.logger)
@@ -635,6 +635,6 @@ class GaussPyDecompose(object):
         pathToFile = os.path.join(
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
-        save_fits(data, header, pathToFile, verbose=False)
+        save_fits(data.astype(dtype), header, pathToFile, verbose=False)
         say(">> saved {} velocity dispersion map '{}' in {}".format(
             mode, filename, os.path.dirname(pathToFile)), logger=self.logger)

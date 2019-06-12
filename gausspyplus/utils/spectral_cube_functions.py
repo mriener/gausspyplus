@@ -562,7 +562,7 @@ def reproject_data(input_data, output_projection, shape_out):
 
     """
     from reproject import reproject_interp
-    
+
     data_reprojected, footprint = reproject_interp(
         input_data, output_projection, shape_out=shape_out)
     return data_reprojected
@@ -1174,7 +1174,7 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                p_limit=0.02, pad_channels=5,
                vel_unit=u.km/u.s, path_to_noise_map=None,
                save=False, get_hdu=True, use_ncpus=None,
-               restore_nans=False, nan_mask=None):
+               restore_nans=False, nan_mask=None, dtype='float32'):
     """Create a moment map of the input data.
 
     The type of moment map can be specified with the 'order' keyword:
@@ -1264,7 +1264,8 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                 path_to_file, suffix=suffix,
                 filename='moment{}_map.fits'.format(order))
 
-        save_fits(hdu.data, hdu.header, path_to_output_file, verbose=True)
+        save_fits(hdu.data.astype(dtype), hdu.header, path_to_output_file,
+                  verbose=True)
 
     if get_hdu:
         return hdu
@@ -1321,7 +1322,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
            path_to_output_file=None, path_to_noise_map=None,
            apply_noise_threshold=False, snr=3, p_limit=0.02, pad_channels=5,
            sum_over_latitude=True, vel_unit=u.km/u.s,
-           save=False, get_hdu=True, use_ncpus=None):
+           save=False, get_hdu=True, use_ncpus=None, dtype='float32'):
     """Create a position-velocity map of the input data.
 
     Parameters
@@ -1395,14 +1396,15 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         if path_to_output_file is None:
             path_to_output_file = get_path_to_output_file(path_to_file, suffix='_pv', filename='pv_map.fits')
 
-        save_fits(hdu.data, hdu.header, path_to_output_file, verbose=True)
+        save_fits(hdu.data.astype(dtype), hdu.header, path_to_output_file,
+                  verbose=True)
 
     if get_hdu:
         return hdu
 
 
 def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
-                   header=None, path_to_output_file=None, comments=[], verbose=True):
+                   header=None, path_to_output_file=None, comments=[], verbose=True, dtype='float32'):
     """Combine FITS files to a mosaic by stacking them in the spatial coordinates.
 
     This will only yield a correct combined mosaic if the original mosaic was split in a similar way as obtained by the get_list_slice_params method
@@ -1471,6 +1473,7 @@ def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
         header = update_header(header, comments=comments)
 
     if save:
-        save_fits(data_combined, header, path_to_output_file, verbose=verbose)
+        save_fits(data_combined.astype(dtype), header, path_to_output_file,
+                  verbose=verbose)
 
     return data, header
