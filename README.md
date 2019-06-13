@@ -11,7 +11,7 @@ Claire E. Murray, Henrik Beuther
 
 [Riener et al. 2019, subm.]
 
-The paper will arrive on the arxiv soon. If you would like to have an advance copy of the paper please get into contact with us.
+The paper about the ``GaussPy+`` package is currently still in the refereeing process. If you would like to have an advance copy of the paper please get into contact with us.
 
 ``GaussPy+`` is based on ``GaussPy``: A python tool for implementing the
 Autonomous Gaussian Decomposition algorithm.
