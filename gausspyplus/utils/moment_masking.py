@@ -31,17 +31,9 @@ def say(message, verbose=False):
 class MomentMask(object):
     """Moment masking procedure from Dame (2011)."""
 
-    def __init__(self, path_to_file, output_directory=None):
-        self.path_to_file = path_to_file
-        self.dirname = os.path.dirname(path_to_file)
-        self.file = os.path.basename(path_to_file)
-        self.filename, self.file_extension = os.path.splitext(self.file)
+    def __init__(self):
+        self.path_to_file = None
         self.output_directory = None
-        if output_directory is not None:
-            if not os.path.exists(output_directory):
-                os.makedirs(output_directory)
-            self.output_directory = output_directory
-
         self.slice_params = None
         self.p_limit = 0.025
         self.pad_channels = 5
@@ -56,6 +48,19 @@ class MomentMask(object):
         self.clipping_level = 5
         self.verbose = True
         self.random_seed = 111
+
+    def check_settings(self):
+        if self.path_to_file is None:
+            raise Exception("Need to specify 'path_to_file'")
+        self.dirname = os.path.dirname(self.path_to_file)
+        self.file = os.path.basename(self.path_to_file)
+        self.filename, self.file_extension = os.path.splitext(self.file)
+
+        if self.output_directory is not None:
+            if not os.path.exists(self.output_directory):
+                os.makedirs(self.output_directory)
+        else:
+            self.output_directory = os.path.dirname(self.path_to_file)
 
     def prepare_cube(self):
         # self.check_settings()
@@ -113,6 +118,7 @@ class MomentMask(object):
 
     def moment_masking(self):
         say('Preparing cube ...', verbose=self.verbose)
+        self.check_settings()
         self.prepare_cube()
 
         if self.masking_cube is None:
@@ -226,7 +232,7 @@ class MomentMask(object):
         mask_new = mask_new.astype('bool')
         return mask_new
 
-    def make_moment_map(self, order=0, linewidth='sigma', save=True, get_hdu=False,
+    def make_moment_map(self, order=0, save=True, get_hdu=False,
                         vel_unit=u.km/u.s, restore_nans=True, slice_params=None,
                         suffix=''):
         path_to_output_file = self.get_path_to_output_file(
@@ -236,8 +242,7 @@ class MomentMask(object):
         if slice_params is None:
             slice_params = self.slice_params
         moment_map(hdu=hdu, slice_params=slice_params, save=save,
-                   order=order, linewidth=linewidth,
-                   path_to_output_file=path_to_output_file,
+                   order=order, path_to_output_file=path_to_output_file,
                    vel_unit=vel_unit, apply_noise_threshold=False,
                    get_hdu=get_hdu, restore_nans=restore_nans,
                    nan_mask=self.nan_mask_2D)

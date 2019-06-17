@@ -31,16 +31,17 @@ def transform_header_from_crota_to_pc(header):
     cdelt1 = header['CDELT1']
     cdelt2 = header['CDELT2']
 
-    crota = np.radians(header['CROTA1'])
-    if crota != 0:
-        warnings.warn(
-            "Replacing 'CROTA*' with 'PC*_*' keywords in FITS header.")
-        header['PC1_1'] = np.cos(crota)
-        header['PC1_2'] = -(cdelt2 / cdelt1) * np.sin(crota)
-        header['PC2_1'] = (cdelt1 / cdelt1) * np.sin(crota)
-        header['PC2_2'] = np.cos(crota)
-    else:
-        warnings.warn("'CROTA*' keywords with value 0. present in FITS header.")
+    if 'CROTA1' in header.keys():
+        crota = np.radians(header['CROTA1'])
+        if crota != 0:
+            warnings.warn(
+                "Replacing 'CROTA*' with 'PC*_*' keywords in FITS header.")
+            header['PC1_1'] = np.cos(crota)
+            header['PC1_2'] = -(cdelt2 / cdelt1) * np.sin(crota)
+            header['PC2_1'] = (cdelt1 / cdelt1) * np.sin(crota)
+            header['PC2_2'] = np.cos(crota)
+        else:
+            warnings.warn("'CROTA*' keywords with value 0. present in FITS header.")
 
     warnings.warn("Removing 'CROTA*' keywords from FITS header.")
 
@@ -1083,8 +1084,10 @@ def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
     for key in keys:
         if key + keep_axes[0] in header.keys():
             prihdr[key + '1'] = header[key + keep_axes[0]]
+            prihdr.comments[key + '1'] = header.comments[key + keep_axes[0]]
         if key + keep_axes[1] in header.keys():
             prihdr[key + '2'] = header[key + keep_axes[1]]
+            prihdr.comments[key + '2'] = header.comments[key + keep_axes[1]]
 
     for key_new, axis in zip(['CDELT1', 'CDELT2'], keep_axes):
         key = 'CD{a}_{a}'.format(a=axis)

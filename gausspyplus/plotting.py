@@ -430,3 +430,4 @@ def plot_spectra(pathToDataPickle, *args,
             fig.patch.set_alpha(1.0)
             fig.subplots_adjust(hspace=0.5)
     pbar.close()
+    plt.close()

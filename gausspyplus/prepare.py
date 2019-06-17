@@ -58,13 +58,6 @@ class GaussPyPrepare(object):
             get_values_from_config_file(
                 self, config_file, config_key='preparation')
 
-    # def say(self, message):
-    #     """Diagnostic messages."""
-    #     if self.log_output:
-    #         self.logger.info(message)
-    #     if self.verbose:
-    #         print(message)
-
     def check_settings(self):
         text = "specify 'data_location' as (y, x) for 'testing'"
         check_if_value_is_none(self.testing, self.data_location,
