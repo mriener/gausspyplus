@@ -341,7 +341,7 @@ def make(all_keywords=False, description=True, output_directory='',
             'description': "Flag spectra with negative residual features. [bool]",
             'simple': False}),
         ('flag_rchi2', {
-            'default': 'True',
+            'default': 'False',
             'description': "Flag spectra with high reduced chi-square values. [bool]",
             'simple': False}),
         ('flag_residual', {
