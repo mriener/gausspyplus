@@ -324,7 +324,7 @@ class SpatialFitting(object):
             return np.zeros(self.length).astype('bool')
 
         array = np.array(self.decomposition[key])
-        array[self.nanMask] = 0
+        array[self.nanMask] = limit
         mask = array < limit
         return mask
 
