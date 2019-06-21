@@ -271,7 +271,12 @@ def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
         spectrum, rms, ranges, snr=snr, significance=significance)
 
     if not ranges:
-        return []
+        if remove_intervals is None:
+            return []
+        else:
+            mask = mask_channels(n_channels, [[0, n_channels]],
+                                 remove_intervals=remove_intervals)
+            return intervals_where_mask_is_true(mask)
 
     i = 0
     if pad_channels is not None:
