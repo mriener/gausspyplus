@@ -673,7 +673,8 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
 
     residual = data - best_fit
 
-    pvalue = check_residual_for_normality(residual, errors, mask=signal_mask)
+    pvalue = check_residual_for_normality(residual, errors, mask=signal_mask,
+                                          noise_spike_mask=noise_spike_mask)
 
     #  return the list of best fit results if there was no old list of best fit results for comparison
     if first:
