@@ -1390,8 +1390,11 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
     else:
         sum_over_axis = wcs.wcs.naxis - wcs.wcs.lng - 1
 
+    if slice_params:
+        slice_z = slice_params[0]
+
     hdu = get_pv_map(data, header, sum_over_axis=sum_over_axis,
-                     slice_z=slice_params[0], vel_unit=vel_unit)
+                     slice_z=slice_z, vel_unit=vel_unit)
     data = hdu.data
     header = hdu.header
 
