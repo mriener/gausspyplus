@@ -220,4 +220,4 @@ We would love to get your feedback on ``GaussPy+``. If you should find that ``Ga
 
 # Contributing to ``GaussPy+``
 
-To contribute to ``GaussPy+``, see [Contributing to GaussPy](CONTRIBUTING.md)
+To contribute to ``GaussPy+``, see [Contributing to GaussPy+](CONTRIBUTING.md)
