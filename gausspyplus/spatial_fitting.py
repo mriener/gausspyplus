@@ -57,6 +57,7 @@ class SpatialFitting(object):
         self.n_max_jump_comps = 1
         self.max_refitting_iteration = 30
 
+        self.use_all_neighors = False
         self.flag_blended = None
         self.flag_neg_res_peak = None
         self.flag_rchi2 = None
@@ -72,6 +73,7 @@ class SpatialFitting(object):
 
         self.mean_separation = 2.  # minimum distance between peaks in channels
         self.fwhm_separation = 4.
+        self.constrain_fwhm = False
         self.snr = 3.
         self.fwhm_factor = 2.
         self.fwhm_factor_refit = None
@@ -85,6 +87,7 @@ class SpatialFitting(object):
         self.log_output = True
         self.only_print_flags = False
         self._pixel_range = None
+        self._w_start = 1.
 
         if config_file:
             get_values_from_config_file(
@@ -206,7 +209,7 @@ class SpatialFitting(object):
         self.w_2 = normalization_factor
         self.w_1 = self.weight_factor * normalization_factor
         self.w_min = self.w_1 / np.sqrt(2)
-        self.min_p = 1 - self.w_2
+        self.min_p = self._w_start - self.w_2
 
     def mask_out_beyond_pixel_range(self):
         import itertools
@@ -259,8 +262,9 @@ class SpatialFitting(object):
         say(string, logger=self.logger)
 
         string = str(
-            '\nExclude flagged spectra as possible refit solutions: {}'.format(
-                self.exclude_flagged))
+            '\nFor phase 1:'
+            '\nExclude flagged spectra as possible refit solutions in first refit attempts: {}'
+            '\nUse also flagged spectra as refit solutions in case no new best fit could be obtained from unflagged spectra: {}').format(self.exclude_flagged, self.use_all_neighors)
         if not self.phase_two:
             say(string, logger=self.logger)
 
@@ -370,6 +374,7 @@ class SpatialFitting(object):
             if fwhms is None:
                 continue
             n_broad[i] = np.count_nonzero(np.array(fwhms) > self.max_fwhm)
+        n_broad[self.nanMask] = 0
         mask = n_broad > 0
         return mask, n_broad
 
@@ -462,8 +467,10 @@ class SpatialFitting(object):
         broad_fwhm_values = ndimage.generic_filter(
             broad_2d, self.broad_components, footprint=footprint,
             mode='constant', cval=np.nan).flatten()
+        # mask_broad = mask_broad.astype('bool')
+        mask_broad += broad_fwhm_values  #.astype('bool')
+        mask_broad[self.nanMask] = 0
         mask_broad = mask_broad.astype('bool')
-        mask_broad += broad_fwhm_values.astype('bool')
 
         return mask_broad
 
@@ -856,7 +863,7 @@ class SpatialFitting(object):
         else:
             self.determine_spectra_for_refitting()
 
-    def determine_neighbor_indices(self, neighbors):
+    def determine_neighbor_indices(self, neighbors, include_flagged=False):
         """Determine indices of all valid neighboring pixels.
 
         Parameters
@@ -870,7 +877,7 @@ class SpatialFitting(object):
             Array containing the corresponding indices of the N neighboring spectra in the form [idx1, ..., idxN].
 
         """
-        all = False
+        all_neighbors = False
         indices_neighbors_all = np.array([])
         for neighbor in neighbors:
             indices_neighbors_all = np.append(
@@ -899,16 +906,16 @@ class SpatialFitting(object):
                 np.array(self.decomposition['best_fit_rchi2'])[indices_neighbors])
             indices_neighbors = indices_neighbors[sort]
 
-        elif indices_neighbors.size == 0:
+        elif (indices_neighbors.size == 0) or include_flagged:
             #  in case there are no unflagged neighbors, use all flagged neighbors instead
-            all = True
+            all_neighbors = True
             indices_neighbors = indices_neighbors_all.copy()
             indices_neighbors = self.neighbor_indices_including_flagged(
                 indices_neighbors)
 
-        return indices_neighbors, all
+        return indices_neighbors, all_neighbors
 
-    def determine_neighbor_indices_including_flagged(self, indices_neighbors):
+    def neighbor_indices_including_flagged(self, indices_neighbors):
         for idx in indices_neighbors:
             if (idx in self.nanIndices) or\
                     (self.decomposition['N_components'][idx] == 0):
@@ -950,9 +957,10 @@ class SpatialFitting(object):
         #  determine all neighbors that should be used for the refitting
 
         neighbors = get_neighbors(loc, shape=self.shape)
-        indices_neighbors, all = self.determine_neighbor_indices(neighbors)
+        indices_neighbors, all_neighbors = self.determine_neighbor_indices(neighbors)
 
-        if indices_neighbors.size == 0:
+        if (indices_neighbors.size == 0) or (
+                all_neighbors and not self.use_all_neighors):
             return [index, None, indices_neighbors, refit]
 
         # skip refitting if there were no changes to the last iteration
@@ -986,16 +994,19 @@ class SpatialFitting(object):
                 index, spectrum, rms, indices_neighbors, signal_ranges,
                 noise_spike_ranges, signal_mask)
 
-        if not all:
+        if (not all_neighbors and self.use_all_neighors):
             #  even though we now use indices_neighbors_all we still return indices_neighbors to avoid repeating the refitting
-            indices_neighbors_all = self.determine_neighbor_indices_including_flagged()
+            indices_neighbors_all, all_neighbors = self.determine_neighbor_indices(
+                neighbors, include_flagged=True)
+            indices_neighbors_flagged = np.setdiff1d(
+                indices_neighbors_all, indices_neighbors).astype('int')
 
-            if indices_neighbors_all.size == 0:
+            if indices_neighbors_flagged.size == 0:
                 return [index, None, indices_neighbors, refit]
 
             for flag in flags:
                 dictResults, refit = self.try_refit_with_individual_neighbors(
-                    index, spectrum, rms, indices_neighbors_all, signal_ranges,
+                    index, spectrum, rms, indices_neighbors_flagged, signal_ranges,
                     noise_spike_ranges, signal_mask, flag=flag)
 
                 if dictResults is not None:
@@ -1430,8 +1441,12 @@ class SpatialFitting(object):
         mean_min = max(0, mean_min)  # prevent negative values
         mean_max = max(mean + self.mean_separation, mean + mean_err)
 
-        # fwhm_min = max(0., fwhm - self.fwhm_separation)
-        # fwhm_max = fwhm + self.fwhm_separation
+        fwhm_min = 0.
+        fwhm_max = None
+
+        if self.constrain_fwhm:
+            fwhm_min = max(0., fwhm - self.fwhm_separation)
+            fwhm_max = fwhm + self.fwhm_separation
 
         keyname = str(len(dictComps) + 1)
         dictComps[keyname] = {}
@@ -1441,8 +1456,8 @@ class SpatialFitting(object):
 
         dictComps[keyname]['amp_bounds'] = [0., 1.1*amp_max]
         dictComps[keyname]['mean_bounds'] = [mean_min, mean_max]
-        dictComps[keyname]['fwhm_bounds'] = [0., None]
-        # dictComps[keyname]['fwhm_bounds'] = [fwhm_min, fwhm_max]
+        # dictComps[keyname]['fwhm_bounds'] = [0., None]
+        dictComps[keyname]['fwhm_bounds'] = [fwhm_min, fwhm_max]
 
         return dictComps
 
@@ -1956,6 +1971,13 @@ class SpatialFitting(object):
             mean_min = max(0, mean_min)  # prevent negative values
             mean_max = max(mean + self.mean_separation, mean + mean_err)
 
+            fwhm_min = 0
+            fwhm_max = None
+
+            if self.constrain_fwhm:
+                fwhm_min = max(0, fwhm - self.fwhm_separation)
+                fwhm_max = fwhm + self.fwhm_separation
+
             keyname = str(key + 1)
             dictComps[keyname] = {}
             dictComps[keyname]['amp_ini'] = amp
@@ -1964,7 +1986,7 @@ class SpatialFitting(object):
 
             dictComps[keyname]['amp_bounds'] = [0., 1.1*amp_max]
             dictComps[keyname]['mean_bounds'] = [mean_min, mean_max]
-            dictComps[keyname]['fwhm_bounds'] = [0., None]
+            dictComps[keyname]['fwhm_bounds'] = [fwhm_min, fwhm_max]
 
         return dictComps
 
@@ -2019,14 +2041,18 @@ class SpatialFitting(object):
                 abs(mean_ini - np.max(means)), self.mean_separation)
             mean_max = mean_ini + upper_interval
 
-            # #  determine fitting constraints for fwhm value
-            # lower_interval = max(
-            #     abs(fwhm_ini - np.min(fwhms)), self.fwhm_separation)
-            # fwhm_min = max(self.min_fwhm, fwhm_ini - lower_interval)
-            #
-            # upper_interval = max(
-            #     abs(fwhm_ini - np.max(fwhms)), self.fwhm_separation)
-            # fwhm_max = fwhm_ini + upper_interval
+            fwhm_min = 0
+            fwhm_max = None
+
+            if self.constrain_fwhm:
+                #  determine fitting constraints for fwhm value
+                lower_interval = max(
+                    abs(fwhm_ini - np.min(fwhms)), self.fwhm_separation)
+                fwhm_min = max(0, fwhm_ini - lower_interval)
+
+                upper_interval = max(
+                    abs(fwhm_ini - np.max(fwhms)), self.fwhm_separation)
+                fwhm_max = fwhm_ini + upper_interval
 
             dictComps[key]['amp_ini'] = amp_ini
             dictComps[key]['mean_ini'] = mean_ini
@@ -2034,8 +2060,8 @@ class SpatialFitting(object):
 
             dictComps[key]['amp_bounds'] = [0., 1.1*amp_max]
             dictComps[key]['mean_bounds'] = [mean_min, mean_max]
-            dictComps[key]['fwhm_bounds'] = [0., None]
-            # dictComps[key]['fwhm_bounds'] = [fwhm_min, fwhm_max]
+            # dictComps[key]['fwhm_bounds'] = [0., None]
+            dictComps[key]['fwhm_bounds'] = [fwhm_min, fwhm_max]
         return dictComps
 
     def gaussian_fitting(self, spectrum, rms, dictComps, signal_ranges,
@@ -2526,6 +2552,9 @@ class SpatialFitting(object):
             [0 if x is None else 1 for x in self.decomposition['N_components']]).astype('bool')
         self.indices_all = np.array(
             self.decomposition['index_fit'])[mask_all]
+        if self._pixel_range is not None:
+            self.indices_all = np.array(
+                self.decomposition['index_fit'])[~self.nanMask]
         self.locations_all = np.take(
             np.array(self.location), self.indices_all, axis=0)
 

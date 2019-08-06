@@ -35,7 +35,7 @@ class MomentMask(object):
         self.path_to_file = None
         self.output_directory = None
         self.slice_params = None
-        self.p_limit = 0.025
+        self.p_limit = 0.02
         self.pad_channels = 5
         self.use_ncpus = None
         self.path_to_noise_map = None
@@ -234,9 +234,10 @@ class MomentMask(object):
 
     def make_moment_map(self, order=0, save=True, get_hdu=False,
                         vel_unit=u.km/u.s, restore_nans=True, slice_params=None,
-                        suffix=''):
-        path_to_output_file = self.get_path_to_output_file(
-            suffix='{}_mom_{}_map'.format(suffix, order))
+                        suffix='', path_to_output_file=None, comments=[]):
+        if path_to_output_file is None:
+            path_to_output_file = self.get_path_to_output_file(
+                suffix='{}_mom_{}_map'.format(suffix, order))
         hdu = fits.PrimaryHDU(
             data=self.data.copy(), header=self.header.copy())
         if slice_params is None:
@@ -245,19 +246,21 @@ class MomentMask(object):
                    order=order, path_to_output_file=path_to_output_file,
                    vel_unit=vel_unit, apply_noise_threshold=False,
                    get_hdu=get_hdu, restore_nans=restore_nans,
-                   nan_mask=self.nan_mask_2D)
+                   nan_mask=self.nan_mask_2D, comments=comments)
 
     def make_pv_map(self, save=True, get_hdu=False, vel_unit=u.km/u.s,
-                    sum_over_latitude=True, suffix='', slice_params=None):
-        path_to_output_file = self.get_path_to_output_file(
-            suffix='{}_pv_map'.format(suffix))
+                    sum_over_latitude=True, suffix='', slice_params=None,
+                    path_to_output_file=None, comments=[]):
+        if path_to_output_file is None:
+            path_to_output_file = self.get_path_to_output_file(
+                suffix='{}_pv_map'.format(suffix))
         hdu = fits.PrimaryHDU(
             data=self.data.copy(), header=self.header.copy())
         if slice_params is None:
             slice_params = self.slice_params
         pv_map(hdu=hdu, slice_params=slice_params, get_hdu=False, save=True,
                path_to_output_file=path_to_output_file, apply_noise_threshold=False,
-               sum_over_latitude=sum_over_latitude)
+               sum_over_latitude=sum_over_latitude, comments=comments)
 
     def get_path_to_output_file(self, suffix=''):
         if self.output_directory is not None:

@@ -319,7 +319,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
             params_max = amps_max + fwhms_max + offsets_max
 
         params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
-            vel, data, errors, params_fit, dct, params_min=None, params_max=None)
+            vel, data, errors, params_fit, dct, params_min=params_min, params_max=params_max)
 
         refit = True
 
@@ -654,7 +654,7 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     ncomps_fit = number_of_components(params_fit)
 
     params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
-        vel, data, errors, params_fit, dct, params_min=None, params_max=None)
+        vel, data, errors, params_fit, dct, params_min=params_min, params_max=params_max)
 
     #  check if fit components satisfy mandatory criteria
     if ncomps_fit > 0:

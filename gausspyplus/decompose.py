@@ -392,27 +392,28 @@ class GaussPyDecompose(object):
             array[:, yi, xi][nans] = np.NAN
 
         if mode == 'main_component':
-            comment = str('Fitted Gaussians from GaussPy decomposition, '
-                          'per spectrum only Gaussian with highest '
-                          'amplitude is included')
+            comment = 'Fit component with highest amplitude per spectrum.'
             filename = "{}{}_main.fits".format(self.filename, self.suffix)
         elif mode == 'integrated_intensity':
-            comment = str('integrated intensity of Gaussian components '
-                          'from GaussPy decomposition at VLSR positions')
+            comment = 'Integrated intensity of fit component at VLSR position.'
             filename = "{}{}_wco.fits".format(self.filename, self.suffix)
         elif mode == 'full_decomposition':
-            comment = 'Fitted Gaussians of GaussPy decomposition'
+            comment = 'Recreated dataset from fit components.'
             filename = "{}{}_decomp.fits".format(self.filename, self.suffix)
 
         array[self.nan_mask] = np.nan
 
-        comments = [comment]
+        comments = ['GaussPy+ decomposition results:']
+        comments.append(comment)
+        if self.main_beam_efficiency is not None:
+            comments.append('Corrected for main beam efficiency of {}.'.format(
+                self.main_beam_efficiency))
 
-        self.header = update_header(
-            self.header, comments=comments, write_meta=True)
+        header = update_header(
+            self.header.copy(), comments=comments, write_meta=True)
 
         pathToFile = os.path.join(self.decomp_dirname, 'FITS', filename)
-        save_fits(array, self.header, pathToFile, verbose=False)
+        save_fits(array, header, pathToFile, verbose=False)
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, os.path.dirname(pathToFile)), logger=self.logger)
 

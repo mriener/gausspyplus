@@ -78,6 +78,13 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
         if keyword not in list(header.keys()):
             warnings.warn("{a} keyword not found in header. Assuming {a}={b}".format(a=keyword, b=value), stacklevel=2)
             header[keyword] = value
+        else:
+            try:
+                u.Unit(header[keyword])
+            except ValueError:
+                warnings.warn("{a} keyword value is an invalid unit. Assuming {a}={b}".format(a=keyword, b=value), stacklevel=2)
+                header[keyword] = value
+
     if 'CTYPE3' in list(header.keys()):
         if header['CTYPE3'] == 'VELOCITY':
             warnings.warn("Changed header keyword CTYPE3 from VELOCITY to VELO-LSR")
@@ -97,7 +104,7 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
 
 
 def update_header(header, comments=[], remove_keywords=[], update_keywords={},
-                  remove_old_comments=False, write_meta=True):
+                  remove_old_comments=False, write_meta=True, add_keywords={}):
     """Update FITS header.
 
     Parameters
@@ -114,6 +121,8 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
         Default is `False`. If set to `True`, existing 'COMMENT' keywords of the FITS header are removed.
     write_meta : bool
         Default is `True`. Adds or updates 'AUTHOR', 'ORIGIN', and 'DATE' FITS header keywords.
+    add_keywords : dict
+        New keywords and corresponding values that will be added to the header.
 
     Returns
     -------
@@ -122,8 +131,11 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
 
     """
     if remove_old_comments:
-        while ['COMMENT'] in header.keys():
-            header.remove('COMMENT')
+        while True:
+            if 'COMMENT' in list(header.keys()):
+                header.remove('COMMENT')
+            else:
+                break
 
     for keyword in remove_keywords:
         if keyword in header.keys():
@@ -131,6 +143,9 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
 
     for keyword, value in update_keywords.items():
         header[keyword] = value[0][1]
+
+    for key, val in add_keywords.items():
+        header[key] = val
 
     if write_meta:
         header['AUTHOR'] = getpass.getuser()
@@ -217,6 +232,7 @@ def remove_additional_axes(data, header, max_dim=3,
         Updated FITS header.
 
     """
+    header = transform_header_from_crota_to_pc(header)
     wcs = WCS(header)
 
     if header['NAXIS'] <= max_dim and wcs.wcs.naxis <= max_dim:
@@ -239,9 +255,10 @@ def remove_additional_axes(data, header, max_dim=3,
 
     wcs_header_diff = fits.HeaderDiff(wcs_header_old, wcs_header_new)
     header_diff = fits.HeaderDiff(header, wcs_header_new)
-    update_header(header, remove_keywords=wcs_header_diff.diff_keywords[0],
-                  update_keywords=header_diff.diff_keyword_values,
-                  write_meta=False)
+    header = update_header(
+        header, remove_keywords=wcs_header_diff.diff_keywords[0],
+        update_keywords=header_diff.diff_keyword_values,
+        write_meta=False)
 
     return data, header
 
@@ -1174,7 +1191,7 @@ def get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
 def moment_map(hdu=None, path_to_file=None, slice_params=None,
                path_to_output_file=None,
                apply_noise_threshold=False, snr=3, order=0,
-               p_limit=0.02, pad_channels=5,
+               p_limit=0.02, pad_channels=5, comments=[],
                vel_unit=u.km/u.s, path_to_noise_map=None,
                save=False, get_hdu=True, use_ncpus=None,
                restore_nans=False, nan_mask=None, dtype='float32'):
@@ -1208,6 +1225,8 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
         due to chance.
     pad_channels : int
         Number of channels by which an interval (low, upp) gets extended on both sides, resulting in (low - pad_channels, upp + pad_channels).
+    comments : list
+        Comments to add to the FITS header.
     vel_unit : astropy.units.quantity.Quantity
         Valid unit to which the values of the spectral axis will be converted.
     path_to_noise_map : str
@@ -1250,6 +1269,8 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                                           use_ncpus=use_ncpus)
 
     hdu = get_moment_map(data, header, order=order, vel_unit=vel_unit)
+    if comments:
+        hdu.header = update_header(hdu.header, comments=comments)
 
     # TODO: check if this is correct
     if restore_nans:
@@ -1324,7 +1345,7 @@ def get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None),
 def pv_map(path_to_file=None, hdu=None, slice_params=None,
            path_to_output_file=None, path_to_noise_map=None,
            apply_noise_threshold=False, snr=3, p_limit=0.02, pad_channels=5,
-           sum_over_latitude=True, vel_unit=u.km/u.s,
+           sum_over_latitude=True, vel_unit=u.km/u.s, comments=[],
            save=False, get_hdu=True, use_ncpus=None, dtype='float32'):
     """Create a position-velocity map of the input data.
 
@@ -1353,6 +1374,8 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         Default is `True`. Integrate over latitude axis (NAXIS2) for the PV map.
     vel_unit : astropy.units.quantity.Quantity
         Valid unit to which the values of the spectral axis will be converted.
+    comments : list
+        Comments to add to the FITS header.
     save : bool
         Default is `False`. If set to `True`, the resulting FITS array is saved under 'path_to_output_file'.
     get_hdu : bool
@@ -1390,11 +1413,14 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
     else:
         sum_over_axis = wcs.wcs.naxis - wcs.wcs.lng - 1
 
+    slice_z = slice(None, None)
     if slice_params:
         slice_z = slice_params[0]
 
     hdu = get_pv_map(data, header, sum_over_axis=sum_over_axis,
                      slice_z=slice_z, vel_unit=vel_unit)
+    if comments:
+        hdu.header = update_header(hdu.header, comments=comments)
     data = hdu.data
     header = hdu.header
 
