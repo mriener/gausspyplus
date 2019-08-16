@@ -1162,8 +1162,7 @@ def get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
     bunit = u.Unit('')
     velocity_bin = wcs.wcs.cdelt[2]
     spectral_channels = get_spectral_axis(header=header, to_unit=vel_unit)
-    print(spectral_channels)
-    print(velocity_bin)
+
     moment_data = np.zeros(data.shape[1:])
 
     def moment0(spectrum):
