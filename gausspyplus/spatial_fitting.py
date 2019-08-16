@@ -88,6 +88,7 @@ class SpatialFitting(object):
         self.only_print_flags = False
         self._pixel_range = None
         self._w_start = 1.
+        self._finalize = False
 
         if config_file:
             get_values_from_config_file(
@@ -291,6 +292,18 @@ class SpatialFitting(object):
                 i=self.refit_ncomps)
         if not self.phase_two:
             say(string, logger=self.logger)
+
+    def finalize(self):
+        self.logger = False
+        self.phase_two = True
+        self._finalize = True
+        self.check_settings()
+        self.initialize()
+        self.determine_spectra_for_flagging()
+
+        self.refitting_iteration = 1
+        self.check_indices_refit()
+        return self.refitting()
 
     def spatial_fitting(self, continuity=False):
         """Start the spatially coherent refitting.
@@ -600,6 +613,9 @@ class SpatialFitting(object):
         self.mask_ncomps, self.ncomps_wmedian, self.ncomps_jumps, self.ncomps =\
             self.define_mask_neighbor_ncomps(self.flag_ncomps)
 
+        if self._finalize:
+            return
+
         mask_flagged = (
             self.mask_blended +
             self.mask_neg_res_peak +
@@ -797,6 +813,9 @@ class SpatialFitting(object):
             results_list = gausspyplus.parallel_processing.func(
                 use_ncpus=self.use_ncpus, function='refit_phase_1')
         print('SUCCESS')
+
+        if self._finalize:
+            return results_list
 
         #  reset the mask for spectra selected for refitting
         self.mask_refitted = np.array([0]*self.nIndices)
@@ -2640,13 +2659,15 @@ class SpatialFitting(object):
         dictComps = self.check_continuity_centroids(index, loc)
         dct_refit = self.check_for_required_components(index, dictComps)
 
+        if self._finalize:
+            return [index, dct_refit['means_interval'], dct_refit['n_centroids']]
+
         if len(dct_refit['means_interval'].keys()) == 0:
             return [index, None, indices_neighbors, refit]
 
         dct_refit = self.select_neighbors_to_use_for_refit(dct_refit)
 
         #  TODO: first try to fit with indices_refit_all if present
-
         for key in dct_refit['indices_refit']:
             indices_neighbors = np.array(dct_refit['indices_refit'][key]).astype('int')
             interval = dct_refit['means_interval'][key]

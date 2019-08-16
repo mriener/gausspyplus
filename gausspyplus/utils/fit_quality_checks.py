@@ -131,8 +131,12 @@ def check_residual_for_normality(data, errors, mask=None,
     return ks_pvalue
 
 
-def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):
+def negative_residuals(spectrum, residual, rms, neg_res_snr=3.,
+                       get_flags=False, fwhms=None, means=None):
     N_negative_residuals = 0
+
+    if get_flags:
+        flags = np.zeros(len(fwhms)).astype('bool')
 
     amp_vals, ranges = determine_peaks(
         residual, peak='negative', amp_threshold=neg_res_snr*rms)
@@ -144,5 +148,14 @@ def negative_residuals(spectrum, residual, rms, neg_res_snr=3.):
         for offset in offset_vals:
             if residual[offset] < (spectrum[offset] - neg_res_snr*rms):
                 N_negative_residuals += 1
+
+                if get_flags:
+                    lower = np.array(means) - np.array(fwhms) / 2
+                    upper = np.array(means) + np.array(fwhms) / 2
+
+                    flags += np.logical_and(lower < offset, upper > offset)
+
+    if get_flags:
+        return flags.astype('int')
 
     return N_negative_residuals

@@ -284,17 +284,22 @@ def swap_axes(data, header, new_order):
 
     """
     dims = data.ndim
-    data = np.transpose(data, new_order)
-    hdu = fits.PrimaryHDU(data=data)
-    header_new = hdu.header
+    old_order = list(range(len(new_order)))
+    data = np.moveaxis(data, old_order, new_order)
+    # data = np.transpose(data, new_order)
+    # hdu = fits.PrimaryHDU(data=data)
+    header_new = header.copy()#hdu.header
 
     if 'CD1_1' in list(header.keys()):
         raise Exception('Cannot swap_axes for CDX_X keywords. Convert them to CDELTX.')
 
-    for keyword in list(header.keys()):
-        for axis in range(dims):
-            if keyword.endswith(str(axis + 1)):
-                keyword_new = keyword.replace(str(axis + 1), str(new_order[axis] + 1))
+    new_header_order = np.array(dims - np.array(new_order))
+    old_header_order = np.array(dims - np.array(old_order))
+
+    for old_axis, new_axis in zip(old_header_order, new_header_order):
+        for keyword in list(header.keys()):
+            if keyword.endswith(str(old_axis)):
+                keyword_new = keyword.replace(str(old_axis), str(new_axis))
                 header_new[keyword_new] = header[keyword]
 
     header_diff = fits.HeaderDiff(header, header_new)
@@ -1157,6 +1162,8 @@ def get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
     bunit = u.Unit('')
     velocity_bin = wcs.wcs.cdelt[2]
     spectral_channels = get_spectral_axis(header=header, to_unit=vel_unit)
+    print(spectral_channels)
+    print(velocity_bin)
     moment_data = np.zeros(data.shape[1:])
 
     def moment0(spectrum):
@@ -1164,13 +1171,13 @@ def get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
 
     def moment1(spectrum):
         nanmask = np.logical_not(np.isnan(spectrum))
-        return np.nansum(spectral_channels[nanmask]) * spectrum[nanmask]
+        return np.nansum(spectral_channels[nanmask] * spectrum[nanmask]) / np.nansum(spectrum)
 
     def moment2(spectrum):
         nanmask = np.logical_not(np.isnan(spectrum))
         numerator = np.nansum(
             (spectral_channels[nanmask] - moment1(spectrum[nanmask]))**2 * spectrum[nanmask])
-        denominator = np.nansum(spectrum[nanmask])
+        denominator = np.nansum(spectrum)
         return np.sqrt(numerator / denominator)
 
     if order == 0:
