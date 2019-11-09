@@ -334,6 +334,10 @@ def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
         wcs = WCS(header)
         channels = np.arange(header['NAXIS3'])
 
+    while wcs.wcs.naxis > 3:
+        axes = range(wcs.wcs.naxis)
+        wcs = wcs.dropaxis(axes[-1])
+
     x_wcs, y_wcs, spectral_axis = wcs.wcs_pix2world(0, 0, channels, 0)
 
     if to_unit:
@@ -1398,7 +1402,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         hdu = open_fits_file(path_to_file, get_hdu=True)
 
     if slice_params is not None:
-        data, header = make_subcube(slice_params, hdu=hdu)
+        hdu = make_subcube(slice_params, hdu=hdu, get_hdu=True)
         slice_params_pp = (slice_params[1], slice_params[2])
     else:
         slice_params_pp = (slice(None), slice(None))
@@ -1420,8 +1424,8 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         sum_over_axis = wcs.wcs.naxis - wcs.wcs.lng - 1
 
     slice_z = slice(None, None)
-    if slice_params:
-        slice_z = slice_params[0]
+    # if slice_params:
+    #     slice_z = slice_params[0]
 
     hdu = get_pv_map(data, header, sum_over_axis=sum_over_axis,
                      slice_z=slice_z, vel_unit=vel_unit)
