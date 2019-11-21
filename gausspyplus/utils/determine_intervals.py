@@ -278,6 +278,10 @@ def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
                                  remove_intervals=remove_intervals)
             return intervals_where_mask_is_true(mask)
 
+    #  safeguard to prevent eternal loop
+    if pad_channels <= 0:
+        pad_channels = None
+
     i = 0
     if pad_channels is not None:
         while True:

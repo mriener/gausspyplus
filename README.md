@@ -2,7 +2,7 @@
 <img src="docs/images/gausspyplus_logo.png"  alt="" width = "300" />
 </p>
 
-# About
+## About
 ``GaussPy+`` is a fully automated Gaussian decomposition package for emission
 line spectra.
 
@@ -26,7 +26,7 @@ For a description about the Autonomous Gaussian Decomposition algorithm please s
 
 The ``GaussPy+`` documentation can be found on [ReadTheDocs](https://gausspyplus.readthedocs.io).
 
-# Installation
+## Installation
 
 ### Dependencies
 
@@ -139,7 +139,7 @@ If you don't have root access and/or wish a local installation of
 python setup.py install --user
 ```
 
-# Getting started
+## Getting started
 
 You can find an example decomposition run with ``GaussPy+`` in the `example`
 directory. All individual scripts can be run via the Jupyter notebook
@@ -161,29 +161,37 @@ We tested the default settings of ``GaussPy+`` on different spectral cubes of CO
 
 * For phase 1 of the spatially coherent refitting, fit solutions are flagged based on user-defined criteria and ``GaussPy+`` will try to refit these flagged decomposition results by using neighboring unflagged fit solutions. In the default settings, one of the flagging criteria subjects the normalised residuals to normality tests to check whether the data points of the residual are normally distributed. This criterion might lead to a large number of spectra being flagged, which can lead to time-consuming refit attempts. If these refitting attempts should become prohibitive, we recommend to either set the ``min_pvalue`` parameter to lower values or set the ``refit_residual`` parameter to ``False``.
 
+* For the creation of the training set, by default fit solutions are only accepted if their reduced chi-squared values are lower than 1.5. If the decomposition routine to create the training set should take a very long time, we recommend to set the the ``rchi2_limit`` parameter to a higher value.
+
+* In case of a small number of spectral channels (< 100), we recommend to reduce the ``min_channels`` parameter (default: 100) to a smaller number. It can also be beneficial to reduce the ``pad_channels`` parameter (default: 5) to a smaller number.
+
 * If you run ``GaussPy+`` on HI datasets we recommend to set the ``refit_broad`` and ``refit_blended`` parameters to ``False`` (see Sect. 3.2.2.2 and 3.2.2.3 in [Riener et al. 2019](https://arxiv.org/abs/1906.10506)).
 
-# Citing ``GaussPy+``
+* By default, the first phase of the spatially coherent refitting will only consider unflagged neighboring fit solutions. In case all neighboring fit solutions get flagged or unflagged neighboring fit solutions do not yield an improvement in the fit, it can be beneficial to consider also flagged neighboring fit solutions for the refitting. If the 'use_all_neighors' parameter (default: 'False') is set to 'True' in the spatial refitting, flagged neighbors are used as refit solutions in case the refit was not possible with fit solutions from unflagged neighbors. See Appendix A.3 in Riener+ 2019b for more details.
+
+## Citing ``GaussPy+``
 ===============
 
 If you make use of this package in a publication, please consider the following
 acknowledgements:
 
 ```
-@ARTICLE{Riener2019,
-       author = {{Riener}, Manuel and {Kainulainen}, Jouni and {Henshaw}, Jonathan D. and
-         {Orkisz}, Jan H. and {Murray}, Claire E. and {Beuther}, Henrik},
-        title = "{GaussPy+: A fully automated Gaussian decomposition package for emission line spectra}",
-      journal = {arXiv e-prints},
-     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - Astrophysics of Galaxies},
+@ARTICLE{2019A&A...628A..78R,
+       author = {{Riener}, M. and {Kainulainen}, J. and {Henshaw}, J.~D. and
+         {Orkisz}, J.~H. and {Murray}, C.~E. and {Beuther}, H.},
+        title = "{GAUSSPY+: A fully automated Gaussian decomposition package for emission line spectra}",
+      journal = {\aap},
+     keywords = {methods: data analysis, radio lines: general, ISM: kinematics and dynamics, ISM: lines and bands, Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - Astrophysics of Galaxies},
          year = "2019",
-        month = "Jun",
-          eid = {arXiv:1906.10506},
-        pages = {arXiv:1906.10506},
+        month = "Aug",
+       volume = {628},
+          eid = {A78},
+        pages = {A78},
+          doi = {10.1051/0004-6361/201935519},
 archivePrefix = {arXiv},
        eprint = {1906.10506},
  primaryClass = {astro-ph.IM},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2019arXiv190610506R},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2019A&A...628A..78R},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 
@@ -214,10 +222,10 @@ archivePrefix = {arXiv},
 Please also consider acknowledgements to the required packages in your work.
 
 
-# Feedback
+## Feedback
 
 We would love to get your feedback on ``GaussPy+``. If you should find that ``GaussPy+`` does not perform as intended for your dataset or if you should come across bugs or have suggestions for improvement, please get into contact with us or open a new Issue or Pull request. We are also happy to give support and advice on the decomposition.
 
-# Contributing to ``GaussPy+``
+## Contributing to ``GaussPy+``
 
 To contribute to ``GaussPy+``, see [Contributing to GaussPy+](CONTRIBUTING.md)

@@ -332,6 +332,10 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '30',
             'description': "Maximum number for refitting iterations. [int]",
             'simple': False}),
+        ('use_all_neighors', {
+            'default': 'False',
+            'description': "Use flagged neighbors as refit solutions in case the refit was not possible with fit solutions from unflagged neighbors. [bool]",
+            'simple': True}),
         ('flag_blended', {
             'default': 'True',
             'description': "Flag spectra with blended fit components. [bool]",

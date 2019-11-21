@@ -144,10 +144,10 @@ class GaussianDecomposer(object):
 
         output_data = dict((key, []) for key in new_keys)
 
+        failed_decompositions = []
+
         for i, result in enumerate(result_list):
-            # if not isinstance(item, dict):
-            #     print(i, item)
-            if result is not None:
+            try:
                 # Save best-fit parameters
                 idx = result['index']
                 ncomps = result['N_components']
@@ -187,27 +187,19 @@ class GaussianDecomposer(object):
                             'quality_control']:
                     output_data[key].append(
                         result[key] if key in result else None)
+            except TypeError:
+                if result is not None:
+                    failed_decompositions.append(
+                        'Problem with index {}: {}'.format(i, result))
 
-                # # Final goodness of fit criteria
-                # rchi2 = result['rchi2'] if 'rchi2' in result else None
-                # aicc = result['aicc'] if 'aicc' in result else None
-                # Nresidual = result['N_neg_res_peak'] if 'N_neg_res_peak' in result else None
-                # Nblended = result['N_blended'] if 'N_blended' in result else None
-                # log_gplus = result['log_gplus'] if 'log_gplus' in result else None
-                # pvalue = result['pvalue'] if 'pvalue' in result else None
-                # quality_control = result['quality_control'] if 'quality_control' in result else None
-                #
-                # output_data['best_fit_rchi2'].append(rchi2)
-                # output_data['best_fit_aicc'].append(aicc)
-                # output_data['N_neg_res_peak'].append(Nresidual)
-                # output_data['N_blended'].append(Nblended)
-                # output_data['log_gplus'].append(log_gplus)
-                # output_data['pvalue'].append(pvalue)
-                # output_data['quality_control'].append(quality_control)
-            else:
                 for key in new_keys:
                     output_data[key].append(None)
                 output_data['index_fit'][i] = i
+
+        if failed_decompositions:
+            print('Could not fit the following spectra and replaced their entries with None:')
+            for item in failed_decompositions:
+                print(item)
 
         return output_data
 

@@ -86,7 +86,7 @@ class SpatialFitting(object):
         self.suffix = ''
         self.log_output = True
         self.only_print_flags = False
-        self._pixel_range = None
+        self.pixel_range = None
         self._w_start = 1.
         self._finalize = False
 
@@ -186,7 +186,7 @@ class SpatialFitting(object):
         self.nanMask = np.isnan([np.nan if i is None else i
                                  for i in self.decomposition['N_components']])
 
-        if self._pixel_range is not None:
+        if self.pixel_range is not None:
             self.mask_out_beyond_pixel_range()
 
         self.nanIndices = np.array(
@@ -216,8 +216,8 @@ class SpatialFitting(object):
         import itertools
 
         locations = list(itertools.product(
-            range(self._pixel_range['y'][0], self._pixel_range['y'][1]),
-            range(self._pixel_range['x'][0], self._pixel_range['x'][1])))
+            range(self.pixel_range['y'][0], self.pixel_range['y'][1]),
+            range(self.pixel_range['x'][0], self.pixel_range['x'][1])))
 
         for idx, loc in enumerate(self.location):
             if loc not in locations:
@@ -2571,7 +2571,7 @@ class SpatialFitting(object):
             [0 if x is None else 1 for x in self.decomposition['N_components']]).astype('bool')
         self.indices_all = np.array(
             self.decomposition['index_fit'])[mask_all]
-        if self._pixel_range is not None:
+        if self.pixel_range is not None:
             self.indices_all = np.array(
                 self.decomposition['index_fit'])[~self.nanMask]
         self.locations_all = np.take(

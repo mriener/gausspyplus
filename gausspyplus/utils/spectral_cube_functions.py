@@ -570,35 +570,85 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
         return data, header
 
 
-def reproject_data(input_data, output_projection, shape_out):
+def reproject_data(input_data, output_projection, shape_out, flux_factor):
     """Reproject data to a different projection.
 
     Parameters
     ----------
-    input_data : type
-        Description of parameter `input_data`.
-    output_projection : type
-        Description of parameter `output_projection`.
-    shape_out : type
-        Description of parameter `shape_out`.
+    output_projection : astropy.wcs.wcs.WCS
+        WCS parameters of the FITS array to which data is reprojected.
+    shape_out : tuple
+        Shape of the FITS array to which data is reprojected.
+    flux_factor : float
+        Multiplication factor for preserving flux.
 
     Returns
     -------
-    type
-        Description of returned object.
+    numpy.ndarray
+        Reprojected array.
 
     """
     from reproject import reproject_interp
 
     data_reprojected, footprint = reproject_interp(
         input_data, output_projection, shape_out=shape_out)
-    return data_reprojected
+    return data_reprojected * flux_factor
+
+
+def get_reproject_params(pixel_scale_input, header_projection, reproject=False,
+                         preserve_flux=True):
+    """Determine parameters for reprojection.
+
+    Parameters
+    ----------
+    pixel_scale_input : astropy.units.quantity.Quantity
+        Pixel scale of the input cube.
+    header_projection : astropy.io.fits.Header
+        Header of the FITS array to which data should be reprojected to.
+    reproject : bool
+        Default is `False`. Set to `True` if data should be reprojected to `header_projection`.
+    preserve_flux : bool
+        Default is `True`. Preserves flux in the reprojection step. If `False`, surface brightness is preserved instead.
+
+    Returns
+    -------
+    output_projection : astropy.wcs.wcs.WCS
+        WCS parameters of the FITS array to which data is reprojected.
+    shape_out : tuple
+        Shape of the FITS array to which data is reprojected.
+    flux_factor : float
+        Multiplication factor for preserving flux.
+
+    """
+    if not reproject:
+        return None, None, None, []
+
+    comment = ['Preserved surface brightness in reprojection step.']
+
+    shape_out = (header_projection['NAXIS2'], header_projection['NAXIS1'])
+    header_projection_pp = correct_header(header_projection.copy())
+    header_projection_pp = change_wcs_header_reproject(
+        header_projection_pp, header_projection_pp, ppv=False)
+    output_projection = WCS(header_projection_pp)
+
+    flux_factor = 1
+
+    if preserve_flux:
+        comment = ['Preserved flux in reprojection step.']
+        pixel_scale_output = abs(
+            output_projection.wcs.cdelt[0]) * output_projection.wcs.cunit[0]
+        pixel_scale_output = pixel_scale_output.to(u.deg)
+
+        flux_factor = pixel_scale_output**2 / pixel_scale_input**2
+
+    return output_projection, shape_out, flux_factor, comment
 
 
 def spatial_smoothing(data, header, save=False, path_to_output_file=None,
                       suffix=None, current_resolution=None,
                       target_resolution=None, verbose=True,
-                      reproject=False, header_projection=None):
+                      reproject=False, header_projection=None,
+                      preserve_flux=True):
     """Smooth a FITS cube spatially and update its header.
 
     The data can only be smoothed to a circular beam.
@@ -625,6 +675,8 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
         Default is `False`. Set to `True` if data should be reprojected to `header_projection`.
     header_projection : astropy.io.fits.Header
         Header of the FITS array to which data should be reprojected to.
+    preserve_flux : bool
+        Default is `True`. Preserves flux in the reprojection step. If `False`, surface brightness is preserved instead.
 
     Returns
     -------
@@ -634,7 +686,8 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
         Updated header of the FITS cube.
 
     """
-    check_if_value_is_none(save, path_to_output_file, 'save', 'path_to_output_file')
+    check_if_value_is_none(
+        save, path_to_output_file, 'save', 'path_to_output_file')
     check_if_all_values_are_none(current_resolution, target_resolution,
                                  'current_resolution', 'target_resolution')
 
@@ -654,6 +707,10 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     target_resolution = target_resolution.to(u.deg)
     pixel_scale = pixel_scale.to(u.deg)
 
+    output_projection, shape_out, flux_factor, comment = get_reproject_params(
+        pixel_scale, header_projection, reproject=reproject,
+        preserve_flux=preserve_flux)
+
     if 'BMAJ' in header.keys() and 'BMIN' in header.keys():
         if header['BMAJ'] != header['BMIN']:
             warnings.warn(str(
@@ -668,23 +725,16 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     kernel_std = (kernel_fwhm / fwhm_factor) / pixel_scale.value
     kernel = Gaussian2DKernel(kernel_std)
 
-    if reproject:
-        shape_out = (header_projection['NAXIS2'], header_projection['NAXIS1'])
-        header_projection_pp = correct_header(header_projection.copy())
-        header_projection_pp = change_wcs_header_reproject(
-            header_projection_pp, header_projection_pp, ppv=False)
-        output_projection = WCS(header_projection_pp)
-
     if data.ndim == 2:
         data = convolve(data, kernel, normalize_kernel=True)
         if reproject:
             data_reprojected = reproject_data(
-                (data, wcs_pp), output_projection, shape_out)
-            header = change_wcs_header_reproject(header, header_projection)
+                (data, wcs_pp), output_projection, shape_out, flux_factor)
     else:
         nSpectra = data.shape[0]
         if reproject:
-            data_reprojected = np.zeros((data.shape[0], shape_out[0], shape_out[1]))
+            data_reprojected = np.zeros(
+                (data.shape[0], shape_out[0], shape_out[1]))
         for i in tqdm(range(nSpectra)):
             channel = data[i, :, :]
             channel_smoothed = convolve(channel, kernel, normalize_kernel=True)
@@ -692,13 +742,15 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
             if reproject:
                 channel = data[i, :, :]
                 data_reprojected[i, :, :] = reproject_data(
-                    (channel, wcs_pp), output_projection, shape_out)
-        if reproject:
-            data = data_reprojected
-            header = change_wcs_header_reproject(header, header_projection)
+                    (channel, wcs_pp), output_projection, shape_out,
+                    flux_factor)
+
+    if reproject:
+        data = data_reprojected
+        header = change_wcs_header_reproject(header, header_projection)
 
     comments = ['spatially smoothed to a resolution of {}'.format(
-        target_resolution)]
+        target_resolution)] + comment
     header = update_header(header, comments=comments)
 
     if save:
