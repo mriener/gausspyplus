@@ -48,6 +48,8 @@ class Finalize(object):
         self.xpos_offset = 0
         self.ypos_offset = 0
 
+        self.main_beam_efficiency = None
+
         if config_file:
             get_values_from_config_file(
                 self, config_file, config_key='DEFAULT')
@@ -208,9 +210,12 @@ class Finalize(object):
         e_vel_disps = (
             np.array(fit_e_fwhms) / 2.354820045) * self.velocity_increment
 
+        amplitudes = np.array(fit_amps)
+        e_amplitudes = np.array(fit_e_amps)
+
         if self.main_beam_efficiency is not None:
-            amplitudes = np.array(fit_amps) / self.main_beam_efficiency
-            e_amplitudes = np.array(fit_e_amps) / self.main_beam_efficiency
+            amplitudes /= self.main_beam_efficiency
+            e_amplitudes /= self.main_beam_efficiency
             error /= self.main_beam_efficiency
 
         integrated_intensity = area_of_gaussian(

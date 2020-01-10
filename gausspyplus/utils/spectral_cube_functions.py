@@ -646,7 +646,7 @@ def get_reproject_params(pixel_scale_input, header_projection, reproject=False,
 
 def spatial_smoothing(data, header, save=False, path_to_output_file=None,
                       suffix=None, current_resolution=None,
-                      target_resolution=None, verbose=True,
+                      target_resolution=None, unit=u.deg, verbose=True,
                       reproject=False, header_projection=None,
                       preserve_flux=True):
     """Smooth a FITS cube spatially and update its header.
@@ -669,6 +669,8 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
         Current size of the resolution element (FWHM of the beam).
     target_resolution : astropy.units.quantity.Quantity
         Final resolution element after smoothing.
+    unit : astropy.units.quantity.Quantity
+        Unit of spatial axes. Default is u.deg.
     verbose : bool
         Default is `True`. Writes diagnostic messages to the terminal.
     reproject : bool
@@ -703,9 +705,9 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
         target_resolution = 2*current_resolution
         warnings.warn('No smoothing resolution specified. Will smooth to a resolution of {}'.format(target_resolution))
 
-    current_resolution = current_resolution.to(u.deg)
-    target_resolution = target_resolution.to(u.deg)
-    pixel_scale = pixel_scale.to(u.deg)
+    current_resolution = current_resolution.to(unit)
+    target_resolution = target_resolution.to(unit)
+    pixel_scale = pixel_scale.to(unit)
 
     output_projection, shape_out, flux_factor, comment = get_reproject_params(
         pixel_scale, header_projection, reproject=reproject,
@@ -761,7 +763,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
 
 def spectral_smoothing(data, header, save=False, path_to_output_file=None,
                        suffix=None, current_resolution=None,
-                       target_resolution=None, verbose=True):
+                       target_resolution=None, unit=u.m/u.s, verbose=True):
     """Smooth a FITS cube spectrally and update its header.
 
     Parameters
@@ -780,6 +782,8 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
         Current size of the spectral resolution element (velocity channel).
     target_resolution : astropy.units.quantity.Quantity
         Final spectral resolution element after smoothing.
+    unit : astropy.units.quantity.Quantity
+        Unit of spectral axes. Default is u.m/u.s.
     verbose : bool
         Default is `True`. Writes diagnostic messages to the terminal.
 
@@ -803,9 +807,9 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
         target_resolution = 2*current_resolution
         warnings.warn('No smoothing resolution specified. Will smooth to a resolution of {}'.format(target_resolution))
 
-    current_resolution = current_resolution.to(u.m/u.s)
-    target_resolution = target_resolution.to(u.m/u.s)
-    pixel_scale = pixel_scale.to(u.m/u.s)
+    current_resolution = current_resolution.to(unit)
+    target_resolution = target_resolution.to(unit)
+    pixel_scale = pixel_scale.to(unit)
 
     gaussian_width = (
         (target_resolution.value**2 - current_resolution.value**2)**0.5 /
