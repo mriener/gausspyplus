@@ -1,9 +1,12 @@
 """Functions that check the quality of the fit."""
 
 import numpy as np
+import warnings
 from scipy.stats import normaltest, kstest
 
 from .noise_estimation import determine_peaks
+from .output import format_warning
+warnings.showwarning = format_warning
 
 
 def determine_significance(amp, fwhm, rms):
@@ -122,10 +125,25 @@ def check_residual_for_normality(data, errors, mask=None,
         errors = np.ones(n_channels) * errors
     mask = check_mask(mask, n_channels)
     noise_spike_mask = check_mask(noise_spike_mask, n_channels)
-    ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
+    try:
+        ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
+    except ValueError:
+        warnings.warn('Normality test for residual unsuccessful. Setting pvalue to 0.')
+        ks_pvalue = 0
+
     if n_channels > 20:
-        statistic, pvalue = normaltest(data[noise_spike_mask])
-        statistic, pvalue_mask = normaltest(data[mask])
+        try:
+            statistic, pvalue = normaltest(data[noise_spike_mask])
+        except ValueError:
+            warnings.warn('Normality test for residual unsuccessful. Setting pvalue to 0.')
+            pvalue = 0
+
+        try:
+            statistic, pvalue_mask = normaltest(data[mask])
+        except ValueError:
+            warnings.warn('Normality test for residual unsuccessful. Setting pvalue to 0.')
+            pvalue_mask = 0
+        
         return min(ks_pvalue, pvalue, pvalue_mask)
 
     return ks_pvalue
