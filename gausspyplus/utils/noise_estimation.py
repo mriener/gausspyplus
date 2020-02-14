@@ -177,7 +177,7 @@ def correct_rms(average_rms=None, idx=None):
     if idx is not None:
         idxInfo = 'with index {} '.format(idx)
     if average_rms is not None:
-        warnings.warn('Could not determine noise for spectrum {} (baseline issue?). Assuminge average rms value of {}'.format(idxInfo, average_rms))
+        warnings.warn('Could not determine noise for spectrum {} (baseline issue?). Assuming average rms value of {}'.format(idxInfo, average_rms))
         return average_rms
     else:
         warnings.warn('Could not determine noise for spectrum {} (baseline issue?). Masking out spectrum.'.format(idxInfo))
