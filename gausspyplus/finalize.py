@@ -3,16 +3,16 @@ import pickle
 
 import numpy as np
 
+from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
-from tqdm import tqdm
 
 from .config_file import get_values_from_config_file
 from .gausspy_py3.gp_plus import get_fully_blended_gaussians
 from .utils.fit_quality_checks import negative_residuals
 from .utils.gaussian_functions import combined_gaussian, area_of_gaussian
 from .utils.output import say
-from .utils.spectral_cube_functions import correct_header
+from .utils.spectral_cube_functions import correct_header, change_header, save_fits, return_hdu_options
 from .spatial_fitting import SpatialFitting
 
 
@@ -20,7 +20,7 @@ class Finalize(object):
     def __init__(self, path_to_pickle_file=None,
                  path_to_decomp_file=None, fin_filename=None,
                  config_file=''):
-        """Class implementing the two phases of spatially coherent refitting discussed in Riener+ 2019.
+        """Class containing methods to finalize the GaussPy+ results.
 
         Parameters
         ----------
@@ -49,6 +49,8 @@ class Finalize(object):
         self.ypos_offset = 0
 
         self.main_beam_efficiency = None
+
+        self.initialized_state = False
 
         if config_file:
             get_values_from_config_file(
@@ -91,6 +93,8 @@ class Finalize(object):
                 self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2]).to(
                     self.vel_unit).value
             self.to_unit = (self.wcs.wcs.cunit[2]).to(self.vel_unit)
+
+        self.initialized_state = True
 
     def finalize_dct(self):
         self.check_settings()
@@ -293,3 +297,76 @@ class Finalize(object):
         pickle.dump(self.decomposition, open(pathToFile, 'wb'), protocol=2)
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, self.decomp_dirname))
+
+    def get_array(self, keyword='error', comments=[], suffix='', save=True,
+                  dtype='float32'):
+        #  TODO: routine in case pickled_data is missing the header key
+        shape = (self.header['NAXIS2'], self.header['NAXIS1'])
+        array = np.ones((shape[0], shape[1])) * np.nan
+
+        if keyword in self.pickled_data.keys():
+            data = self.pickled_data[keyword]
+        elif keyword in self.decomposition.keys():
+            data = self.decomposition[keyword]
+
+        for (y, x), value in zip(self.pickled_data['location'], data):
+            if value is None:
+                continue
+
+            array[y, x] = value
+
+        header = change_header(self.header.copy(), format='pp',
+                               comments=comments)
+
+        if keyword == 'error':
+            filename, _ = os.path.splitext(
+                os.path.basename(self.path_to_pickle_file))
+        else:
+            filename = self.filename
+
+        filename = "{}{}.fits".format(filename, suffix)
+        path_to_file = os.path.join(
+            os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
+
+        if save:
+            save_fits(data.astype(dtype), header, path_to_file,
+                      verbose=False)
+            say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
+                filename, os.path.dirname(path_to_file)), logger=self.logger)
+
+        return fits.PrimaryHDU(data, header)
+
+    def produce_noise_map(self, comments=['Noise map.'],
+                          suffix='_noise_map', save=True, dtype='float32',
+                          get_hdu=False, get_data=False, get_header=False):
+        if not self.initialized_state:
+            self.check_settings()
+            self.initialize()
+        hdu = self.get_array(self, keyword='error', comments=comments,
+                             suffix=suffix, save=save, dtype=dtype)
+
+        return return_hdu_options(
+            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
+
+    def produce_rchi2_map(self, suffix='_rchi2_map', save=True, dtype='float32',
+                          get_hdu=False, get_data=False, get_header=False,
+                          comments=['Reduced chi2 values of GaussPy fits']):
+        if not self.initialized_state:
+            self.check_settings()
+            self.initialize()
+        hdu = self.get_array(self, keyword='rchi2', comments=comments,
+                             suffix=suffix, save=save, dtype=dtype)
+
+        return return_hdu_options(
+            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
+
+    def produce_component_map(self, suffix='_component_map', save=True,
+                              dtype='float32', get_hdu=False, get_data=False, get_header=False, comments=['Number of fitted GaussPy components']):
+        if not self.initialized_state:
+            self.check_settings()
+            self.initialize()
+        hdu = self.get_array(self, keyword='ncomps', comments=comments,
+                             suffix=suffix, save=save, dtype=dtype)
+
+        return return_hdu_options(
+            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
