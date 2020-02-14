@@ -51,6 +51,8 @@ class GaussPyTrainingSet(object):
         self.save_all = False
         self.mask_out_ranges = []
 
+        self.amp_threshold = None
+
         self.verbose = True
         self.suffix = ''
         self.use_ncpus = None
@@ -162,12 +164,17 @@ class GaussPyTrainingSet(object):
             if not self.save_all and (rchi2 > self.rchi2_limit):
             # if not self.save_all and (pvalue < self.min_pvalue):
                 continue
+
             amps, fwhms, means = ([] for i in range(3))
             if fit_values is not None:
                 for item in fit_values:
                     amps.append(item[0])
                     means.append(item[1])
                     fwhms.append(item[2]*2.355)
+
+            if self.amp_threshold is not None:
+                if max(amps) < self.amp_threshold:
+                    continue
 
             data['data_list'] = data.get('data_list', []) + [spectrum]
             if self.header:
