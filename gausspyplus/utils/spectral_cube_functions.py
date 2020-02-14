@@ -565,6 +565,19 @@ def save_fits(data, header, path_to_file, verbose=True):
         save_file(os.path.basename(path_to_file), os.path.dirname(path_to_file))
 
 
+def return_hdu_options(hdu, get_hdu=False, get_data=False, get_header=False):
+    if get_hdu:
+        return (hdu)
+    elif get_data and (not get_header):
+        return (hdu.data)
+    elif (not get_data) and get_header:
+        return (hdu.header)
+    elif get_data and get_header:
+        return (hdu.data, hdu.header)
+    else:
+        return (None)
+
+
 def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
                    remove_stokes=True, check_wcs=True):
     """Open a FITS file and return the HDU or data and/or header.
@@ -599,14 +612,8 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
     if check_wcs:
         header = correct_header(header)
 
-    if get_hdu:
-        return fits.PrimaryHDU(data, header)
-    elif get_data and (not get_header):
-        return data
-    elif (not get_data) and get_header:
-        return header
-    else:
-        return data, header
+    return return_hdu_options(
+        fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
 def reproject_data(input_data, output_projection, shape_out, flux_factor):
@@ -966,14 +973,8 @@ def add_noise(average_rms, path_to_file=None, hdu=None, save=False,
 
         save_fits(data, header, path_to_output_file, verbose=True)
 
-    if get_hdu:
-        return fits.PrimaryHDU(data, header)
-    elif get_data and (not get_header):
-        return data
-    elif (not get_data) and get_header:
-        return header
-    else:
-        return data, header
+    return return_hdu_options(
+        fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
 def transform_coordinates_to_pixel(coordinates, header):
@@ -1067,14 +1068,8 @@ def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
 
         save_fits(data, header, path_to_output_file, verbose=True)
 
-    if get_hdu:
-        return fits.PrimaryHDU(data, header)
-    elif get_data and (not get_header):
-        return data
-    elif (not get_data) and get_header:
-        return header
-    else:
-        return data, header
+    return return_hdu_options(
+        fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
 def clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
