@@ -179,14 +179,39 @@ def get_figure_params(n_channels, n_spectra, cols, rowsize, rowbreak,
     return cols, rows, rowbreak, colsize, multiple_pdfs
 
 
+def xlabel_from_header(header, vel_unit):
+    xlabel = 'Channels'
+
+    if header is None:
+        return xlabel
+
+    if 'CTYPE3' in header.keys():
+        xlabel = '{} [{}]'.format(header['CTYPE3'], vel_unit)
+
+    return xlabel
+
+
+def ylabel_from_header(header):
+    if header is None:
+        return 'Intensity'
+
+    btype = 'Intensity'
+    if 'BTYPE' in header.keys():
+        btype = header['BTYPE']
+
+    bunit = ''
+    if 'BUNIT' in header.keys():
+        bunit = ' [{}]'.format(header['BUNIT'])
+
+    return btype + bunit
+
+
 def add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
                           header=None, residual=False, fontsize=10, vel_unit=u.km/u.s):
+    # TODO: read labels automatically from header
     ax.set_xlim(fig_min_channel, fig_max_channel)
-    if header is not None:
-        ax.set_xlabel('Velocity [{}]'.format(vel_unit), fontsize=fontsize)
-    else:
-        ax.set_xlabel('Channels', fontsize=fontsize)
-    ax.set_ylabel('T$_{\\mathrm{B}}$ [K]', fontsize=fontsize)
+    ax.set_xlabel(xlabel_from_header(header, vel_unit), fontsize=fontsize)
+    ax.set_ylabel(ylabel_from_header(header), fontsize=fontsize)
 
     ax.tick_params(labelsize=fontsize - 2)
 
