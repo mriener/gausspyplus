@@ -1540,7 +1540,27 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         return hdu
 
 
-def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
+def get_field_data(field):
+    if isinstance(field, str):
+        data = open_fits_file(
+            path_to_file=field, get_header=False, check_wcs=False)
+    else:
+        data = field
+    return data
+
+
+def get_field_header(field):
+    if isinstance(field, str):
+        header = open_fits_file(
+            path_to_file=field, get_data=False, check_wcs=False)
+    else:
+        warnings.warn('No FITS header information available. Creating generic header.')
+        hdu = fits.PrimaryHDU(data=field)
+        header = hdu.header
+    return header
+
+
+def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
                    header=None, path_to_output_file=None, comments=[], verbose=True, dtype='float32'):
     """Combine FITS files to a mosaic by stacking them in the spatial coordinates.
 
@@ -1548,7 +1568,7 @@ def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
 
     Parameters
     ----------
-    list_path_to_fields : list
+    list_of_fields : list
         List of filepaths to the fields that should be mosaicked together.
     ncols : int
         Number of fields in the X direction.
@@ -1578,22 +1598,21 @@ def combine_fields(list_path_to_fields=[], ncols=3, nrows=2, save=False,
     combined_rows = []
 
     first = True
-    for i, path_to_file in enumerate(list_path_to_fields):
+    for i, field in enumerate(list_of_fields):
         if first:
-            combined_row = open_fits_file(
-                path_to_file=path_to_file, get_header=False, check_wcs=False)
+            data = get_field_data(field)
+            combined_row = data
             axes = range(combined_row.ndim)
             axis_1 = axes[-1]
             axis_2 = axes[-2]
             first = False
         else:
-            data = open_fits_file(
-                path_to_file=path_to_file, get_header=False, check_wcs=False)
+            data = get_field_data(field)
             combined_row = np.concatenate((combined_row, data), axis=axis_1)
 
         if i == 0 and header is None:
-            header = open_fits_file(
-                path_to_file=path_to_file, get_data=False, check_wcs=False)
+            header = get_field_header(field)
+
         elif (i + 1) % ncols == 0:
             combined_rows.append(combined_row)
             first = True
