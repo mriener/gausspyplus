@@ -52,6 +52,46 @@ def transform_header_from_crota_to_pc(header):
     return header
 
 
+def correct_header_velocity(header):
+    """Check and correct spectral axis entries of FITS header.
+
+    Parameters
+    ----------
+    header : astropy.io.fits.Header
+        FITS header.
+
+    Returns
+    -------
+    header : astropy.io.fits.Header
+        Corrected FITS header.
+
+    """
+    if header['CTYPE3'] == 'VELOCITY':
+        warnings.warn("Changed header keyword CTYPE3 from VELOCITY to VELO-LSR")
+        header['CTYPE3'] = 'VELO-LSR'
+        return header
+
+    condition = (('FREQ' in header['CTYPE3']) or
+                 ('Freq' in header['CTYPE3']) or
+                 ('freq' in header['CTYPE3']) or
+                 ('Hz' in header['CUNIT3']))
+
+    if condition:
+        cunit3 = u.Unit(header['CUNIT3'])
+        restfreq = header['RESTFRQ'] * cunit3
+        radio_equiv = u.doppler_radio(restfreq)
+        crval3 = (header['CRVAL3'] * cunit3).to(
+            u.km/u.s, equivalencies=radio_equiv)
+        cdelt3 = ((header['RESTFRQ'] + header['CDELT3']) * cunit3).to(
+            u.km/u.s, equivalencies=radio_equiv)
+        header['CTYPE3'] = 'VELOCITY'
+        header['CRVAL3'] = crval3.value
+        header['CDELT3'] = cdelt3.value
+        header['CUNIT3'] = 'km / s'
+
+    return header
+
+
 def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
                                            'CUNIT2': 'deg', 'CUNIT3': 'm/s'},
                    keep_only_wcs_keywords=False):
@@ -86,9 +126,8 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
                 header[keyword] = value
 
     if 'CTYPE3' in list(header.keys()):
-        if header['CTYPE3'] == 'VELOCITY':
-            warnings.warn("Changed header keyword CTYPE3 from VELOCITY to VELO-LSR")
-            header['CTYPE3'] = 'VELO-LSR'
+        header = correct_header_velocity(header)
+
     if keep_only_wcs_keywords:
         wcs = WCS(header)
         dct_naxis = {}
@@ -273,7 +312,7 @@ def swap_axes(data, header, new_order):
     header : astropy.io.fits.Header
         Header of the FITS array.
     new_order : tuple
-        New order of the axes of the FITS array, e.g. (2, 1, 0).
+        New order of the axes of the FITS array, e.g. (2, 1, 0). The numbers refer to the current FITS AXES (and not to the numpy.ndarray axes!), i.e. 0 := NAXIS1, 1 := NAXIS2, 2 := NAXIS3.
 
     Returns
     -------
