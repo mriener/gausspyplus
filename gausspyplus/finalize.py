@@ -313,28 +313,33 @@ class Finalize(object):
             if value is None:
                 continue
 
-            array[y, x] = value
+            try:
+                array[y, x] = value
+            except ValueError:
+                array[y, x] = value[0]
 
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
 
-        if keyword == 'error':
-            filename, _ = os.path.splitext(
-                os.path.basename(self.path_to_pickle_file))
-        else:
-            filename = self.filename
-
-        filename = "{}{}.fits".format(filename, suffix)
-        path_to_file = os.path.join(
-            os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
+        array = array.astype(dtype)
 
         if save:
-            save_fits(data.astype(dtype), header, path_to_file,
+            if keyword == 'error':
+                filename, _ = os.path.splitext(
+                    os.path.basename(self.path_to_pickle_file))
+            else:
+                filename = self.filename
+
+            filename = "{}{}.fits".format(filename, suffix)
+            path_to_file = os.path.join(
+                self.dirpath_gpy, 'gpy_maps', filename)
+
+            save_fits(array, header, path_to_file,
                       verbose=False)
             say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
                 filename, os.path.dirname(path_to_file)), logger=self.logger)
 
-        return fits.PrimaryHDU(data, header)
+        return fits.PrimaryHDU(array, header)
 
     def produce_noise_map(self, comments=['Noise map.'],
                           suffix='_noise_map', save=True, dtype='float32',
@@ -342,7 +347,7 @@ class Finalize(object):
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.get_array(self, keyword='error', comments=comments,
+        hdu = self.get_array(keyword='error', comments=comments,
                              suffix=suffix, save=save, dtype=dtype)
 
         return return_hdu_options(
@@ -354,7 +359,7 @@ class Finalize(object):
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.get_array(self, keyword='rchi2', comments=comments,
+        hdu = self.get_array(keyword='best_fit_rchi2', comments=comments,
                              suffix=suffix, save=save, dtype=dtype)
 
         return return_hdu_options(
@@ -365,7 +370,7 @@ class Finalize(object):
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.get_array(self, keyword='ncomps', comments=comments,
+        hdu = self.get_array(keyword='N_components', comments=comments,
                              suffix=suffix, save=save, dtype=dtype)
 
         return return_hdu_options(
