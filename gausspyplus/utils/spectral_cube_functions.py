@@ -566,6 +566,25 @@ def save_fits(data, header, path_to_file, verbose=True):
 
 
 def return_hdu_options(hdu, get_hdu=False, get_data=False, get_header=False):
+    """Short summary.
+
+    Parameters
+    ----------
+    hdu : astropy.io.fits.HDUList
+        Header/Data unit of the FITS cube.
+    get_hdu : bool
+        Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
+    get_data : bool
+        Default is `True`. Returns a numpy.ndarray of the FITS array.
+    get_header : bool
+        Default is `True`. Returns a astropy.io.fits.Header of the FITS array.
+
+    Returns
+    -------
+    tuple or None
+        Header/Data unit of the FITS cube or None.
+
+    """
     if get_hdu:
         return (hdu)
     elif get_data and (not get_header):
@@ -602,7 +621,6 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
     astropy.io.fits.HDUList or numpy.ndarray and/or astropy.io.fits.Header.
 
     """
-
     data = fits.getdata(path_to_file)
     header = fits.getheader(path_to_file)
 
@@ -1536,6 +1554,19 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
 
 
 def get_field_data(field):
+    """Get array data of the field.
+
+    Parameters
+    ----------
+    field : str or numpy.ndarray
+        Can be either an array or a filepath to a FITS file.
+
+    Returns
+    -------
+    data : numpy.ndarray
+        Array of the field.
+
+    """
     if isinstance(field, str):
         data = open_fits_file(
             path_to_file=field, get_header=False, check_wcs=False)
@@ -1545,6 +1576,21 @@ def get_field_data(field):
 
 
 def get_field_header(field):
+    """Get FITS header of the field.
+
+    Returns generic FITS header in case `field` is a numpy.ndarray.
+
+    Parameters
+    ----------
+    field : str or numpy.ndarray
+        Can be either an array or a filepath to a FITS file.
+
+    Returns
+    -------
+    header : astropy.io.fits.header.Header
+        FITS header of the field.
+
+    """
     if isinstance(field, str):
         header = open_fits_file(
             path_to_file=field, get_data=False, check_wcs=False)
