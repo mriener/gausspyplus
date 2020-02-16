@@ -733,6 +733,11 @@ class SpatialFitting(object):
         n_refit_ncomps = self.get_n_refit(
             self.refit_ncomps, n_flagged_ncomps)
 
+        try:
+            n_fraction_refit = n_indices_refit / n_spectra
+        except ZeroDivisionError:
+            n_fraction_refit = 0
+
         n_refit_list = [
             n_refit_blended, n_refit_neg_res_peak, n_refit_broad,
             n_refit_rchi2, n_refit_residual, n_refit_ncomps]
@@ -748,7 +753,7 @@ class SpatialFitting(object):
             "\n - {o} spectra w/ differing number of components ({p} flagged)").format(
                 a=n_indices_refit,
                 b=n_spectra,
-                c=n_indices_refit/n_spectra,
+                c=n_fraction_refit,
                 d=n_refit_blended,
                 e=n_flagged_blended,
                 f=n_refit_neg_res_peak,
