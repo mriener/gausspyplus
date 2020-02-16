@@ -128,13 +128,16 @@ def perform_least_squares_fit(vel, data, errors, params_fit, dct,
     lmfit_params = paramvec_to_lmfit(
         params_fit, max_amp=dct['max_amp'], max_fwhm=None,
         params_min=params_min, params_max=params_max)
-    result = lmfit_minimize(
-        objective_leastsq, lmfit_params, method='leastsq')
-    params_fit = vals_vec_from_lmfit(result.params)
-    params_errs = errs_vec_from_lmfit(result.params)
-    ncomps_fit = number_of_components(params_fit)
+    try:
+        result = lmfit_minimize(
+            objective_leastsq, lmfit_params, method='leastsq')
+        params_fit = vals_vec_from_lmfit(result.params)
+        params_errs = errs_vec_from_lmfit(result.params)
+        ncomps_fit = number_of_components(params_fit)
 
-    return params_fit, params_errs, ncomps_fit
+        return params_fit, params_errs, ncomps_fit
+    except (ValueError, TypeError):
+        return [], [], 0
 
 
 def remove_components_from_sublists(lst, remove_indices):
