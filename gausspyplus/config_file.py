@@ -108,6 +108,10 @@ def make(all_keywords=False, description=True, output_directory='',
             'default': '0.01',
             'description': "p-value for the null hypothesis that the normalised residual resembles a normal distribution. [float]",
             'simple': False}),
+        ('max_ncomps', {
+            'default': 'None',
+            'description': "maximum number of allowed fit components per spectrum. Use with caution. [int]",
+            'simple': False}),
 
         ('two_phase_decomposition', {
             'default': 'True',

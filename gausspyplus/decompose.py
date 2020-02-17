@@ -93,6 +93,7 @@ class GaussPyDecompose(object):
         self.separation_factor = 0.8493218
         self.fwhm_factor = 2.
         self.min_pvalue = 0.01
+        self.max_ncomps = None
 
         self.main_beam_efficiency = None
         self.vel_unit = u.km / u.s
@@ -206,7 +207,8 @@ class GaussPyDecompose(object):
             'fwhm_factor': self.fwhm_factor,
             'separation_factor': self.separation_factor,
             'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range,
-            'min_pvalue': self.min_pvalue}
+            'min_pvalue': self.min_pvalue,
+            'max_ncomps': self.max_ncomps}
 
         string_gausspy = str(
             '\ndecomposition settings:'
