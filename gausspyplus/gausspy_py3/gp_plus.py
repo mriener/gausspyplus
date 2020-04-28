@@ -187,6 +187,8 @@ def remove_components_above_max_ncomps(amps_fit, fwhms_fit, ncomps_max,
 
     """
     ncomps_fit = len(amps_fit)
+    if ncomps_fit <= ncomps_max:
+        return remove_indices, quality_control
     integrated_intensities = area_of_gaussian(
         np.array(amps_fit), np.array(fwhms_fit))
     indices = np.array(range(len(integrated_intensities)))
