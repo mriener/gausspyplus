@@ -294,10 +294,18 @@ def remove_additional_axes(data, header, max_dim=3,
 
     wcs_header_diff = fits.HeaderDiff(wcs_header_old, wcs_header_new)
     header_diff = fits.HeaderDiff(header, wcs_header_new)
+
     header = update_header(
         header, remove_keywords=wcs_header_diff.diff_keywords[0],
         update_keywords=header_diff.diff_keyword_values,
         write_meta=False)
+
+    while header['NAXIS'] > max_dim:
+        key = 'NAXIS{}'.format(header['NAXIS'])
+        if key in header.keys():
+            header.remove(key)
+
+        header['NAXIS'] = header['NAXIS'] - 1
 
     return data, header
 
@@ -347,6 +355,52 @@ def swap_axes(data, header, new_order):
     return data, header
 
 
+def get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
+    """Return the spectral axis of a Spectral cube in physical values.
+
+    Parameters
+    ----------
+    header : astropy.io.fits.Header
+        Header of the FITS array.
+    channels : numpy.ndarray
+        Array of the channels [0, ..., N].
+    wcs : astropy.wcs.wcs.WCS
+        WCS parameters of the FITS array.
+    to_unit : astropy.units.quantity.Quantity
+        Valid unit to which the values of the spectral axis will be converted.
+    axis : int
+        Axis number (e.g. 1 for NAXIS1, 2 for NAXIS, etc.)
+
+    Returns
+    -------
+    channels_wcs : numpy.ndarray
+        The (unitless) wcs axis of the spectral cube, converted to 'to_unit' (if specified).
+
+    """
+    key = 'NAXIS{}'.format(axis)
+    check_if_all_values_are_none(header, wcs, 'header', 'wcs')
+    check_if_all_values_are_none(header, channels, 'header', 'channels')
+    if header:
+        wcs = WCS(header)
+        channels = np.arange(header[key])
+
+    while wcs.wcs.naxis > 3:
+        axes = range(wcs.wcs.naxis)
+        wcs = wcs.dropaxis(axes[-1])
+
+    if axis == 1:
+        channels_wcs, _, _ = wcs.wcs_pix2world(channels, 0, 0, 0)
+    elif axis == 2:
+        _, channels_wcs, _ = wcs.wcs_pix2world(0, channels, 0, 0)
+    elif axis == 3:
+        _, _, channels_wcs = wcs.wcs_pix2world(0, 0, channels, 0)
+
+    if to_unit:
+        conversion_factor = wcs.wcs.cunit[axis - 1].to(to_unit)
+        channels_wcs *= conversion_factor
+    return channels_wcs
+
+
 def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
     """Return the spectral axis of a Spectral cube in physical values.
 
@@ -367,21 +421,8 @@ def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
         The (unitless) spectral axis of the spectral cube, converted to 'to_unit' (if specified).
 
     """
-    check_if_all_values_are_none(header, wcs, 'header', 'wcs')
-    check_if_all_values_are_none(header, channels, 'header', 'channels')
-    if header:
-        wcs = WCS(header)
-        channels = np.arange(header['NAXIS3'])
-
-    while wcs.wcs.naxis > 3:
-        axes = range(wcs.wcs.naxis)
-        wcs = wcs.dropaxis(axes[-1])
-
-    x_wcs, y_wcs, spectral_axis = wcs.wcs_pix2world(0, 0, channels, 0)
-
-    if to_unit:
-        conversion_factor = wcs.wcs.cunit[2].to(to_unit)
-        spectral_axis *= conversion_factor
+    spectral_axis = get_axis(
+        header=header, channels=channels, wcs=wcs, to_unit=to_unit, axis=3)
     return spectral_axis
 
 
@@ -1638,6 +1679,10 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
 
     combined_rows = []
 
+    header_single_field = False
+    if header is None:
+        header_single_field = True
+
     first = True
     for i, field in enumerate(list_of_fields):
         if first:
@@ -1666,6 +1711,11 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
             data_combined = np.concatenate(
                 (data_combined, combined_row), axis=axis_2)
 
+    if header_single_field:
+        for i in range(1, len(data_combined.shape) + 1):
+            index = len(data_combined.shape) - i
+            header['NAXIS' + str(i)] = data_combined.shape[index]
+
     if comments:
         header = update_header(header, comments=comments)
 
@@ -1673,4 +1723,4 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
         save_fits(data_combined.astype(dtype), header, path_to_output_file,
                   verbose=verbose)
 
-    return data, header
+    return data_combined, header
