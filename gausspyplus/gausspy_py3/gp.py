@@ -14,7 +14,6 @@ import numpy as np
 
 from . import AGD_decomposer
 from . import gradient_descent
-from . import ioHDF5
 
 
 class GaussianDecomposer(object):
@@ -31,12 +30,6 @@ class GaussianDecomposer(object):
 
     def load_training_data(self, filename):
         self.p['training_data'] = pickle.load(open(filename, 'rb'), encoding='latin1')
-
-    def load_hdf5_data(self, filename):
-        return ioHDF5.fromHDF5(filename)
-
-    def dump_hdf5_data(self, data, filename):
-        ioHDF5.toHDF5(data, filename)
 
     def train(self, alpha1_initial=None, alpha2_initial=None, plot=False,
               verbose=False, mode='conv', learning_rate=0.9, eps=0.25, MAD=0.1,
