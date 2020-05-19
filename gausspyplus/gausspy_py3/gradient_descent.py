@@ -4,8 +4,6 @@
 # @Last modified by:   riener
 # @Last modified time: 2019-04-08T10:50:41+02:00
 
-
-
 # Script to train parameters alpha1 and alpha2
 
 import inspect
@@ -13,7 +11,6 @@ import multiprocessing
 import numpy as np
 from . import AGD_decomposer
 import signal
-# import time
 
 from gausspyplus.utils.output import say
 
@@ -84,7 +81,6 @@ def compare_parameters(guess_params, true_params, verbose=False):
 
 
 def single_training_example(kwargs):
-
     j = kwargs['j']
     true_params = np.append(kwargs['amps'][j], np.append(kwargs['FWHMs'][j], kwargs['means'][j]))
 
@@ -100,7 +96,7 @@ def single_training_example(kwargs):
 
     # If nothing was found, skip to next iteration
     if status == 0:
-        print('Nothing found in this spectrum,  continuing...')
+        print('Nothing found in this spectrum, continuing...')
         return 0, 0, true_params / 3
 
     guess_params = result['initial_parameters']

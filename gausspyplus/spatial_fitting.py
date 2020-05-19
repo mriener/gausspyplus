@@ -682,7 +682,7 @@ class SpatialFitting(object):
 
         self.indices_refit = np.array(
             self.decomposition['index_fit'])[mask_refit]
-        # self.indices_refit = self.indices_refit[10495:10500]  # for debugging
+        # self.indices_refit = self.indices_refit[886:888]  # for debugging
         self.locations_refit = np.take(
             np.array(self.location), self.indices_refit, axis=0)
 

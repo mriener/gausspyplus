@@ -2,7 +2,7 @@
 # @Date:   Nov 10, 2014
 # @Filename: AGD_decomposer.py
 # @Last modified by:   riener
-# @Last modified time: 2019-04-02T16:57:28+02:00
+# @Last modified time: 18-05-2020
 
 # Standard Libs
 import time
@@ -10,22 +10,17 @@ import time
 # Standard Third Party
 import numpy as np
 from scipy.interpolate import interp1d
-# from scipy.optimize import leastsq, minimize
 from lmfit import minimize as lmfit_minimize
 from lmfit import Parameters
 
 import matplotlib.pyplot as plt
 from numpy.linalg import lstsq
-# from mpl_toolkits.axes_grid1 import AxesGrid
 from scipy.ndimage.filters import median_filter, convolve
 
 from .gp_plus import try_to_improve_fitting, goodness_of_fit
 
 # Python Regularized derivatives
 from . import tvdiff
-
-# # C code Regularized derivatives
-# import tv
 
 
 def vals_vec_from_lmfit(lmfit_params):
@@ -152,17 +147,6 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
         u2 = tvdiff.TVdiff(u,    dx=dv, alph=alpha)
         u3 = tvdiff.TVdiff(u2,   dx=dv, alph=alpha)
         u4 = tvdiff.TVdiff(u3,   dx=dv, alph=alpha)
-    # elif mode == 'c':
-    #     say('Taking c derivatives...', verbose)
-    #     u = u2 = u3 = u4 = np.zeros(len(data))
-    #     tv.tv(data=data, deriv=u, alpha=alpha, dx=1)
-    #     u = u / dv
-    #     tv.tv(data=u, deriv=u2, alpha=alpha, dx=1)
-    #     u2 = u2 / dv
-    #     tv.tv(data=u2, deriv=u3, alpha=alpha, dx=1)
-    #     u3 = u3 / dv
-    #     tv.tv(data=u3, deriv=u4, alpha=alpha, dx=1)
-    #     u4 = u4 / dv
     elif mode == 'conv':
         say('Convolution sigma [pixels]: {0}'.format(alpha), verbose)
         gauss_sigma = alpha
@@ -226,9 +210,6 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
 
         return odict
 
-#        say('AGD2.initialGuess: No components found for alpha={0}! Returning ([] [] [] [] [])'.format(alpha))
-#        return [], [], [], u2
-
     # Find points of inflection
     inflection = np.abs(np.diff(np.sign(u2)))
 
@@ -264,18 +245,6 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     """ Autonomous Gaussian Decomposition."""
     dct = {}
     if improve_fitting_dict is not None:
-        # TODO: check if max_amp causes problems
-        # dct['improve_fitting'] = improve_fitting_dict['improve_fitting']
-        # dct['min_fwhm'] = improve_fitting_dict['min_fwhm']
-        # dct['max_fwhm'] = improve_fitting_dict['max_fwhm']
-        # dct['snr_fit'] = improve_fitting_dict['snr_fit']
-        # dct['significance'] = improve_fitting_dict['significance']
-        # dct['min_offset'] = improve_fitting_dict['min_offset']
-        # dct['max_amp_factor'] = improve_fitting_dict['max_amp_factor']
-        # dct['max_amp'] = dct['max_amp_factor']*np.max(data)
-        # dct['rchi2_limit'] = improve_fitting_dict['rchi2_limit']
-        # dct['snr_negative'] = improve_fitting_dict['snr_negative']
-        # dct['snr'] = improve_fitting_dict['snr']
         dct = improve_fitting_dict
         dct['max_amp'] = dct['max_amp_factor']*np.max(data)
         nChannels = len(data)
@@ -351,10 +320,6 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             params_f1 = vals_vec_from_lmfit(result.params)
             ncomps_f1 = int(len(params_f1) / 3)
 
-            # Make "FWHMS" positive
-            # params_f1[0:ncomps_f1][np.array(params_f1[0:ncomps_f1]) < 0.0] =\
-            #     -1 * params_f1[0:ncomps_f1][np.array(params_f1[0:ncomps_f1]) < 0.0]
-
             del lmfit_params
             say('LMFIT fit took {0} seconds.'.format(time.time()-t0))
 
@@ -426,9 +391,6 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         say('Final fit took {0} seconds.'.format(time.time()-t0), verbose)
 
         ncomps_fit = int(len(params_fit)/3)
-        # Make "FWHMS" positive
-        # params_fit[0:ncomps_fit][np.array(params_fit[0:ncomps_fit]) < 0.0] =\
-        #     -1 * params_fit[0:ncomps_fit][np.array(params_fit[0:ncomps_fit]) < 0.0]
 
         best_fit_final = func(vel, *params_fit).ravel()
 

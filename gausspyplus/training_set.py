@@ -371,5 +371,5 @@ class GaussPyTrainingSet(object):
         return fit_values
 
 
-if __name__ == "__main__":
-    ''
+if __name__ == '__main__':
+    pass

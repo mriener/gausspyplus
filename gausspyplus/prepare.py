@@ -207,7 +207,9 @@ class GaussPyPrepare(object):
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([locations, [self]])
 
-        results_list = gausspyplus.parallel_processing.func(use_ncpus=self.use_ncpus, function='gpy_noise')
+        results_list = gausspyplus.parallel_processing.func(
+            use_ncpus=self.use_ncpus,
+            function='gpy_noise')
 
         print('SUCCESS\n')
 
@@ -300,3 +302,7 @@ class GaussPyPrepare(object):
                   verbose=False)
         say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, os.path.dirname(path_to_file)), logger=self.logger)
+
+
+if __name__ == '__main__':
+    pass

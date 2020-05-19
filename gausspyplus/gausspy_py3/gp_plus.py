@@ -8,6 +8,7 @@ import itertools
 import sys
 import numpy as np
 
+import lmfit
 from lmfit import minimize as lmfit_minimize
 from lmfit import Parameters
 
@@ -71,6 +72,8 @@ def errs_vec_from_lmfit(lmfit_params):
         errs = [value.stderr for value in list(lmfit_params.values())]
     else:
         errs = [value.stderr for value in lmfit_params.values()]
+    # TODO: estimate errors via bootstrapping instead of setting them to zero
+    errs = [0 if err is None else err for err in errs]
     return errs
 
 
@@ -133,6 +136,23 @@ def perform_least_squares_fit(vel, data, errors, params_fit, dct,
             objective_leastsq, lmfit_params, method='leastsq')
         params_fit = vals_vec_from_lmfit(result.params)
         params_errs = errs_vec_from_lmfit(result.params)
+        # TODO: implement bootstrapping method to estimate error in case
+        # error is None (when parameters are close to given bounds)
+        # if (len(params_errs) != 0) and (sum(params_errs) == 0):
+        #     print('okay')
+        #     mini = lmfit.Minimizer(objective_leastsq, lmfit_params)
+        #     for p in result.params:
+        #         result.params[p].stderr = abs(result.params[p].value * 0.1)
+        #     print('params_errs_old', params_errs)
+        #     ci = lmfit.conf_interval(mini, result)
+        #     print('Step 2')
+        #     params_errs = []
+        #     for p in ci:
+        #         min_val, val, max_val = ci[p][2][1], ci[p][3][1], ci[p][4][1]
+        #         std = max(abs(min_val - val), (abs(max_val - val)))
+        #         params_errs.append(std)
+        #     print('params_errs', params_errs)
+
         ncomps_fit = number_of_components(params_fit)
 
         return params_fit, params_errs, ncomps_fit

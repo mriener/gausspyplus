@@ -7,6 +7,7 @@
 
 import multiprocessing
 import signal
+import sys
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
@@ -18,6 +19,12 @@ from .training_set import GaussPyTrainingSet
 from .finalize import Finalize
 
 # ------------MULTIPROCESSING------------
+
+
+#  With Python 3.8 the start method for multiprocessing defaults to 'spawn' for
+#  MacOS systems. Here we change it back to 'fork' for compatibility reasons.
+if sys.version_info[:2] >= (3, 8):
+    multiprocessing.set_start_method('fork', force=True)
 
 
 def init_worker_ts():

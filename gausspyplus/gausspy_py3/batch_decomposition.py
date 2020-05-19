@@ -2,19 +2,22 @@
 # @Date:   Nov 10, 2014
 # @Filename: batch_decomposition.py
 # @Last modified by:   riener
-# @Last modified time: 2019-03-16T15:59:58+01:00
+# @Last modified time: 18-05-2020
 
 import pickle
 import multiprocessing
 import signal
+import sys
 import numpy as np
-# from . import AGD_decomposer
 from .gp import GaussianDecomposer
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-# BUG FIXED:  UnboundLocalError: local variable 'result' referenced before assignment
-# Caused by using more threads than spectra.
+
+#  With Python 3.8 the start method for multiprocessing defaults to 'spawn' for
+#  MacOS systems. Here we change it back to 'fork' for compatibility reasons.
+if sys.version_info[:2] >= (3, 8):
+    multiprocessing.set_start_method('fork', force=True)
 
 
 def init_worker():

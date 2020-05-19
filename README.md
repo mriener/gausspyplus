@@ -41,8 +41,6 @@ each package which we know to be compatible with ``GaussPy+``.
 
 * [lmfit (v0.9.5)](https://lmfit.github.io/lmfit-py/intro.html)
 
-* [h5py (v2.8)](http://www.h5py.org/)
-
 * [astropy (v3.0.4)](http://www.astropy.org/)
 
 * [networkx (v2.0)](https://networkx.github.io/)
@@ -52,7 +50,7 @@ each package which we know to be compatible with ``GaussPy+``.
 
 If you do not already have Python 3.5, you can install the [Anaconda Scientific
 Python distribution](https://store.continuum.io/cshop/anaconda/), which comes
-pre-loaded with numpy, scipy, and h5py.
+pre-loaded with numpy and scipy.
 
 ### Optional Dependencies
 
@@ -73,12 +71,11 @@ Download GaussPy+ using git `$ git clone https://github.com/mriener/gausspyplus`
 
 ### Installing Dependencies on Linux
 
-You will need several libraries which the `GSL`, `h5py`, and `scipy` libraries
+You will need several libraries which the `GSL`, `scipy` libraries
 depend on. Install these required packages with:
 
 ```bash
-sudo apt-get install libblas-dev liblapack-dev gfortran libgsl0-dev libhdf5-serial-dev
-sudo apt-get install hdf5-tools
+sudo apt-get install libblas-dev liblapack-dev gfortran libgsl0-dev
 ```
 
 Install pip for easy installation of python packages:
@@ -90,7 +87,7 @@ sudo apt-get install python-pip
 Then install the required python packages:
 
 ```bash
-sudo pip install scipy numpy h5py lmfit astropy networkx tqdm
+sudo pip install scipy numpy lmfit astropy networkx tqdm
 ```
 
 Install the optional dependencies for plotting and optimization:
@@ -112,7 +109,7 @@ sudo easy_install pip
 Then install the required python packages:
 
 ```bash
-sudo pip install numpy scipy h5py lmfit astropy networkx tqdm
+sudo pip install numpy scipy lmfit astropy networkx tqdm
 ```
 
 Install the optional dependencies for plotting and optimization:
@@ -168,6 +165,8 @@ We tested the default settings of ``GaussPy+`` on different spectral cubes of CO
 * If you run ``GaussPy+`` on HI datasets we recommend to set the ``refit_broad`` and ``refit_blended`` parameters to ``False`` (see Sect. 3.2.2.2 and 3.2.2.3 in [Riener et al. 2019](https://arxiv.org/abs/1906.10506)).
 
 * By default, the first phase of the spatially coherent refitting will only consider unflagged neighboring fit solutions. In case all neighboring fit solutions get flagged or unflagged neighboring fit solutions do not yield an improvement in the fit, it can be beneficial to consider also flagged neighboring fit solutions for the refitting. If the 'use_all_neighors' parameter (default: 'False') is set to 'True' in the spatial refitting, flagged neighbors are used as refit solutions in case the refit was not possible with fit solutions from unflagged neighbors. See Appendix A.3 in Riener+ 2019b for more details.
+
+* A maximum number of fit components per spectrum can now be enforced with the ``max_ncomps`` parameter (default value: ``None``). This can be useful in case the spectrum contains instrumental artefacts, for example amplified noise oscillations in interferometric observations. It can also be useful in cases where an upper limit or maximum expected number of fit components can be predicted well and the fit solutions of ``GaussPy+`` show clear signs of overfitting. If ``max_ncomps`` is set and the total number of fit components exceeds this limit, ``GaussPy+`` will iteratively remove Gaussian components with the lowest integrated area until the total number of fit components is equal to ``max_ncomps``. We recommend to use this parameter with caution as it might lead to problems in the fitting.
 
 ## Citing ``GaussPy+``
 ===============

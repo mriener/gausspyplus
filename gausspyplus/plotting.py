@@ -13,7 +13,7 @@ import sys
 import numpy as np
 
 import matplotlib
-matplotlib.use('PDF', warn=False)
+# matplotlib.use('PDF', warn=False)
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
@@ -293,10 +293,6 @@ def plot_spectra(pathToDataPickle, *args,
         else:
             path_to_plots = os.path.dirname(path_to_decomp_pickle)
 
-    #  check if all necessary files are supplied
-    # if (path_to_decomp_pickle is None) and (training_set is False):
-    #     errorMessage = """'path_to_decomp_pickle' needs to be specified for 'training_set=False'"""
-    #     raise Exception(errorMessage)
     decomposition = True
     if path_to_decomp_pickle is None:
         decomposition = False
@@ -438,6 +434,11 @@ def plot_spectra(pathToDataPickle, *args,
             pathname = os.path.join(path_to_plots, filename)
             fig.savefig(pathname, dpi=dpi, overwrite=True)
             plt.close()
+
+            #  close progress bar before print statement to avoid duplicate
+            #  progress bars
+            if pbar.n >= n_spectra:
+                pbar.close()
             print("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, path_to_plots))
 
             remaining_rows = rowbreak
@@ -446,13 +447,15 @@ def plot_spectra(pathToDataPickle, *args,
                 remaining_rows = rows - (k + 1)*rowbreak
                 figsize = (cols*colsize, remaining_rows*rowsize)
 
+            if (figsize[0] == 0) or (figsize[1] == 0):
+                break
+
             fig = plt.figure(figsize=figsize)
 
-            # set up subplot grid
+            # set up new subplot grid
             gridspec.GridSpec(cols, remaining_rows, wspace=0.2, hspace=0.2)
 
             fig.patch.set_facecolor('white')
             fig.patch.set_alpha(1.0)
             fig.subplots_adjust(hspace=0.5)
-    pbar.close()
     plt.close()
