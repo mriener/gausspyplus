@@ -2,6 +2,8 @@
 
 ### 0.2 (2020-05-19)
 
+* Established compatibility with Python 3.8.2, Numpy 1.18.4, lmfit 1.0.1,  astropy 4.0.1, matplotlib 3.2.1.
+
 * Added option that uses flagged neighbors in the spatial refitting routine.
 If the 'use_all_neighors' parameter is set to True, flagged neighbors are used as refit solutions in case the refit was not possible with fit solutions from unflagged neighbors. See Appendix A.3 in Riener+ 2019b for more details.
 
@@ -36,6 +38,10 @@ If errors are introduced in the GaussPy decomposition step the index of the spec
 * Added safeguard to prevent eternal loop in ``get_signal_ranges``.
 
 * Added flux preserving mode in ``gausspyplus.utils.spectral_cube_functions.spatial_smoothing`` if ``reproject=True``.
+
+* Introduced ``max_ncomps`` parameter, which enforces a maximum number of fit components per spectrum.
+
+* Added function to create a default file structure similar to the GRS test field scripts in the example directory.
 
 * Removed HDF5 dependency.
 

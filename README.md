@@ -4,25 +4,21 @@
 </p>
 
 ## About
-``GaussPy+`` is a fully automated Gaussian decomposition package for emission line spectra.
+``GaussPy+`` is a fully automated Gaussian decomposition package for emission line spectra. For a detailed description about the package and results of tests performed on synthetic spectra and a test field from the Galactic Ring Survey ([Jackson et al. 2006](https://ui.adsabs.harvard.edu/abs/2006ApJS..163..145J/abstract)) please see:
 
-Manuel Riener, Jouni Kainulainen, Jonathan D. Henshaw, Jan H. Orkisz, Claire E. Murray, Henrik Beuther
+[Riener et al. 2019](https://ui.adsabs.harvard.edu/abs/2019A%26A...628A..78R/abstract)
 
-For a detailed description about the package and results of tests performed on synthetic spectra and a test field from the Galactic Ring Survey (Jackson et al. 2006) please see:
+``GaussPy+`` is based on ``GaussPy``: A python tool for implementing the Autonomous Gaussian Decomposition algorithm. For a description about the Autonomous Gaussian Decomposition algorithm please see:
 
-[Riener et al. 2019](https://arxiv.org/abs/1906.10506)
+[Lindner et al. 2015](https://ui.adsabs.harvard.edu/abs/2015AJ....149..138L/abstract)
 
-``GaussPy+`` is based on ``GaussPy``: A python tool for implementing the Autonomous Gaussian Decomposition algorithm.
+For tips on how to get started with ``GaussPy+`` see the section [Getting started](#gettingstarted) further below.
 
-Robert R. Lindner, Carlos Vera-Ciro, Claire E. Murray, Elijah Bernstein-Cooper
+### Version
 
-For a description about the Autonomous Gaussian Decomposition algorithm please see:
+The currently recommended version of GaussPy+ is v0.2 (stable version released on 2020-05-19). See the [GaussPy+ Changelog](CHANGES.md) for an overview of the major changes and improvements introduced in this version.
 
-[Lindner et al. 2015](https://arxiv.org/abs/1409.2840)
-
-### Documentation
-
-The ``GaussPy+`` documentation can be found on [ReadTheDocs](https://gausspyplus.readthedocs.io). For tipps on how to get started see the section [Getting started](#gettingstarted) further below
+New updates to the code are first tested and developed in the ``dev`` branch. Users cloning the ``dev`` branch should beware that these versions are not guaranteed to be stable.
 
 ## Installation
 
@@ -31,14 +27,13 @@ The ``GaussPy+`` documentation can be found on [ReadTheDocs](https://gausspyplus
 You will need the following packages to run ``GaussPy+``. We list the version of each package which we know to be compatible with ``GaussPy+``.
 
 * [python 3.5](https://www.python.org/)
+* [astropy (v3.0.4)](http://www.astropy.org/)
+* [lmfit (v0.9.5)](https://lmfit.github.io/lmfit-py/intro.html)
+* [matplotlib (v2.2.2)](http://matplotlib.org/)
+* [networkx (v2.0)](https://networkx.github.io/)
 * [numpy (v1.14.2)](http://www.numpy.org/)
 * [scipy (v0.19.0)](http://www.scipy.org/)
-* [matplotlib (v2.2.2)](http://matplotlib.org/)
-* [lmfit (v0.9.5)](https://lmfit.github.io/lmfit-py/intro.html)
-* [astropy (v3.0.4)](http://www.astropy.org/)
-* [networkx (v2.0)](https://networkx.github.io/)
 * [tqdm (v4.19.4)](https://tqdm.github.io/)
-
 
 If you do not already have Python 3.5, you can install the [Anaconda Scientific Python distribution](https://store.continuum.io/cshop/anaconda/), which comes pre-loaded with numpy and scipy.
 
@@ -48,14 +43,14 @@ If you wish to use optimization with Fortran code you will need
 
 * [GNU Scientific Library (GSL)](http://www.gnu.org/software/gsl/)
 
-### Download ``GaussPy+``
+### Download GaussPy+
 
 Download GaussPy+ using git `$ git clone https://github.com/mriener/gausspyplus`
 
 
 ### Installing Dependencies on Linux
 
-You will need several libraries which the `GSL`, `scipy` libraries depend on. Install these required packages with:
+You will need several libraries which the `GSL` and `scipy` libraries depend on. Install these required packages with:
 
 ```bash
 sudo apt-get install libblas-dev liblapack-dev gfortran libgsl0-dev
@@ -70,7 +65,7 @@ sudo apt-get install python-pip
 Then install the required python packages:
 
 ```bash
-sudo pip install scipy numpy lmfit astropy networkx tqdm
+sudo pip install astropy lmfit networkx numpy scipy tqdm
 ```
 
 Install the optional dependencies for plotting and optimization:
@@ -121,7 +116,7 @@ python setup.py install --user
 
 You can find an example decomposition run with ``GaussPy+`` in the `example` directory. All individual scripts can be run via the Jupyter notebook [Tutorial_example-GRS.ipynb](example/Tutorial_example-GRS.ipynb).
 
-The Jupyter notebook `Tutorial_decompose_single_spectrum.ipynb` illustrates the functionality of ``GaussPy+`` and allows users to play around with the different parameter settings to determine their effects on the decomposition.
+The Jupyter notebook [Tutorial_decompose_single_spectrum.ipynb](example/Tutorial_decompose_single_spectrum.ipynb) illustrates the functionality of ``GaussPy+`` and allows users to play around with the different parameter settings to determine their effects on the decomposition.
 
 ### Some advice for decomposition runs with GaussPy+
 
@@ -133,7 +128,7 @@ We tested the default settings of ``GaussPy+`` on different spectral cubes of CO
 
 * If you find that ``GaussPy+`` fits too many noise peaks, we recommend setting either the ``significance`` or ``snr`` parameters to higher values. In contrast, if you find that many low-intensity and/or narrow peaks are not fit at all, we recommend setting one or both of these parameters to lower values. See Sect. 3.2.1.2 and 3.2.1.3 in [Riener et al. 2019](https://arxiv.org/abs/1906.10506) for a description about the ``significance`` and ``snr`` parameters; also see App. C.3 for how changing one or both of these parameters can impact the decomposition results. ``GaussPy+`` also includes helper functions to smooth the spectral cube spatially (``gausspyplus.utils.spatial_smoothing``) and/or spectrally (``gausspyplus.utils.spectral_smoothing``).
 
-* It might be necessary to modify the FITS header of the dataset, so that it is compatible with ``GaussPy+``. For example, the projection has to be supported by ``astropy.wcs`` and the ``NAXIS3`` axis of the FITS cube needs to be the spectral axis. ``GaussPy+`` includes helper functions that will try to prepare the FITS header accordingly, and also allow to swap the axes of the datacube.
+* It might be necessary to modify the FITS header of the dataset, so that it is compatible with ``GaussPy+``. For example, the projection has to be supported by ``astropy.wcs`` and the ``NAXIS3`` axis of the FITS cube needs to be the spectral axis. ``GaussPy+`` includes helper functions that will try to prepare the FITS header accordingly, and also allow to swap the axes of the data cube.
 
 * For phase 1 of the spatially coherent refitting, fit solutions are flagged based on user-defined criteria and ``GaussPy+`` will try to refit these flagged decomposition results by using neighboring unflagged fit solutions. In the default settings, one of the flagging criteria subjects the normalised residuals to normality tests to check whether the data points of the residual are normally distributed. This criterion might lead to a large number of spectra being flagged, which can lead to time-consuming refit attempts. If these refitting attempts should become prohibitive, we recommend to either set the ``min_pvalue`` parameter to lower values or set the ``refit_residual`` parameter to ``False``.
 
