@@ -29,6 +29,7 @@ from .utils.spectral_cube_functions import remove_additional_axes
 class GaussPyTrainingSet(object):
     def __init__(self, config_file=''):
         self.path_to_file = None
+        self.path_to_noise_map = None
         self.filename = None
         self.dirpath_gpy = None
         self.filename_out = None
@@ -109,6 +110,10 @@ class GaussPyTrainingSet(object):
             self.n_channels = len(self.data[0])
 
         self.channels = np.arange(self.n_channels)
+
+        self.noise_map = None
+        if self.path_to_noise_map is not None:
+            self.noise_map = fits.getdata(self.path_to_noise_map)
 
     def say(self, message):
         """Diagnostic messages."""
@@ -211,9 +216,15 @@ class GaussPyTrainingSet(object):
             nan_mask = mask_channels(self.n_channels, self.mask_out_ranges)
             spectrum[nan_mask] = np.nan
 
-        rms = determine_noise(
-            spectrum, max_consecutive_channels=self.max_consecutive_channels,
-            pad_channels=self.pad_channels, idx=index, average_rms=None)
+        if self.noise_map is not None:
+            rms = self.noise_map[location[0], location[1]]
+        else:
+            rms = determine_noise(
+                spectrum,
+                max_consecutive_channels=self.max_consecutive_channels,
+                pad_channels=self.pad_channels,
+                idx=index,
+                average_rms=None)
 
         if np.isnan(rms):
             return None
