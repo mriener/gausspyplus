@@ -3,7 +3,7 @@
 # @Filename: training_set.py
 # @Last modified by:   riener
 
-# @Last modified time: 2019-04-08T11:59:28+02:00
+# @Last modified time: 19-09-2020
 
 import itertools
 import os
@@ -218,6 +218,8 @@ class GaussPyTrainingSet(object):
 
         if self.noise_map is not None:
             rms = self.noise_map[location[0], location[1]]
+            nans = np.isnan(spectrum)
+            spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms
         else:
             rms = determine_noise(
                 spectrum,

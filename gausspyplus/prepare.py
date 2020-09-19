@@ -2,7 +2,7 @@
 # @Date:   2019-02-26T16:38:04+01:00
 # @Filename: prepare.py
 # @Last modified by:   riener
-# @Last modified time: 10-04-2019
+# @Last modified time: 19-09-2020
 
 import os
 import pickle
@@ -271,6 +271,8 @@ class GaussPyPrepare(object):
         #  randomly sampled from the calculated rms value
         if self.noise_map is not None:
             rms = self.noise_map[ypos, xpos]
+            nans = np.isnan(spectrum)
+            spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms
         else:
             rms = determine_noise(
                 spectrum, max_consecutive_channels=self.max_consecutive_channels,
