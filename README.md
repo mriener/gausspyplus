@@ -12,7 +12,7 @@
 
 [Lindner et al. 2015](https://ui.adsabs.harvard.edu/abs/2015AJ....149..138L/abstract)
 
-For tips on how to get started with ``GaussPy+`` see the section [Getting started](#gettingstarted) further below.
+For tips on how to get started with ``GaussPy+`` see the section [Getting started](#gettingstarted) further below and check the [Frequently asked questions](FAQ.md).
 
 ### Version
 
@@ -138,9 +138,13 @@ We tested the default settings of ``GaussPy+`` on different spectral cubes of CO
 
 * If you run ``GaussPy+`` on HI datasets we recommend to set the ``refit_broad`` and ``refit_blended`` parameters to ``False`` (see Sect. 3.2.2.2 and 3.2.2.3 in [Riener et al. 2019](https://arxiv.org/abs/1906.10506)).
 
-* By default, the first phase of the spatially coherent refitting will only consider unflagged neighboring fit solutions. In case all neighboring fit solutions get flagged or unflagged neighboring fit solutions do not yield an improvement in the fit, it can be beneficial to consider also flagged neighboring fit solutions for the refitting. If the 'use_all_neighors' parameter (default: 'False') is set to 'True' in the spatial refitting, flagged neighbors are used as refit solutions in case the refit was not possible with fit solutions from unflagged neighbors. See Appendix A.3 in Riener+ 2019b for more details.
+* By default, the first phase of the spatially coherent refitting will only consider unflagged neighboring fit solutions. In case all neighboring fit solutions get flagged or unflagged neighboring fit solutions do not yield an improvement in the fit, it can be beneficial to consider also flagged neighboring fit solutions for the refitting. If the ``use_all_neighors`` parameter (default: ``False``) is set to 'True' in the spatial refitting, flagged neighbors are used as refit solutions in case the refit was not possible with fit solutions from unflagged neighbors. See Appendix A.3 in Riener+ 2020a for more details.
 
 * A maximum number of fit components per spectrum can now be enforced with the ``max_ncomps`` parameter (default value: ``None``). This can be useful in case the spectrum contains instrumental artefacts, for example amplified noise oscillations in interferometric observations. It can also be useful in cases where an upper limit or maximum expected number of fit components can be predicted well and the fit solutions of ``GaussPy+`` show clear signs of overfitting. If ``max_ncomps`` is set and the total number of fit components exceeds this limit, ``GaussPy+`` will iteratively remove Gaussian components with the lowest integrated area until the total number of fit components is equal to ``max_ncomps``. We recommend to use this parameter with caution as it might lead to problems in the fitting.
+
+<a id="faq"></a>
+## Frequently asked questions
+See [FAQ](FAQ.md).
 
 ## Citing GaussPy+
 
@@ -200,4 +204,4 @@ We would love to get your feedback on ``GaussPy+``. If you should find that ``Ga
 
 ## Contributing to GaussPy+
 
-To contribute to ``GaussPy+``, see [Contributing to GaussPy+](CONTRIBUTING.md)
+To contribute to ``GaussPy+``, see [Contributing to GaussPy+](CONTRIBUTING.md).
