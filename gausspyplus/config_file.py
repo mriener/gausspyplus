@@ -475,7 +475,7 @@ def default_file_structure(output_directory='', suffix=''):
         from gausspyplus.training_set import GaussPyTrainingSet
         from gausspyplus.plotting import plot_spectra
 
-        def main:
+        def main():
             #  Initialize the 'GaussPyTrainingSet' class and read in the parameter settings from 'gausspy+.ini'.
             training = GaussPyTrainingSet(config_file='gausspy+.ini')
 
@@ -523,7 +523,7 @@ def default_file_structure(output_directory='', suffix=''):
 
         nspectra = 250
 
-        def main:
+        def main():
             #  Initialize the 'GaussPyTraining' class and read in the parameter settings from 'gausspy+.ini'.
             train = GaussPyTraining(config_file='gausspy+.ini')
 
@@ -559,7 +559,7 @@ def default_file_structure(output_directory='', suffix=''):
 
         suffix = ''
 
-        def main:
+        def main():
             #  Initialize the 'GaussPyPrepare' class and read in the parameter settings from 'gausspy+.ini'.
             prepare = GaussPyPrepare(config_file='gausspy+.ini')
 
@@ -587,7 +587,7 @@ def default_file_structure(output_directory='', suffix=''):
         from _config_ import dirpath_gpy, filename
         from gausspyplus.decompose import GaussPyDecompose
 
-        def main:
+        def main():
             #  Initialize the 'GaussPyDecompose' class and read in the parameter settings from 'gausspy+.ini'.
             decompose = GaussPyDecompose(config_file='gausspy+.ini')
 
@@ -618,7 +618,7 @@ def default_file_structure(output_directory='', suffix=''):
         from gausspyplus.decompose import GaussPyDecompose
         from gausspyplus.spatial_fitting import SpatialFitting
 
-        def main:
+        def main():
             #  Initialize the 'SpatialFitting' class and read in the parameter settings from 'gausspy+.ini'.
             sp = SpatialFitting(config_file='gausspy+.ini')
 
@@ -671,7 +671,7 @@ def default_file_structure(output_directory='', suffix=''):
         from gausspyplus.decompose import GaussPyDecompose
         from gausspyplus.spatial_fitting import SpatialFitting
 
-        def main:
+        def main():
             #  Initialize the 'SpatialFitting' class and read in the parameter settings from 'gausspy+.ini'.
             sp = SpatialFitting(config_file='gausspy+.ini')
 
@@ -727,7 +727,7 @@ def default_file_structure(output_directory='', suffix=''):
 
         suffix = '_g+_fit_fin_sf-p2'
 
-        def main:
+        def main():
             fin = Finalize(config_file='gausspy+.ini')
             fin.path_to_pickle_file = os.path.join(
                 dirpath_gpy, 'gpy_prepared', '{}.pickle'.format(filename))

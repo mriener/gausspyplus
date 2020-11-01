@@ -356,7 +356,7 @@ def swap_axes(data, header, new_order):
 
 
 def get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
-    """Return the spectral axis of a Spectral cube in physical values.
+    """Return the axis of a Spectral cube in physical values.
 
     Parameters
     ----------

@@ -269,7 +269,12 @@ def determine_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
         if np.isnan(spectrum).any():
             # TODO: Case where spectrum contains nans and only positive values
             nans = np.isnan(spectrum)
-            error = get_rms_noise(spectrum[~nans], max_consecutive_channels=max_consecutive_channels, pad_channels=pad_channels, idx=idx, average_rms=average_rms)
+            error = get_rms_noise(
+                spectrum[~nans],
+                max_consecutive_channels=max_consecutive_channels,
+                pad_channels=pad_channels,
+                idx=idx,
+                average_rms=average_rms)
             spectrum[nans] = np.random.randn(len(spectrum[nans])) * error
 
         elif (spectrum >= 0).all():
