@@ -1,7 +1,10 @@
 """Functions for noise estimation."""
 
 import itertools
+import os
 import random
+from pathlib import Path
+from typing import List, Tuple, Optional, Literal
 import warnings
 
 import numpy as np
@@ -41,80 +44,62 @@ def determine_maximum_consecutive_channels(n_channels: int, p_limit: float) -> i
             return n_consecutive_channels
 
 
-def determine_peaks(spectrum, peak='both', amp_threshold=None):
-    """Find peaks in a spectrum.
+def _determine_indices_of_peak_intervals(spectrum: np.ndarray,
+                                         peak: Literal['positive', 'negative'] = 'positive') -> List[np.ndarray]:
+    """Returns a list of arrays containing the indices of peak intervals."""
+    def consecutive(data, stepsize=1):
+        return np.split(data, np.where(np.diff(data) != stepsize)[0] + 1)
+
+    if peak == 'positive':
+        return consecutive((spectrum > 0).nonzero()[0])
+    elif peak == 'negative':
+        return consecutive((spectrum < 0).nonzero()[0])
+
+
+def _get_number_of_consecutive_channels(peak_intervals: np.ndarray) -> np.ndarray:
+    """Returns a list of the number of spectral channels of peak intervals."""
+    return np.array([group[-1] - group[0] for group in peak_intervals])
+
+
+def _get_peak_intervals(indices_of_peak_intervals: List[np.ndarray]) -> np.ndarray:
+    """Returns a list of tuples containing the slice information for peak intervals."""
+    return np.array([(array[0], array[-1] + 1) for array in indices_of_peak_intervals])
+
+
+def determine_peaks(spectrum: np.ndarray,
+                    peak: Literal['positive', 'negative'] = 'positive',
+                    amp_threshold: Optional[float] = None) -> Tuple[np.ndarray, np.ndarray]:
+    """Find peaks (positive or negative) in a spectrum and return the intensity peak value and the peak interval.
+
+    The returned array of the peak intervals is given as [[idx_lower_1, idx_upper_1], ..., [idx_lower_N, idx_upper_N]].
+    Peak interval N can be extracted from the spectrum with `spectrum[idx_lower_N:idx_upper_N]`.
 
     Parameters
     ----------
-    spectrum : numpy.ndarray
-        Array of the data values of the spectrum.
-    peak : 'both' (default), 'positive', 'negative'
-        Description of parameter `peak`.
-    amp_threshold : float
-        Required minimum threshold that at least one data point in a peak feature has to exceed.
+    spectrum : Intensity values of the spectrum.
+    peak : The type of peak to identify
+    amp_threshold : Required minimum threshold that at least one data point in a peak feature has to exceed.
 
     Returns
     -------
-    consecutive_channels or amp_vals : numpy.ndarray
-        If the 'amp_threshold' value is supplied an array with the maximum data values of the ranges is returned. Otherwise, the number of spectral channels of the ranges is returned.
-    ranges : list
-        List of intervals [(low, upp), ...] determined to contain peaks.
+    maximum_intensity_in_group : Maximum intensity values within the determined peak intervals
+    peak_intervals : Slicing information for the determined peak intervals in the form of
+        [(idx_lower_1, idx_upper_1), ..., (idx_lower_N, idx_upper_N)]. Peak interval N can be extracted from the
+        spectrum with `spectrum[idx_lower_N:idx_upper_N]`.
 
     """
-    if (peak == 'both') or (peak == 'positive'):
-        clipped_spectrum = spectrum.clip(max=0)
-        # Create an array that is 1 where a is 0, and pad each end with an extra 0.
-        iszero = np.concatenate(
-            ([0], np.equal(clipped_spectrum, 0).view(np.int8), [0]))
-        absdiff = np.abs(np.diff(iszero))
-        # Runs start and end where absdiff is 1.
-        ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
-
-    if (peak == 'both') or (peak == 'negative'):
-        clipped_spectrum = spectrum.clip(min=0)
-        # Create an array that is 1 where a is 0, and pad each end with an extra 0.
-        iszero = np.concatenate(
-            ([0], np.equal(clipped_spectrum, 0).view(np.int8), [0]))
-        absdiff = np.abs(np.diff(iszero))
-        if peak == 'both':
-            # Runs start and end where absdiff is 1.
-            ranges = np.append(
-                ranges, np.where(absdiff == 1)[0].reshape(-1, 2), axis=0)
-        else:
-            ranges = np.where(absdiff == 1)[0].reshape(-1, 2)
-
-    if amp_threshold is not None:
-        if peak == 'positive':
-            mask = spectrum > abs(amp_threshold)
-        elif peak == 'negative':
-            mask = spectrum < -abs(amp_threshold)
-        else:
-            mask = np.abs(spectrum) > abs(amp_threshold)
-
-        if np.count_nonzero(mask) == 0:
-            return np.array([]), np.array([])
-
-        peak_mask = np.split(mask, ranges[:, 1])
-        mask_true = np.array([any(array) for array in peak_mask[:-1]])
-
-        ranges = ranges[mask_true]
-        if peak == 'positive':
-            amp_vals = np.array([max(spectrum[low:upp]) for low, upp in ranges])
-        elif peak == 'negative':
-            amp_vals = np.array([min(spectrum[low:upp]) for low, upp in ranges])
-        else:
-            amp_vals = np.array(
-                np.sign(spectrum[low])*max(np.abs(spectrum[low:upp]))
-                for low, upp in ranges)
-        #  TODO: check if sorting really necessary??
-        sort_indices = np.argsort(amp_vals)[::-1]
-        return amp_vals[sort_indices], ranges[sort_indices]
-    else:
-        sort_indices = np.argsort(ranges[:, 0])
-        ranges = ranges[sort_indices]
-
-        consecutive_channels = ranges[:, 1] - ranges[:, 0]
-        return consecutive_channels, ranges
+    # TODO: check if amp_threshold can ever be None??
+    # TODO: rename amp_threshold
+    # TODO: rename peak to peak_type
+    amp_threshold = 0 if amp_threshold is None else amp_threshold
+    indices_peaks = _determine_indices_of_peak_intervals(spectrum, peak=peak)
+    sign_peaks = 1 if peak == 'positive' else -1
+    maximum_intensity_in_group = np.array([np.abs(spectrum[group]).max() for group in indices_peaks])
+    intensity_exceeds_threshold = maximum_intensity_in_group > abs(amp_threshold)
+    maximum_intensity_in_group = maximum_intensity_in_group[intensity_exceeds_threshold]
+    indices_peaks = [group for group, is_valid in zip(indices_peaks, intensity_exceeds_threshold) if is_valid]
+    peak_intervals = _get_peak_intervals(indices_peaks)
+    return maximum_intensity_in_group * sign_peaks, peak_intervals
 
 
 def mask_channels(n_channels, ranges, pad_channels=None, remove_intervals=None):
@@ -210,7 +195,11 @@ def get_rms_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
     """
     #  Step 1: remove broad features based on number of consecutive channels
     n_channels = len(spectrum)
-    consecutive_channels, ranges = determine_peaks(spectrum)
+    indices_positive_peaks = _determine_indices_of_peak_intervals(spectrum, peak='positive')
+    indices_negative_peaks = _determine_indices_of_peak_intervals(spectrum, peak='negative')
+    ranges: np.ndarray = _get_peak_intervals(indices_positive_peaks + indices_negative_peaks)
+    ranges = np.sort(ranges, axis=0)
+    consecutive_channels = _get_number_of_consecutive_channels(ranges)
     mask = consecutive_channels >= max_consecutive_channels
     mask_1 = mask_channels(n_channels, ranges[mask], pad_channels=pad_channels)
 
@@ -311,3 +300,15 @@ def calculate_average_rms_noise(data, number_rms_spectra, random_seed=111,
     pbar.close()
     return np.nanmean(rmsList)
     # return np.nanmedian(rmsList), median_absolute_deviation(rmsList, ignore_nan=True)
+
+
+if __name__ == '__main__':
+    # for testing
+    from astropy.io import fits
+    ROOT = Path(os.path.realpath(__file__)).parents[1]
+    data = fits.getdata(ROOT / 'data' / 'grs-test_field.fits')
+    # spectrum = data[:, 26, 8]
+    # results = determine_peaks(spectrum, amp_threshold=0.4)
+    spectrum = data[:, 31, 40]
+    results = get_rms_noise(spectrum)
+    print(results)
