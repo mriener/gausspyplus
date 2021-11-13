@@ -514,8 +514,6 @@ def get_initial_guesses(residual, rms, snr, significance, peak='positive',
         Initial guesses for mean positions of Gaussian fit parameters for residual peaks.
 
     """
-    # amp_guesses, ranges = determine_peaks(
-    #     residual, peak=peak, amp_threshold=snr*rms)
     amp_guesses, ranges = determine_peaks(
         residual, peak=peak,
         amp_threshold=snr*rms)
