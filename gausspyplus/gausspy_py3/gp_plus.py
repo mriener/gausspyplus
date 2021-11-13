@@ -486,7 +486,7 @@ def replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance,
 
 
 def get_initial_guesses(residual, rms, snr, significance, peak='positive',
-                        maximum=False, baseline_shift_snr=0):
+                        maximum=False):
     """Get initial guesses of Gaussian fit parameters for residual peaks.
 
     Parameters
@@ -503,8 +503,6 @@ def get_initial_guesses(residual, rms, snr, significance, peak='positive',
         Whether to search for positive (default) or negative peaks in the residual.
     maximum : bool
         Default is 'False'. If set to 'True', only the input parameter guesses for a single Gaussian fit component -- the one with the highest guessed amplitude value -- are returned.
-    baseline_shift_snr : float
-        Experimental feature that shifts the baseline of the residual before searching for peaks.
 
     Returns
     -------
@@ -519,13 +517,13 @@ def get_initial_guesses(residual, rms, snr, significance, peak='positive',
     # amp_guesses, ranges = determine_peaks(
     #     residual, peak=peak, amp_threshold=snr*rms)
     amp_guesses, ranges = determine_peaks(
-        residual - baseline_shift_snr*rms, peak=peak,
-        amp_threshold=(snr - baseline_shift_snr)*rms)
+        residual, peak=peak,
+        amp_threshold=snr*rms)
 
     if amp_guesses.size == 0:
         return np.array([]), np.array([]), np.array([])
 
-    amp_guesses = amp_guesses + baseline_shift_snr*rms
+    amp_guesses = amp_guesses
 
     sort = np.argsort(ranges[:, 0])
     amp_guesses = amp_guesses[sort]
@@ -852,7 +850,7 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
 def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
                                 exclude_idx, signal_ranges=None,
                                 signal_mask=None, force_accept=False,
-                                baseline_shift_snr=0, noise_spike_mask=None):
+                                noise_spike_mask=None):
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we determine guesses for additional fit components from the residual that is produced if the component (i) is discarded and try a new fit. We only accept the new fit solution if it yields a better fit as determined by the AICc value.
@@ -877,8 +875,6 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
         Boolean array containing the information of signal_ranges.
     force_accept : bool
         Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
-    baseline_shift_snr : float
-        Experimental feature that shifts the baseline of the residual before searching for peaks.
 
     Returns
     -------
@@ -919,14 +915,8 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
 
     residual = data - combined_gaussian(amps_fit, fwhms_fit, offsets_fit, vel)
 
-    # amp_guesses, fwhm_guesses, offset_guesses = get_initial_guesses(
-    #     residual[idx_low_residual:idx_upp_residual], errors[0],
-    #     dct['snr'], dct['significance'], peak='positive',
-    #     baseline_shift_snr=baseline_shift_snr)
-    # offset_guesses = offset_guesses + idx_low_residual
     amp_guesses, fwhm_guesses, offset_guesses = get_initial_guesses(
-        residual, errors[0], dct['snr'], dct['significance'], peak='positive',
-        baseline_shift_snr=baseline_shift_snr)
+        residual, errors[0], dct['snr'], dct['significance'], peak='positive')
 
     #  return original best fit list if there are no guesses for new components to fit in the residual
     if amp_guesses.size == 0:
@@ -1029,13 +1019,6 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
 
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
-    # for baseline_shift_snr in range(int(dct['snr'])):
-    #     best_fit_list = try_fit_with_new_components(
-    #         vel, data, errors, best_fit_list, dct, exclude_idx,
-    #         signal_ranges=signal_ranges, signal_mask=signal_mask,
-    #         force_accept=force_accept, baseline_shift_snr=baseline_shift_snr)
-    #     if best_fit_list[7]:
-    #         break
     best_fit_list = try_fit_with_new_components(
         vel, data, errors, best_fit_list, dct, exclude_idx,
         signal_ranges=signal_ranges, signal_mask=signal_mask,
@@ -1099,13 +1082,6 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
             force_accept=force_accept, noise_spike_mask=noise_spike_mask)
         if best_fit_list[7]:
             break
-        # for baseline_shift_snr in range(int(dct['snr'])):
-        #     best_fit_list = try_fit_with_new_components(
-        #         vel, data, errors, best_fit_list, dct, exclude_idx,
-        #         signal_ranges=signal_ranges, signal_mask=signal_mask,
-        #         force_accept=force_accept, baseline_shift_snr=baseline_shift_snr)
-        #     if best_fit_list[7]:
-        #         return best_fit_list
 
     return best_fit_list
 
