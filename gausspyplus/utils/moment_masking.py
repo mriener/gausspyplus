@@ -17,7 +17,7 @@ from astropy import units as u
 from astropy.wcs import WCS
 from tqdm import tqdm
 
-from .noise_estimation import get_max_consecutive_channels, calculate_average_rms_noise
+from .noise_estimation import determine_maximum_consecutive_channels, calculate_average_rms_noise
 from .spectral_cube_functions import remove_additional_axes, spatial_smoothing, spectral_smoothing, open_fits_file, moment_map, pv_map, correct_header
 from .grouping_functions import get_neighbors
 
@@ -79,7 +79,7 @@ class MomentMask(object):
         self.locations = list(itertools.product(range(yMax), range(xMax)))
 
         self.n_channels = self.data.shape[0]
-        self.max_consecutive_channels = get_max_consecutive_channels(self.n_channels, self.p_limit)
+        self.max_consecutive_channels = determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
 
         self.nan_mask = np.isnan(self.data)
         self.nan_mask_2D = np.zeros((yMax, xMax))

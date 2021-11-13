@@ -21,7 +21,7 @@ from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from .utils.fit_quality_checks import determine_significance, goodness_of_fit,\
     check_residual_for_normality
 from .utils.gaussian_functions import gaussian
-from .utils.noise_estimation import get_max_consecutive_channels, mask_channels, determine_noise
+from .utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
 from .utils.output import check_if_all_values_are_none
 from .utils.spectral_cube_functions import remove_additional_axes
 
@@ -134,7 +134,7 @@ class GaussPyTrainingSet(object):
 
         self.mask_omit = mask_channels(self.n_channels, self.mask_out_ranges)
 
-        self.max_consecutive_channels = get_max_consecutive_channels(self.n_channels, self.p_limit)
+        self.max_consecutive_channels = determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
 
         if self.header:
             yValues = np.arange(self.data.shape[1])

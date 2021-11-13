@@ -13,7 +13,7 @@ from .output import format_warning
 warnings.showwarning = format_warning
 
 
-def get_max_consecutive_channels(n_channels, p_limit):
+def determine_maximum_consecutive_channels(n_channels: int, p_limit: float) -> int:
     """Determine the maximum number of random consecutive positive/negative channels.
 
     Calculate the number of consecutive positive or negative channels,
@@ -22,27 +22,23 @@ def get_max_consecutive_channels(n_channels, p_limit):
 
     Parameters
     ----------
-    n_channels : int
-        Number of spectral channels.
-    p_limit : float
-        Maximum probability for consecutive positive/negative channels being
-        due to chance.
+    n_channels : Number of spectral channels.
+    p_limit : Maximum probability for consecutive positive/negative channels being due to chance.
 
     Returns
     -------
-    consec_channels : int
-        Number of consecutive positive/negative channels that have a probability
-        less than p_limit to be due to chance.
+    consec_channels : Number of consecutive positive/negative channels that have a probability less than p_limit
+        to be due to chance.
 
     """
-    for consec_channels in range(2, 30):
-        a = np.zeros((consec_channels, consec_channels))
-        for i in range(consec_channels - 1):
-            a[i, 0] = a[i, i + 1] = 0.5
-        a[consec_channels - 1, consec_channels - 1] = 1.0
-        if np.linalg.matrix_power(
-                a, n_channels - 1)[0, consec_channels - 1] < p_limit:
-            return consec_channels
+    for n_consecutive_channels in itertools.count(2):
+        matrix = np.zeros((n_consecutive_channels, n_consecutive_channels))
+        for i in range(n_consecutive_channels - 1):
+            matrix[i, 0] = 0.5
+            matrix[i, i + 1] = 0.5
+        matrix[-1, -1] = 1.0
+        if np.linalg.matrix_power(matrix, n_channels - 1)[0, n_consecutive_channels - 1] < p_limit:
+            return n_consecutive_channels
 
 
 def determine_peaks(spectrum, peak='both', amp_threshold=None):
