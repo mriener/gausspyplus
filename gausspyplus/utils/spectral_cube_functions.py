@@ -21,7 +21,7 @@ from datetime import datetime
 from tqdm import tqdm
 
 from .output import check_if_value_is_none, check_if_all_values_are_none, format_warning, save_file
-from .noise_estimation import get_max_consecutive_channels, determine_noise
+from .noise_estimation import determine_maximum_consecutive_channels, determine_noise
 
 warnings.showwarning = format_warning
 
@@ -1175,7 +1175,7 @@ def clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
     else:
         print('\napplying noise threshold to data with snr={}...'.format(snr))
         noiseMap = np.zeros((yMax, xMax))
-        max_consecutive_channels = get_max_consecutive_channels(n_channels, p_limit)
+        max_consecutive_channels = determine_maximum_consecutive_channels(n_channels, p_limit)
 
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([locations, determine_noise, [data, max_consecutive_channels, pad_channels]])
