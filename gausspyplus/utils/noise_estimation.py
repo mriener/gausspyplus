@@ -102,67 +102,63 @@ def determine_peaks(spectrum: np.ndarray,
     return maximum_intensity_in_group * sign_peaks, peak_intervals
 
 
-def mask_channels(n_channels, ranges, pad_channels=None, remove_intervals=None):
+def mask_channels(n_channels: int,
+                  ranges: List[Tuple],
+                  pad_channels: Optional[int] = None,
+                  remove_intervals: Optional[List[Tuple]] = None) -> np.ndarray:
     """Determine the 1D boolean mask for a given list of spectral ranges.
 
     Parameters
     ----------
-    n_channels : int
-        Number of spectral channels.
-    ranges : list
-        List of intervals [(low, upp), ...].
-    pad_channels : int
-        Number of channels by which an interval (low, upp) gets extended on both sides, resulting in (low - pad_channels, upp + pad_channels).
-    remove_intervals : type
-        Nested list containing info about ranges of the spectrum that should be masked out.
+    n_channels : Number of spectral channels.
+    ranges : List of intervals [(low, upp), ...].
+    pad_channels : Number of channels by which an interval (low, upp) gets extended on both sides,
+        resulting in (low - pad_channels, upp + pad_channels).
+    remove_intervals : Nested list containing info about ranges of the spectrum that should be masked out.
 
     Returns
     -------
-    mask : numpy.ndarray
-        1D boolean mask that has 'True' values at the position of the channels contained in ranges.
+    mask : 1D boolean mask that has 'True' values at the position of the channels contained in ranges.
 
     """
-    mask = np.zeros(n_channels)
+    # TODO: check if ranges can be None -> Test
+    pad_channels = 0 if pad_channels is None else pad_channels
 
-    for (lower, upper) in ranges:
-        if pad_channels is not None:
-            lower = max(0, lower - pad_channels)
-            upper = min(n_channels, upper + pad_channels)
-        mask[lower:upper] = 1
+    mask = np.zeros(n_channels, dtype=bool)
+    if ranges is not None and len(ranges) > 1:
+        ranges_padded = np.clip(a=np.array(ranges) + np.array([[-pad_channels, pad_channels]]),
+                                a_min=0,
+                                a_max=n_channels)
+        indices_true = np.concatenate([np.r_[slice(*interval)] for interval in ranges_padded.tolist()])
 
-    if remove_intervals is not None:
-        for (low, upp) in remove_intervals:
-            mask[low:upp] = 0
+        if remove_intervals is not None:
+            indices_false = np.concatenate([np.r_[slice(*interval)] for interval in remove_intervals])
+            indices_true = np.setdiff1d(indices_true, indices_false)
+        mask[indices_true] = True
+    return mask
 
-    return mask.astype('bool')
 
-
-def correct_rms(average_rms=None, idx=None):
+def correct_rms(average_rms: Optional[float] = None, idx: Optional[int] = None) -> float:
     """Replace rms noise value with average rms value or mask out spectrum.
 
-    Workaround for issues with bad baselines and/or insufficient continuum subtraction that render the noise computation meaningless.
+    Workaround for issues with bad baselines and/or insufficient continuum subtraction that render the noise
+    computation meaningless.
 
     Parameters
     ----------
-    average_rms : float
-        Average root-mean-square noise value that is used in case the noise cannot be determined from the spectrum itself.
-    idx : int
-        Index of the spectrum.
+    average_rms : Average root-mean-square noise value that is used in case the noise cannot be determined from
+        the spectrum itself.
+    idx : Index of the spectrum.
 
     Returns
     -------
     rms : float or numpy.nan
 
     """
-    idxInfo = ''
-    if idx is not None:
-        idxInfo = 'with index {} '.format(idx)
-    if average_rms is not None:
-        warnings.warn('Could not determine noise for spectrum {} (baseline issue?). Assuming average rms value of {}'.format(idxInfo, average_rms))
-        return average_rms
-    else:
-        warnings.warn('Could not determine noise for spectrum {} (baseline issue?). Masking out spectrum.'.format(idxInfo))
-        return np.nan
+    info_index = f'with index {idx} ' if idx is not None else ''
+    info_action = f'Assuming average rms value of {average_rms}' if average_rms is not None else 'Masking out spectrum.'
+    warnings.warn(f'Could not determine noise for spectrum {info_index} (baseline issue?). {info_action}')
+    return average_rms if average_rms is not None else np.nan
 
 
 def get_rms_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
