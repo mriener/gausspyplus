@@ -105,43 +105,6 @@ def add_buffer_to_intervals(ranges, n_channels, pad_channels=5):
     return ranges_new
 
 
-def gauss_mask(means, fwhms, n_channels, chi2_mask=None,
-               range_slices=False, pad_channels=10):
-    mask = np.zeros(n_channels)
-    for mean, fwhm in zip(means, fwhms):
-        if 2*fwhm < fwhm + pad_channels:
-            pad = fwhm + pad_channels
-        else:
-            pad = 2*fwhm
-        low, upp = int(mean - pad), int(mean + pad) + 2
-        mask[low:upp] = 1
-
-    if chi2_mask is not None:
-        for (low, upp) in chi2_mask:
-            mask[low:upp] = 0
-    mask = mask.astype('bool')
-
-    if range_slices:
-        indices = np.where(mask == True)[0]
-        nonzero = np.append(np.zeros(1), (indices[1:] - indices[:-1]) - 1)
-        nonzero = nonzero.astype('int')
-        indices2 = np.argwhere(nonzero != 0)
-        breakpoints = [indices[0]]
-        if indices2.size != 0:
-            for i in indices2:
-                breakpoints.append(indices[i[0] - 1])
-                breakpoints.append(indices[i[0]])
-        breakpoints.append(indices[-1])
-
-        ranges = []
-        for i in range(int(len(breakpoints) / 2)):
-            low, upp = breakpoints[i*2], breakpoints[i*2 + 1]
-            ranges.append((low, upp))
-        return mask, ranges
-    else:
-        return mask
-
-
 def mask_covering_gaussians(means, fwhms, n_channels, remove_intervals=None,
                             range_slices=False, pad_channels=10, min_channels=100):
     """Define mask around fitted Gaussians for goodness of fit calculations.
