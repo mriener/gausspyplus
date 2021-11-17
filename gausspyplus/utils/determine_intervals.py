@@ -4,7 +4,7 @@ import numpy as np
 
 from .noise_estimation import determine_peaks, mask_channels
 
-from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true
+from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
 
 
 def add_buffer_to_intervals(ranges, n_channels, pad_channels=5):
@@ -25,15 +25,8 @@ def add_buffer_to_intervals(ranges, n_channels, pad_channels=5):
         New list of intervals [(low - pad_channels, upp + pad_channels), ...].
 
     """
-    ranges_new, intervals = ([] for i in range(2))
-    for i, (low, upp) in enumerate(ranges):
-        low, upp = low - pad_channels, upp + pad_channels
-        if low < 0:
-            low = 0
-        if upp > n_channels:
-            upp = n_channels
-
-        intervals.append((low, upp))
+    ranges_new = []
+    intervals = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
 
     # merge intervals if they are overlapping
     sorted_by_lower_bound = sorted(intervals, key=lambda tup: tup[0])
