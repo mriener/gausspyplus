@@ -73,7 +73,7 @@ def _determine_peak_intervals(spectrum: np.ndarray,
 
 def _get_number_of_consecutive_channels(peak_intervals: np.ndarray) -> np.ndarray:
     """Returns a list of the number of spectral channels of peak intervals."""
-    return np.array([group[-1] - group[0] for group in peak_intervals])
+    return peak_intervals[:, 1] - peak_intervals[:, 0]
 
 
 def _get_peak_intervals(indices_of_peak_intervals: List[np.ndarray]) -> np.ndarray:
