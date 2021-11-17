@@ -110,6 +110,16 @@ def determine_peaks(spectrum: np.ndarray,
     return maximum_intensity_in_group * (1 if peak == 'positive' else -1), peak_intervals
 
 
+def pad_intervals(intervals: List[List],
+                  pad_channels: Optional[int],
+                  lower_limit: int = 0,
+                  upper_limit: Optional[int] = None) -> List[List]:
+    """Pad intervals with channels on the lower and upper end."""
+    if pad_channels is None:
+        return intervals
+    else:
+        return [[max(lower_limit, lower - pad_channels), min(upper_limit, upper + pad_channels)]
+                for lower, upper in intervals]
 
 
 def mask_channels(n_channels: int,
@@ -131,20 +141,15 @@ def mask_channels(n_channels: int,
     mask : 1D boolean mask that has 'True' values at the position of the channels contained in ranges.
 
     """
-    # TODO: check if ranges can be None -> Test
-    pad_channels = 0 if pad_channels is None else pad_channels
+    mask = np.zeros(n_channels, dtype='bool')
+    ranges = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
+    for (lower, upper) in ranges:
+        mask[lower:upper] = True
 
-    mask = np.zeros(n_channels, dtype=bool)
-    if ranges is not None and len(ranges) > 1:
-        ranges_padded = np.clip(a=np.array(ranges) + np.array([[-pad_channels, pad_channels]]),
-                                a_min=0,
-                                a_max=n_channels)
-        indices_true = np.concatenate([np.r_[slice(*interval)] for interval in ranges_padded.tolist()])
+    if remove_intervals is not None:
+        for (lower, upper) in remove_intervals:
+            mask[lower:upper] = False
 
-        if remove_intervals is not None:
-            indices_false = np.concatenate([np.r_[slice(*interval)] for interval in remove_intervals])
-            indices_true = np.setdiff1d(indices_true, indices_false)
-        mask[indices_true] = True
     return mask
 
 
