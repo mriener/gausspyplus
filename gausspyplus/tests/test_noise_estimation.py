@@ -22,3 +22,9 @@ def test_get_rms_noise():
     spectrum = DATA[:, 31, 40]
     rms_noise = get_rms_noise(spectrum)
     assert np.allclose(rms_noise, 0.10634302494716603)
+
+
+def test_intervals_where_mask_is_true():
+    from ..utils.noise_estimation import intervals_where_mask_is_true
+    spectrum = DATA[:, 31, 40]
+    assert intervals_where_mask_is_true(spectrum > 0.5) == [[180, 192], [227, 229], [230, 238]]
