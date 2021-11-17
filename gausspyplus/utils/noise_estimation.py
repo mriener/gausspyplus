@@ -76,11 +76,6 @@ def _get_number_of_consecutive_channels(peak_intervals: np.ndarray) -> np.ndarra
     return peak_intervals[:, 1] - peak_intervals[:, 0]
 
 
-def _get_peak_intervals(indices_of_peak_intervals: List[np.ndarray]) -> np.ndarray:
-    """Returns a list of tuples containing the slice information for peak intervals."""
-    return np.array([(array[0], array[-1] + 1) for array in indices_of_peak_intervals])
-
-
 def determine_peaks(spectrum: np.ndarray,
                     peak: Literal['positive', 'negative'] = 'positive',
                     amp_threshold: Optional[float] = None) -> Tuple[np.ndarray, np.ndarray]:
