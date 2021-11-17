@@ -4,50 +4,7 @@ import numpy as np
 
 from .noise_estimation import determine_peaks, mask_channels
 
-
-
-
-def intervals_where_mask_is_true(mask):
-    """Determine intervals where a 1D boolean mask is True.
-
-    Parameters
-    ----------
-    mask : numpy.ndarray
-        Boolean mask.
-
-    Returns
-    -------
-    ranges : list
-        List of slice intervals [(low, upp), ...] indicating where the mask
-        has `True` values.
-
-    """
-    indices = np.where(mask == True)[0]
-    if indices.size == 0:
-        return []
-
-    nonzero = np.append(np.zeros(1), (indices[1:] - indices[:-1]) - 1)
-    nonzero = nonzero.astype('int')
-    indices_nonzero = np.argwhere(nonzero != 0)
-
-    breakpoints = [indices[0]]
-    if indices_nonzero.size != 0:
-        for i in indices_nonzero:
-            breakpoints.append(indices[i[0] - 1] + 1)
-            breakpoints.append(indices[i[0]])
-    breakpoints.append(indices[-1] + 1)
-
-    ranges = []
-    for i in range(int(len(breakpoints) / 2)):
-        low, upp = breakpoints[i*2], breakpoints[i*2 + 1]
-        if low != upp:
-            ranges.append([low, upp])
-        # if there is one single positive channel at the end
-        # TODO: check if this may cause problems
-        else:
-            ranges.append([low, upp + 1])
-
-    return ranges
+from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true
 
 
 def add_buffer_to_intervals(ranges, n_channels, pad_channels=5):

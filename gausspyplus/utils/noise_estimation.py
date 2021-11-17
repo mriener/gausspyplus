@@ -44,16 +44,31 @@ def determine_maximum_consecutive_channels(n_channels: int, p_limit: float) -> i
             return n_consecutive_channels
 
 
-def _determine_indices_of_peak_intervals(spectrum: np.ndarray,
-                                         peak: Literal['positive', 'negative'] = 'positive') -> List[np.ndarray]:
-    """Returns a list of arrays containing the indices of peak intervals."""
-    def consecutive(data, stepsize=1):
-        return np.split(data, np.where(np.diff(data) != stepsize)[0] + 1)
+def intervals_where_mask_is_true(mask: np.ndarray) -> np.ndarray:
+    """Determine intervals where a 1D boolean mask is True.
 
-    if peak == 'positive':
-        return consecutive((spectrum > 0).nonzero()[0])
-    elif peak == 'negative':
-        return consecutive((spectrum < 0).nonzero()[0])
+    Parameters
+    ----------
+    Boolean mask for 1D array.
+
+    Returns
+    -------
+    Array of slice intervals [(idx_lower_1, idx_upper_1), ..., (idx_lower_N, idx_upper_N)] indicating where the mask
+        has `True` values.
+
+    """
+    # TODO: return ranges as np.ndarray instead of list (.tolist() currently is still necessary for pytest to work)
+    return np.flatnonzero(
+        np.diff(
+            np.concatenate((np.array([False]), mask, np.array([False])))
+        )
+    ).reshape(-1, 2).tolist()
+
+
+# @jit(nopython=True)
+def _determine_peak_intervals(spectrum: np.ndarray,
+                              peak: Literal['positive', 'negative'] = 'positive') -> np.ndarray:
+    return intervals_where_mask_is_true(mask=spectrum > 0 if peak == 'positive' else spectrum < 0)
 
 
 def _get_number_of_consecutive_channels(peak_intervals: np.ndarray) -> np.ndarray:
