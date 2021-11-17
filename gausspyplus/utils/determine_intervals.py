@@ -5,14 +5,6 @@ import numpy as np
 from .noise_estimation import determine_peaks, mask_channels
 
 
-def add_subtracted_nan_ranges(nan_ranges, ranges):
-    """Add masked out regions to signal or noise spike ranges."""
-    for nan_lower, nan_upper in nan_ranges:
-        for i, (lower, upper) in enumerate(ranges):
-            if lower > nan_lower:
-                add_value = (nan_upper - nan_lower)
-                ranges[i] = [lower + add_value, upper + add_value]
-    return ranges
 
 
 def intervals_where_mask_is_true(mask):
