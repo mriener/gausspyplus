@@ -102,14 +102,14 @@ def determine_peaks(spectrum: np.ndarray,
     # TODO: rename amp_threshold
     # TODO: rename peak to peak_type
     amp_threshold = 0 if amp_threshold is None else amp_threshold
-    indices_peaks = _determine_indices_of_peak_intervals(spectrum, peak=peak)
-    sign_peaks = 1 if peak == 'positive' else -1
-    maximum_intensity_in_group = np.array([np.abs(spectrum[group]).max() for group in indices_peaks])
-    intensity_exceeds_threshold = maximum_intensity_in_group > abs(amp_threshold)
-    maximum_intensity_in_group = maximum_intensity_in_group[intensity_exceeds_threshold]
-    indices_peaks = [group for group, is_valid in zip(indices_peaks, intensity_exceeds_threshold) if is_valid]
-    peak_intervals = _get_peak_intervals(indices_peaks)
-    return maximum_intensity_in_group * sign_peaks, peak_intervals
+    peak_intervals = _determine_peak_intervals(spectrum, peak=peak)
+    maximum_value_in_peak_interval = np.array([np.abs(spectrum[low:upp]).max() for low, upp in peak_intervals])
+    exceeds_threshold = maximum_value_in_peak_interval > abs(amp_threshold)
+    maximum_intensity_in_group = maximum_value_in_peak_interval[exceeds_threshold]
+    peak_intervals = np.array([interval for interval, is_valid in zip(peak_intervals, exceeds_threshold) if is_valid])
+    return maximum_intensity_in_group * (1 if peak == 'positive' else -1), peak_intervals
+
+
 
 
 def mask_channels(n_channels: int,
@@ -171,115 +171,48 @@ def _correct_rms(average_rms: Optional[float] = None, idx: Optional[int] = None)
     return average_rms if average_rms is not None else np.nan
 
 
-# def _mask_features_with_high_peak_values():
-#     spectrum_consecs_removed = spectrum[~mask_for_broad_features]
-#     spectrum_negative_values = spectrum_consecs_removed[spectrum_consecs_removed < 0.0]
-#
-#     reflected_noise = np.concatenate(spectrum_negative_values, np.abs(spectrum_negative_values))
-#
-#     spectrum_mask1_vals_zero = np.copy(spectrum)
-#     spectrum_mask1_vals_zero[mask_for_broad_features] = 0
-#     inds_high_amps = np.where(np.abs(spectrum_mask1_vals_zero) > 5 * median_absolute_deviation(reflected_noise))[0]
-#     if inds_high_amps.size > 0:
-#         inds_ranges = np.digitize(inds_high_amps, peak_intervals[:, 0]) - 1
-#         peak_intervals = peak_intervals[inds_ranges]
-#
-#         mask_2 = mask_channels(n_channels, peak_intervals, pad_channels=pad_channels)
-#
-#         mask_total = mask_for_broad_features + mask_2
-#     else:
-#         mask_total = mask_for_broad_features
-
-
-def _get_rms_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
-                  average_rms=None, idx=None, min_fraction_noise_channels=0.1,
-                  min_fraction_average_rms=0.1):
-    """Determine the root-mean-square noise of a spectrum.
-
-    Parameters
-    ----------
-    spectrum : numpy.ndarray
-        Original data of the spectrum.
-    max_consecutive_channels : int
-        Determined minimum number of consecutive positive or negative channels a (signal?) feature has to have to get masked out.
-    pad_channels : int
-        Number of additional channels that get masked out on both sides of an identified (signal?) feature.
-    average_rms : float
-        Average root-mean-square noise value that is used in case the noise cannot be determined from the spectrum itself.
-    idx : int
-        Index of the spectrum.
-    min_fraction_noise_channels : float
-        Required minimum fraction of spectral channels for reliable noise calculation. If this fraction is not reached, the 'average_rms' value (if supplied) is used or the spectrum is masked out.
-    min_fraction_average_rms : float
-        The estimated rms noise value has to exceed the average rms noise value by this fraction. Otherwise the 'average_rms' value (if supplied) is used or the spectrum is masked out.
-
-    Returns
-    -------
-    rms : float
-        Determined root-mean-square noise value for the spectrum.
-
-    """
+def _identify_valid_noise_values(spectrum: np.ndarray,
+                                 peak_intervals: np.ndarray,
+                                 max_consecutive_channels: Optional[int],
+                                 pad_channels: Optional[int]) -> np.ndarray:
+    """Exclude spectral features that are broad or have high values and return remaining valid noise channels"""
     #  Step 1: remove broad features based on number of consecutive channels
-    n_channels = len(spectrum)
-    indices_positive_peaks = _determine_indices_of_peak_intervals(spectrum, peak='positive')
-    indices_negative_peaks = _determine_indices_of_peak_intervals(spectrum, peak='negative')
-    peak_intervals: np.ndarray = _get_peak_intervals(indices_positive_peaks + indices_negative_peaks)
-    peak_intervals = np.sort(peak_intervals, axis=0)
     consecutive_channels = _get_number_of_consecutive_channels(peak_intervals)
-    mask_for_broad_features = mask_channels(n_channels=n_channels,
+    mask_for_broad_features = mask_channels(n_channels=spectrum.size,
                                             ranges=peak_intervals[consecutive_channels >= max_consecutive_channels],
                                             pad_channels=pad_channels)
-
-    #  use average rms value or mask out spectrum in case all spectral channels were masked out in step 1
     if np.count_nonzero(~mask_for_broad_features) == 0:
-        return correct_rms(average_rms=average_rms, idx=idx)
-
-    # spectrum_consecs_removed = spectrum[~mask_for_broad_features]
-    # spectrum_negative_values = spectrum_consecs_removed[spectrum_consecs_removed < 0]
+        return np.empty(0)
 
     #  Step 2: remove features with high positive or negative data values
     spectrum_negative_values = spectrum[~np.logical_or(mask_for_broad_features, spectrum > 0)]
-
     reflected_noise = np.concatenate((spectrum_negative_values, np.abs(spectrum_negative_values)))
 
-    spectrum_mask1_vals_zero = np.copy(spectrum)
-    spectrum_mask1_vals_zero[mask_for_broad_features] = 0
-    inds_high_amps = np.where(np.abs(spectrum_mask1_vals_zero) > 5*median_absolute_deviation(reflected_noise))[0]
-    if inds_high_amps.size > 0:
-        inds_ranges = np.digitize(inds_high_amps, peak_intervals[:, 0]) - 1
-        peak_intervals = peak_intervals[inds_ranges]
+    spectrum_with_broad_features_set_to_zero = spectrum.copy()
+    spectrum_with_broad_features_set_to_zero[mask_for_broad_features] = 0
 
-        mask_2 = mask_channels(n_channels, peak_intervals, pad_channels=pad_channels)
-
-        mask_total = mask_for_broad_features + mask_2
+    channels_exceeding_threshold = np.flatnonzero(
+        np.abs(spectrum_with_broad_features_set_to_zero) > 5 * median_absolute_deviation(reflected_noise))
+    if channels_exceeding_threshold.size > 0:
+        peak_interval_has_high_value = np.digitize(channels_exceeding_threshold, peak_intervals[:, 0]) - 1
+        mask_for_high_features = mask_channels(n_channels=spectrum.size,
+                                               ranges=peak_intervals[peak_interval_has_high_value],
+                                               pad_channels=pad_channels)
+        has_valid_noise_channels = ~np.logical_or(mask_for_broad_features, mask_for_high_features)
     else:
-        mask_total = mask_for_broad_features
+        has_valid_noise_channels = ~mask_for_broad_features
 
-    # TODO: change this from 0 to a minimum of required channels?
-    if np.count_nonzero(~mask_total) == 0:
-        return correct_rms(average_rms=average_rms, idx=idx)
-
-    #  Step 3: determine the noise from the remaining channels
-    rms = np.sqrt(np.sum(spectrum[~mask_total]**2) / np.size(spectrum[~mask_total]))
-
-    if np.count_nonzero(
-            ~mask_total) < min_fraction_noise_channels*len(spectrum):
-        if average_rms is not None:
-            if rms < min_fraction_average_rms*average_rms:
-                return correct_rms(average_rms=average_rms, idx=idx)
-        else:
-            return correct_rms(average_rms=average_rms, idx=idx)
-    return rms
+    return spectrum[has_valid_noise_channels]
 
 
-def get_rms_noise(spectrum: np.ndarray,
-                   max_consecutive_channels: int = 14,
-                   pad_channels: int = 5,
-                   average_rms: Optional[float] = None,
-                   idx: Optional[int] = None,
-                   min_fraction_noise_channels: float = 0.1,
-                   min_fraction_average_rms: float = 0.1) -> float:
-    """Determine the root-mean-square noise of a spectrum.
+def _determine_valid_noise_channels_and_calculate_rms_noise(spectrum: np.ndarray,
+                                                            max_consecutive_channels: Optional[int] = None,
+                                                            pad_channels: int = 5,
+                                                            average_rms: Optional[float] = None,
+                                                            idx: Optional[int] = None,
+                                                            min_fraction_noise_channels: float = 0.1,
+                                                            min_fraction_average_rms: float = 0.1) -> float:
+    """Determine the root-mean-square noise value of a spectrum.
 
     Parameters
     ----------
@@ -300,111 +233,169 @@ def get_rms_noise(spectrum: np.ndarray,
     rms : Determined root-mean-square noise value for the spectrum.
 
     """
-    #  Step 1: remove broad features based on number of consecutive channels
-    n_channels = len(spectrum)
-    n_required_noise_channels = min_fraction_noise_channels * n_channels
+    positive_peaks = _determine_peak_intervals(spectrum, peak='positive')
+    negative_peaks = _determine_peak_intervals(spectrum, peak='negative')
+    peak_intervals = np.concatenate((positive_peaks, negative_peaks))
+    peak_intervals = peak_intervals[np.argsort(peak_intervals[:, 0])]
+    noise_values = _identify_valid_noise_values(spectrum, peak_intervals, max_consecutive_channels, pad_channels)
 
-    max_intensities_of_positive_intervals, positive_intensity_intervals = determine_peaks(spectrum, peak='positive')
-    is_too_broad_positive = _get_number_of_consecutive_channels(positive_intensity_intervals) > max_consecutive_channels
-
-    min_intensities_of_negative_intervals, negative_intensity_intervals = determine_peaks(spectrum, peak='negative')
-    is_too_broad_negative = _get_number_of_consecutive_channels(negative_intensity_intervals) > max_consecutive_channels
-
-    intervals_that_are_too_broad = np.concatenate((positive_intensity_intervals[is_too_broad_positive],
-                                                   negative_intensity_intervals[is_too_broad_negative]))
-    mask_for_broad_features = mask_channels(n_channels=n_channels,
-                                            ranges=intervals_that_are_too_broad,
-                                            pad_channels=pad_channels)
-
-    valid_negative_channels_for_mad = spectrum[~np.logical_or(mask_for_broad_features, spectrum > 0)]
-    if len(valid_negative_channels_for_mad) > n_required_noise_channels:
-        mad_value = median_absolute_deviation(np.concatenate((valid_negative_channels_for_mad,
-                                                              valid_negative_channels_for_mad * -1)))
-        has_too_high_peak_value = max_intensities_of_positive_intervals > 5 * mad_value
-        has_too_low_peak_value = min_intensities_of_negative_intervals < -5 * mad_value
-        intervals_that_are_too_high = np.concatenate((positive_intensity_intervals[has_too_high_peak_value],
-                                                      negative_intensity_intervals[has_too_low_peak_value]))
-        mask_for_high_features = mask_channels(n_channels=n_channels,
-                                               ranges=intervals_that_are_too_high,
-                                               pad_channels=pad_channels)
-
-        has_valid_noise_channels = ~np.logical_or(mask_for_broad_features, mask_for_high_features)
+    if noise_values.size <= min_fraction_noise_channels * spectrum.size:
+        rms_noise = _correct_rms(average_rms=average_rms, idx=idx)
     else:
-        has_valid_noise_channels = ~mask_for_broad_features
-
-    #  Step 3: determine the noise from the remaining channels
-    noise_values = spectrum[has_valid_noise_channels]
-    n_valid_noise_channels = len(noise_values)
-
-    try:
-        rms_noise = np.sqrt(np.sum(noise_values ** 2) / n_valid_noise_channels)
-        rms_noise_min_value = min_fraction_average_rms * average_rms if average_rms is not None else rms_noise
-    except ZeroDivisionError:
-        pass
-
-    if (n_valid_noise_channels < n_required_noise_channels) or (rms_noise < rms_noise_min_value):
-        rms_noise = correct_rms(average_rms=average_rms, idx=idx)
+        rms_noise = np.sqrt(np.sum(noise_values ** 2) / noise_values.size)
+        if rms_noise < min_fraction_average_rms * (average_rms or 0):
+            rms_noise = _correct_rms(average_rms=average_rms, idx=idx)
 
     return rms_noise
 
 
-def determine_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
-                    idx=None, average_rms=None, random_seed=111):
-    np.random.seed(random_seed)
-    if not np.isnan(spectrum).all():
-        if np.isnan(spectrum).any():
-            # TODO: Case where spectrum contains nans and only positive values
-            nans = np.isnan(spectrum)
-            error = get_rms_noise(
-                spectrum[~nans],
-                max_consecutive_channels=max_consecutive_channels,
-                pad_channels=pad_channels,
-                idx=idx,
-                average_rms=average_rms)
-            spectrum[nans] = np.random.randn(len(spectrum[nans])) * error
+# def determine_noise(spectrum, max_consecutive_channels=14, pad_channels=5,
+#                     idx=None, average_rms=None, random_seed=111):
+#     np.random.seed(random_seed)
+#     if not np.isnan(spectrum).all():
+#         if np.isnan(spectrum).any():
+#             # TODO: Case where spectrum contains nans and only positive values
+#             nans = np.isnan(spectrum)
+#             error = get_rms_noise(
+#                 spectrum[~nans],
+#                 max_consecutive_channels=max_consecutive_channels,
+#                 pad_channels=pad_channels,
+#                 idx=idx,
+#                 average_rms=average_rms)
+#             spectrum[nans] = np.random.randn(len(spectrum[nans])) * error
+#
+#         elif (spectrum >= 0).all():
+#             warnings.warn('Masking spectra that contain only values >= 0')
+#             error = np.NAN
+#         else:
+#             error = get_rms_noise(spectrum, max_consecutive_channels=max_consecutive_channels,
+#                                   pad_channels=pad_channels, idx=idx, average_rms=average_rms)
+#     else:
+#         error = np.NAN
+#     return error
 
-        elif (spectrum >= 0).all():
-            warnings.warn('Masking spectra that contain only values >= 0')
-            error = np.NAN
-        else:
-            error = get_rms_noise(spectrum, max_consecutive_channels=max_consecutive_channels,
-                                  pad_channels=pad_channels, idx=idx, average_rms=average_rms)
+
+def determine_noise(spectrum,
+                    max_consecutive_channels: Optional[int] = None,
+                    pad_channels: int = 5,
+                    idx: Optional[int] = None,
+                    average_rms: Optional[int] = None,
+                    random_seed: int = 111):
+    """Determine the root-mean-square noise value of a spectrum.
+
+        Parameters
+        ----------
+        spectrum : Intensity values of the spectrum.
+        max_consecutive_channels : Determined minimum number of consecutive positive or negative channels a (signal?)
+            feature has to have to get masked out.
+        pad_channels : Number of additional channels that get masked out on both sides of an identified (signal?) feature.
+        average_rms : Average root-mean-square noise value that is used in case the noise cannot be determined from the
+            spectrum itself.
+        idx : Index of the spectrum.
+        min_fraction_noise_channels : Required minimum fraction of spectral channels for reliable noise calculation. If
+            this fraction is not reached, the 'average_rms' value (if supplied) is used or the spectrum is masked out.
+        min_fraction_average_rms : The estimated rms noise value has to exceed the average rms noise value by this
+            fraction. Otherwise the 'average_rms' value (if supplied) is used or the spectrum is masked out.
+
+        Returns
+        -------
+        rms : Determined root-mean-square noise value for the spectrum.
+
+        """
+    if max_consecutive_channels is None:
+        max_consecutive_channels = determine_maximum_consecutive_channels(n_channels=spectrum.size, p_limit=0.02)
+    np.random.seed(random_seed)  # TODO: check if this is really needed here?
+
+    if np.isnan(spectrum).all():
+        rms_noise = np.nan
+    elif np.isnan(spectrum).any():
+        # TODO: Case where spectrum contains nans and only positive values
+        nans = np.isnan(spectrum)
+        rms_noise = _determine_valid_noise_channels_and_calculate_rms_noise(
+            spectrum[~nans],
+            max_consecutive_channels=max_consecutive_channels,
+            pad_channels=pad_channels,
+            idx=idx,
+            average_rms=average_rms,
+            min_fraction_noise_channels=0.1,
+            min_fraction_average_rms=0.1
+        )
+        spectrum[nans] = np.random.randn(np.count_nonzero(nans)) * rms_noise
+
+    elif (spectrum >= 0).all():
+        warnings.warn('Masking spectra that contain only values >= 0')
+        rms_noise = np.nan
     else:
-        error = np.NAN
-    return error
+        rms_noise = _determine_valid_noise_channels_and_calculate_rms_noise(
+            spectrum,
+            max_consecutive_channels=max_consecutive_channels,
+            pad_channels=pad_channels,
+            idx=idx,
+            average_rms=average_rms,
+            min_fraction_noise_channels=0.1,
+            min_fraction_average_rms=0.1
+        )
+    return rms_noise
 
 
-def calculate_average_rms_noise(data, number_rms_spectra, random_seed=111,
-                                max_consecutive_channels=14, pad_channels=5):
+def calculate_average_rms_noise(data: np.ndarray,
+                                number_rms_spectra: int,
+                                random_seed: int = 111,
+                                max_consecutive_channels: int = 14,
+                                pad_channels: int = 5) -> float:
     random.seed(random_seed)
-    yValues = np.arange(data.shape[1])
-    xValues = np.arange(data.shape[2])
-    locations = list(itertools.product(yValues, xValues))
+    y_positions = np.arange(data.shape[1])
+    x_positions = np.arange(data.shape[2])
+    locations = list(itertools.product(y_positions, x_positions))
     if len(locations) > number_rms_spectra:
         locations = random.sample(locations, len(locations))
-    rmsList = []
-    counter = 0
+    sampled_rms_noise_values = []
     pbar = tqdm(total=number_rms_spectra)
     for y, x in locations:
-        spectrum = data[:, y, x]
-        error = determine_noise(
-            spectrum, max_consecutive_channels=max_consecutive_channels,
-            pad_channels=pad_channels)
-
-        if not np.isnan(error):
-            rmsList.append(error)
-            counter += 1
+        rms_noise = determine_noise(spectrum=data[:, y, x],
+                                    max_consecutive_channels=max_consecutive_channels,
+                                    pad_channels=pad_channels)
+        if not np.isnan(rms_noise):
+            sampled_rms_noise_values.append(rms_noise)
             pbar.update(1)
-
-        if counter >= number_rms_spectra:
+        if len(sampled_rms_noise_values) >= number_rms_spectra:
             break
-
     pbar.close()
-    return np.nanmean(rmsList)
-    # return np.nanmedian(rmsList), median_absolute_deviation(rmsList, ignore_nan=True)
+    return np.nanmean(sampled_rms_noise_values)
+
+
+# def calculate_average_rms_noise(data, number_rms_spectra, random_seed=111,
+#                                 max_consecutive_channels=14, pad_channels=5):
+#     random.seed(random_seed)
+#     yValues = np.arange(data.shape[1])
+#     xValues = np.arange(data.shape[2])
+#     locations = list(itertools.product(yValues, xValues))
+#     if len(locations) > number_rms_spectra:
+#         locations = random.sample(locations, len(locations))
+#     rmsList = []
+#     counter = 0
+#     pbar = tqdm(total=number_rms_spectra)
+#     for y, x in locations:
+#         spectrum = data[:, y, x]
+#         error = determine_noise(
+#             spectrum, max_consecutive_channels=max_consecutive_channels,
+#             pad_channels=pad_channels)
+#
+#         if not np.isnan(error):
+#             rmsList.append(error)
+#             counter += 1
+#             pbar.update(1)
+#
+#         if counter >= number_rms_spectra:
+#             break
+#
+#     pbar.close()
+#     return np.nanmean(rmsList)
+#     # return np.nanmedian(rmsList), median_absolute_deviation(rmsList, ignore_nan=True)
 
 
 if __name__ == '__main__':
+    # TODO: check if spectrum contains neighboring values with the exact same value (problem for gausspy)
     # for testing
     from timeit import timeit
     from astropy.io import fits
