@@ -153,7 +153,7 @@ def mask_channels(n_channels: int,
     return mask
 
 
-def correct_rms(average_rms: Optional[float] = None, idx: Optional[int] = None) -> float:
+def _correct_rms(average_rms: Optional[float] = None, idx: Optional[int] = None) -> float:
     """Replace rms noise value with average rms value or mask out spectrum.
 
     Workaround for issues with bad baselines and/or insufficient continuum subtraction that render the noise
