@@ -1,5 +1,6 @@
 """Functions for interval determination."""
 from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -88,41 +89,35 @@ def mask_covering_gaussians(means, fwhms, n_channels, remove_intervals=None,
     return mask
 
 
-def check_if_intervals_contain_signal(spectrum, rms, ranges, snr=3.,
-                                      significance=5.):
-    """Check if selected intervals contain positive signal.
+def check_if_intervals_contain_signal(spectrum: np.ndarray,
+                                      rms: float,
+                                      ranges: List[Optional[List]],
+                                      snr: float = 3.,
+                                      significance: float = 5.) -> List[Optional[List]]:
+    """Check if selected intervals contain significant positive signal peaks.
 
-    If the maximum intensity value of an interval (low, upp) is smaller than
-    snr * rms, the interval gets removed from 'ranges'.
-
-    The required minimum significance threshold helps to remove narrow noise spikes or insignificant positive intensity peaks.
+    If the maximum intensity value of an interval (low, upp) is smaller than snr * rms, the interval gets removed
+    from 'ranges'. The required minimum significance threshold helps to remove narrow noise spikes or insignificant
+    positive intensity peaks.
 
     Parameters
     ----------
-    spectrum : numpy.ndarray
-        Array of the data values of the spectrum.
-    rms : float
-        Root-mean-square noise of the spectrum.
-    ranges : list
-        List of intervals [(low, upp), ...] that were identified as containing
-        positive signal.
-    snr : float
-        Required minimum signal-to-noise ratio for data peak.
-    significance : float
-        Required minimum value for significance criterion.
+    spectrum : Intensity values of the spectrum.
+    rms : Root-mean-square noise of the spectrum.
+    ranges : List of intervals [(lower, upper), ...] that were identified as containing positive signal.
+    snr : Required minimum signal-to-noise ratio for data peak.
+    significance : Required minimum value for significance criterion.
 
     Returns
     -------
-    ranges_new : list
-        New list of intervals [(low, upp), ...] that contain positive signal.
+    Updated intervals [(low, upp), ...] that contain only significant positive signal peaks.
 
     """
-    ranges_new = []
-    for low, upp in ranges:
-        if np.max(spectrum[low:upp]) > snr*rms:
-            if np.sum(spectrum[low:upp]) / (np.sqrt(upp - low)*rms) > significance:
-                ranges_new.append([low, upp])
-    return ranges_new
+    # TODO: ranges should be np.ndarray
+    # TODO: rename this function (function is also used in gp_plus, where it is used for a conditional check)
+    intervals = [[lower, upper] for lower, upper in ranges if np.max(spectrum[lower:upper]) > snr*rms]
+    return [[lower, upper] for lower, upper in intervals
+            if np.sum(spectrum[lower:upper]) / (np.sqrt(upper - lower)*rms) > significance]
 
 
 def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
