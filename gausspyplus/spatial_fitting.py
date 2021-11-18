@@ -2195,10 +2195,12 @@ class SpatialFitting(object):
         if params_only:
             return dictResults
 
-        mask = mask_covering_gaussians(
-            means, fwhms, n_channels, remove_intervals=noise_spike_ranges)
-        rchi2_gauss, aicc_gauss = goodness_of_fit(
-            spectrum, best_fit, rms, ncomps, mask=mask, get_aicc=True)
+        # mask = mask_covering_gaussians(
+        #     means, fwhms, n_channels, remove_intervals=noise_spike_ranges)
+        # rchi2_gauss, aicc_gauss = goodness_of_fit(
+        #     spectrum, best_fit, rms, ncomps, mask=mask, get_aicc=True)
+        # TODO: completely remove rchi2_gauss and aicc_gauss (the function mask_covering_gaussians is already removed)
+        rchi2_gauss, aicc_gauss = None, None
 
         N_blended = get_fully_blended_gaussians(
             params, get_count=True, separation_factor=self.decomposition[
