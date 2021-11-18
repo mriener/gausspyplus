@@ -189,24 +189,21 @@ def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
     return ranges
 
 
-def get_noise_spike_ranges(spectrum, rms, snr_noise_spike=5):
-    """Determine ranges in the spectrum that could contain noise spikes.
+def get_noise_spike_ranges(spectrum: np.ndarray, rms: float, snr_noise_spike: int = 5) -> List[Optional[List]]:
+    """Determine intervals in the spectrum potentially containing noise spikes.
 
     Parameters
     ----------
-    spectrum : numpy.ndarray
-        Array of the data values of the spectrum.
-    rms : float
-        Root-mean-square noise of the spectrum.
-    snr_noise_spike : float
-        Required signal-to-noise ratio for negative data values to be counted as noise spikes.
+    spectrum : Intensity values of the spectrum.
+    rms : Root-mean-square noise of the spectrum.
+    snr_noise_spike : Required signal-to-noise ratio that a negative intensity value within an interval has to have
+        to be counted as a potential noise spike.
 
     Returns
     -------
-    noise_spike_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain noise spike features. These will get masked out from goodness-of-fit calculations.
-
+    Nested list containing slice information about intervals of the spectrum that potentially contain noise
+        spike features. These intervals are neglected from goodness-of-fit calculations.
     """
-    maxampvals, ranges = determine_peaks(
-        spectrum, peak='negative', amp_threshold=snr_noise_spike*rms)
+    _, ranges = determine_peaks(spectrum, peak='negative', amp_threshold=snr_noise_spike*rms)
     return ranges.tolist()
+
