@@ -66,15 +66,7 @@ def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None,
     if type(errors) is not np.ndarray:
         errors = np.ones(len(data)) * errors
     # TODO: check if mask is set to None everywehere there is no mask
-    if mask is None:
-        mask = np.ones(len(data))
-        mask = mask.astype('bool')
-    elif len(mask) == 0:
-        mask = np.ones(len(data))
-        mask = mask.astype('bool')
-    elif np.count_nonzero(mask) == 0:
-        mask = np.ones(len(data))
-        mask = mask.astype('bool')
+    mask = _define_mask_if_not_given(mask, len(data))
 
     squared_residuals = (data[mask] - best_fit_final[mask])**2
     chi2 = np.sum(squared_residuals / errors[mask]**2)
@@ -92,18 +84,15 @@ def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None,
     return rchi2
 
 
-def check_mask(mask, n_channels):
-    if mask is None:
-        mask = np.ones(n_channels)
-    elif len(mask) == 0:
-        mask = np.ones(n_channels)
-    elif np.count_nonzero(mask) == 0:
-        mask = np.ones(n_channels)
-    return mask.astype('bool')
+def _define_mask_if_not_given(mask, n_channels) -> np.ndarray:
+    if mask is None or len(mask) == 0 or np.count_nonzero(mask) == 0:
+        return np.full(n_channels, True)
+    else:
+        return mask.astype('bool')
 
 
 def get_pvalue_from_normaltest(data, mask=None):
-    mask = check_mask(mask, len(data))
+    mask = _define_mask_if_not_given(mask, len(data))
     statistic, pvalue = normaltest(data[mask])
 
     return pvalue
@@ -112,7 +101,7 @@ def get_pvalue_from_normaltest(data, mask=None):
 def get_pvalue_from_kstest(data, errors, mask=None):
     if type(errors) is not np.ndarray:
         errors = np.ones(len(data)) * errors
-    mask = check_mask(mask, len(data))
+    mask = _define_mask_if_not_given(mask, len(data))
     statistic, pvalue = kstest(data[mask] / errors[mask], 'norm')
 
     return pvalue
@@ -123,8 +112,8 @@ def check_residual_for_normality(data, errors, mask=None,
     n_channels = len(data)
     if type(errors) is not np.ndarray:
         errors = np.ones(n_channels) * errors
-    mask = check_mask(mask, n_channels)
-    noise_spike_mask = check_mask(noise_spike_mask, n_channels)
+    mask = _define_mask_if_not_given(mask, n_channels)
+    noise_spike_mask = _define_mask_if_not_given(noise_spike_mask, n_channels)
     try:
         ks_statistic, ks_pvalue = kstest(data[mask] / errors[mask], 'norm')
     except ValueError:
