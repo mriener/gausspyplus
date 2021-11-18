@@ -26,7 +26,7 @@ from .noise_estimation import determine_maximum_consecutive_channels, determine_
 warnings.showwarning = format_warning
 
 
-def transform_header_from_crota_to_pc(header):
+def _transform_header_from_crota_to_pc(header):
     """Replace CROTA* keywords with PC*_* keywords."""
     cdelt1 = header['CDELT1']
     cdelt2 = header['CDELT2']
@@ -52,20 +52,8 @@ def transform_header_from_crota_to_pc(header):
     return header
 
 
-def correct_header_velocity(header):
-    """Check and correct spectral axis entries of FITS header.
-
-    Parameters
-    ----------
-    header : astropy.io.fits.Header
-        FITS header.
-
-    Returns
-    -------
-    header : astropy.io.fits.Header
-        Corrected FITS header.
-
-    """
+def _correct_header_velocity(header):
+    """Check and correct spectral axis entries of FITS header."""
     if header['CTYPE3'] == 'VELOCITY':
         warnings.warn("Changed header keyword CTYPE3 from VELOCITY to VELO-LSR")
         header['CTYPE3'] = 'VELO-LSR'
@@ -126,7 +114,7 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
                 header[keyword] = value
 
     if 'CTYPE3' in list(header.keys()):
-        header = correct_header_velocity(header)
+        header = _correct_header_velocity(header)
 
     if keep_only_wcs_keywords:
         wcs = WCS(header)
@@ -138,7 +126,7 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
         for keyword, value in dct_naxis.items():
             header[keyword] = value
     if 'CROTA1' in list(header.keys()):
-        header = transform_header_from_crota_to_pc(header)
+        header = _transform_header_from_crota_to_pc(header)
     return header
 
 
@@ -197,24 +185,8 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
     return header
 
 
-def change_wcs_header_reproject(header, header_new, ppv=True):
-    """Change the WCS information of a header for reprojection purposes.
-
-    Parameters
-    ----------
-    header : astropy.io.fits.Header
-        Header of the FITS array.
-    header_new : astropy.io.fits.Header
-        Header of the FITS array to which the data gets reprojected.
-    ppv : bool
-        Default is `True`, if the header should remain in the PPV format. If set to `False`, the header will be transformed to a PP format.
-
-    Returns
-    -------
-    header : astropy.io.fits.Header
-        Updated header of the FITS array.
-
-    """
+def _change_wcs_header_reproject(header, header_new, ppv=True):
+    """Change the WCS information of a header for reprojection purposes."""
     wcs_new = WCS(correct_header(header_new))
     while wcs_new.wcs.naxis > 2:
         axes = range(wcs_new.wcs.naxis)
@@ -271,7 +243,7 @@ def remove_additional_axes(data, header, max_dim=3,
         Updated FITS header.
 
     """
-    header = transform_header_from_crota_to_pc(header)
+    header = _transform_header_from_crota_to_pc(header)
     wcs = WCS(header)
 
     if header['NAXIS'] <= max_dim and wcs.wcs.naxis <= max_dim:
@@ -355,7 +327,7 @@ def swap_axes(data, header, new_order):
     return data, header
 
 
-def get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
+def _get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
     """Return the axis of a Spectral cube in physical values.
 
     Parameters
@@ -421,15 +393,16 @@ def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
         The (unitless) spectral axis of the spectral cube, converted to 'to_unit' (if specified).
 
     """
-    spectral_axis = get_axis(
+    spectral_axis = _get_axis(
         header=header, channels=channels, wcs=wcs, to_unit=to_unit, axis=3)
     return spectral_axis
 
 
+# TODO: The following function is not in use anywhere in the project
 def get_slice_parameters(path_to_file=None, header=None, wcs=None,
                          range_x_wcs=[None, None], range_y_wcs=[None, None], range_z_wcs=[None, None],
                          x_unit=None, y_unit=None, z_unit=None,
-                         include_max_val=True, get_slices=True):
+                         include_max_val=True, _get_slices=True):
     """Get slice parameters in pixels for given coordinate ranges.
 
     Parameters
@@ -452,13 +425,13 @@ def get_slice_parameters(path_to_file=None, header=None, wcs=None,
         Unit of z coordinates (default is u.m/u.s).
     include_max_val : bool
         Default is `True`. Includes the upper coordinate value in the slice parameters.
-    get_slices : bool
+    _get_slices : bool
         Default is `True`. If set to `False`, a tuple of the slice parameters is returned instead of the slices.
 
     Returns
     -------
     slices : tuple
-        Slice parameters given in pixel values in the form (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax)). If 'get_slices' is set to `False`, ((zmin, zmax), (ymin, ymax), (xmin, xmax)) is returned instead.
+        Slice parameters given in pixel values in the form (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax)). If '_get_slices' is set to `False`, ((zmin, zmax), (ymin, ymax), (xmin, xmax)) is returned instead.
 
     """
     if x_unit is None:
@@ -508,12 +481,12 @@ def get_slice_parameters(path_to_file=None, header=None, wcs=None,
     zmin = None if range_z_wcs[0] is None else zmin
     zmax = None if range_z_wcs[1] is None else zmax
 
-    if not get_slices:
+    if not _get_slices:
         return ((zmin, zmax), (ymin, ymax), (xmin, xmax))
     return (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
 
 
-def get_slices(size, n):
+def _get_slices(size, n):
     """Calculate slices in individual direction."""
     limits, slices = ([] for _ in range(2))
 
@@ -563,25 +536,14 @@ def get_list_slice_params(path_to_file=None, hdu=None, ncols=1, nrows=1,
     x_size = int(x / ncols)
     y_size = int(y / nrows)
 
-    x_slices = get_slices(x_size, ncols)
-    y_slices = get_slices(y_size, nrows)
+    x_slices = _get_slices(x_size, ncols)
+    y_slices = _get_slices(y_size, nrows)
 
     slices = []
 
     for y_slice, x_slice in itertools.product(y_slices, x_slices):
         slices.append([velocity_slice, y_slice, x_slice])
     return slices
-
-
-def get_locations(data=None, header=None):
-    """Get a list of index values [(y0, x0), ..., (yN, xM)] for (N x M) array."""
-    if data is not None:
-        yValues = np.arange(data.shape[1])
-        xValues = np.arange(data.shape[2])
-    else:
-        yValues = np.arange(header['NAXIS2'])
-        xValues = np.arange(header['NAXIS1'])
-    return list(itertools.product(yValues, xValues))
 
 
 def save_fits(data, header, path_to_file, verbose=True):
@@ -675,7 +637,7 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
         fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
-def reproject_data(input_data, output_projection, shape_out, flux_factor):
+def _reproject_data(input_data, output_projection, shape_out, flux_factor):
     """Reproject data to a different projection.
 
     Parameters
@@ -700,7 +662,7 @@ def reproject_data(input_data, output_projection, shape_out, flux_factor):
     return data_reprojected * flux_factor
 
 
-def get_reproject_params(pixel_scale_input, header_projection, reproject=False,
+def _get_reproject_params(pixel_scale_input, header_projection, reproject=False,
                          preserve_flux=True):
     """Determine parameters for reprojection.
 
@@ -732,7 +694,7 @@ def get_reproject_params(pixel_scale_input, header_projection, reproject=False,
 
     shape_out = (header_projection['NAXIS2'], header_projection['NAXIS1'])
     header_projection_pp = correct_header(header_projection.copy())
-    header_projection_pp = change_wcs_header_reproject(
+    header_projection_pp = _change_wcs_header_reproject(
         header_projection_pp, header_projection_pp, ppv=False)
     output_projection = WCS(header_projection_pp)
 
@@ -799,7 +761,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
                                  'current_resolution', 'target_resolution')
 
     header_pp = correct_header(header.copy())
-    header_pp = change_wcs_header_reproject(
+    header_pp = _change_wcs_header_reproject(
         header_pp, header_pp, ppv=False)
     wcs_pp = WCS(header_pp)
 
@@ -814,7 +776,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     target_resolution = target_resolution.to(unit)
     pixel_scale = pixel_scale.to(unit)
 
-    output_projection, shape_out, flux_factor, comment = get_reproject_params(
+    output_projection, shape_out, flux_factor, comment = _get_reproject_params(
         pixel_scale, header_projection, reproject=reproject,
         preserve_flux=preserve_flux)
 
@@ -835,7 +797,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     if data.ndim == 2:
         data = convolve(data, kernel, normalize_kernel=True)
         if reproject:
-            data_reprojected = reproject_data(
+            data_reprojected = _reproject_data(
                 (data, wcs_pp), output_projection, shape_out, flux_factor)
     else:
         nSpectra = data.shape[0]
@@ -848,13 +810,13 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
             data[i, :, :] = channel_smoothed
             if reproject:
                 channel = data[i, :, :]
-                data_reprojected[i, :, :] = reproject_data(
+                data_reprojected[i, :, :] = _reproject_data(
                     (channel, wcs_pp), output_projection, shape_out,
                     flux_factor)
 
     if reproject:
         data = data_reprojected
-        header = change_wcs_header_reproject(header, header_projection)
+        header = _change_wcs_header_reproject(header, header_projection)
 
     comments = ['spatially smoothed to a resolution of {}'.format(
         target_resolution)] + comment
@@ -1036,6 +998,7 @@ def add_noise(average_rms, path_to_file=None, hdu=None, save=False,
         fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
+# TODO: The following function is not in use anywhere in the project
 def transform_coordinates_to_pixel(coordinates, header):
     """Transform PPV coordinates to pixel positions within the PPV cube.
 
@@ -1131,7 +1094,7 @@ def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
         fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
-def clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
+def _clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
                                slice_params=(slice(None), slice(None)),
                                p_limit=0.02, pad_channels=5, use_ncpus=None):
     """Set all data values below a specified signal-to-noise ratio to zero.
@@ -1282,26 +1245,8 @@ def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
     return prihdr
 
 
-def get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
-    """Produce moment map.
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-        Data of the FITS array.
-    header : astropy.io.fits.Header
-        Header of the FITS array.
-    order : int
-        Specify the moment map that should be produced: 0 - zeroth moment map, 1 - first moment map, 2 - second moment map.
-    vel_unit : astropy.units.quantity.Quantity
-        Valid unit to which the values of the spectral axis will be converted.
-
-    Returns
-    -------
-    hdu : astropy.io.fits.HDUList
-        Header/Data unit of the resulting FITS array.
-
-    """
+def _get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
+    """Produce moment map."""
     wcs = WCS(header)
 
     #  convert from the velocity unit of the cube to the desired unit
@@ -1422,12 +1367,12 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
     # wcs = WCS(header)
 
     if apply_noise_threshold:
-        data = clip_noise_below_threshold(data, snr=snr, slice_params=slice_params,
+        data = _clip_noise_below_threshold(data, snr=snr, slice_params=slice_params,
                                           path_to_noise_map=path_to_noise_map,
                                           p_limit=p_limit, pad_channels=pad_channels,
                                           use_ncpus=use_ncpus)
 
-    hdu = get_moment_map(data, header, order=order, vel_unit=vel_unit)
+    hdu = _get_moment_map(data, header, order=order, vel_unit=vel_unit)
     if comments:
         hdu.header = update_header(hdu.header, comments=comments)
 
@@ -1454,7 +1399,7 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
         return hdu
 
 
-def get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None),
+def _get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None),
                vel_unit=u.km/u.s):
     """Produce a position-velocity map.
 
@@ -1560,7 +1505,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
     header = hdu.header
 
     if apply_noise_threshold:
-        data = clip_noise_below_threshold(
+        data = _clip_noise_below_threshold(
             data, snr=snr, slice_params=slice_params_pp,
             path_to_noise_map=path_to_noise_map, p_limit=p_limit,
             pad_channels=pad_channels, use_ncpus=use_ncpus)
@@ -1576,7 +1521,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
     # if slice_params:
     #     slice_z = slice_params[0]
 
-    hdu = get_pv_map(data, header, sum_over_axis=sum_over_axis,
+    hdu = _get_pv_map(data, header, sum_over_axis=sum_over_axis,
                      slice_z=slice_z, vel_unit=vel_unit)
     if comments:
         hdu.header = update_header(hdu.header, comments=comments)
@@ -1594,7 +1539,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         return hdu
 
 
-def get_field_data(field):
+def _get_field_data(field):
     """Get array data of the field.
 
     Parameters
@@ -1616,7 +1561,7 @@ def get_field_data(field):
     return data
 
 
-def get_field_header(field):
+def _get_field_header(field):
     """Get FITS header of the field.
 
     Returns generic FITS header in case `field` is a numpy.ndarray.
@@ -1642,6 +1587,7 @@ def get_field_header(field):
     return header
 
 
+# TODO: The following function is not in use anywhere in the project
 def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
                    header=None, path_to_output_file=None, comments=[], verbose=True, dtype='float32'):
     """Combine FITS files to a mosaic by stacking them in the spatial coordinates.
@@ -1686,18 +1632,18 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
     first = True
     for i, field in enumerate(list_of_fields):
         if first:
-            data = get_field_data(field)
+            data = _get_field_data(field)
             combined_row = data
             axes = range(combined_row.ndim)
             axis_1 = axes[-1]
             axis_2 = axes[-2]
             first = False
         else:
-            data = get_field_data(field)
+            data = _get_field_data(field)
             combined_row = np.concatenate((combined_row, data), axis=axis_1)
 
         if i == 0 and header is None:
-            header = get_field_header(field)
+            header = _get_field_header(field)
 
         elif (i + 1) % ncols == 0:
             combined_rows.append(combined_row)
