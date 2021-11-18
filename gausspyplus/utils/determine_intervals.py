@@ -64,67 +64,53 @@ def check_if_intervals_contain_signal(spectrum: np.ndarray,
             if np.sum(spectrum[lower:upper]) / (np.sqrt(upper - lower)*rms) > significance]
 
 
-def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
-                      min_channels=100, remove_intervals=None):
+def get_signal_ranges(spectrum: np.ndarray,
+                      rms: float,
+                      pad_channels: int = 5,
+                      snr: float = 3.,
+                      significance: float = 5.,
+                      min_channels: int = 100,
+                      remove_intervals: Optional[List[Optional[List]]] = None) -> List[Optional[List]]:
     """Determine ranges in the spectrum that could contain signal.
 
     Parameters
     ----------
-    spectrum : numpy.ndarray
-        Array of the data values of the spectrum.
-    rms : float
-        Root-mean-square noise of the spectrum.
-    pad_channels : int
-        Number of additional channels that get masked out on both sides of an identified (signal?) feature.
-    snr : float
-        Required minimum signal-to-noise ratio for data peak.
-    significance : float
-        Required minimum value for significance criterion.
-    min_channels : int
-        Required minimum number of spectral channels that the signal ranges should contain.
-    remove_intervals : list
-        Nested list containing info about ranges of the spectrum that should be masked out.
+    spectrum : Intensity values of the spectrum.
+    rms : Root-mean-square noise of the spectrum.
+    pad_channels : Number of additional channels that get masked out on both sides of an identified (signal?) feature.
+    snr : Required minimum signal-to-noise ratio for data peak.
+    significance : Required minimum value for significance criterion.
+    min_channels : Required minimum number of spectral channels that the signal ranges should contain.
+    remove_intervals : Nested list containing info about ranges of the spectrum that should be masked out.
 
     Returns
     -------
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    Nested list containing info about ranges of the spectrum that were estimated to contain signal.
+        The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
 
     """
-    n_channels = len(spectrum)
+    n_channels = spectrum.size
 
-    max_amp_vals, ranges = determine_peaks(
-        spectrum, peak='positive', amp_threshold=snr*rms)
+    #  TODO: max_amp_vals is calculated but not used -> can determine_peaks be simplified if max_amp_vals is not needed?
+    _, ranges = determine_peaks(spectrum, peak='positive', amp_threshold=snr*rms)
 
-    ranges = check_if_intervals_contain_signal(
-        spectrum, rms, ranges, snr=snr, significance=significance)
+    ranges = check_if_intervals_contain_signal(spectrum, rms, ranges, snr=snr, significance=significance)
 
-    if not ranges:
-        if remove_intervals is None:
-            return []
-        else:
-            mask = mask_channels(n_channels, [[0, n_channels]],
-                                 remove_intervals=remove_intervals)
-            return intervals_where_mask_is_true(mask)
+    if len(ranges) == 0 or pad_channels <= 0:
+        return ranges
 
-    #  safeguard to prevent eternal loop
-    if pad_channels <= 0:
-        pad_channels = None
+    # TODO: can there be a more efficient implementation of the following buffering of intervals?
 
-    i = 0
-    if pad_channels is not None:
-        while True:
-            i += 1
-            # TODO: something is not right here: if pad_channels is 5, in first round ranges gets padded with 5 channels,
-            #  and in second round the already padded ranges gets padded by another 10 channels?
-            ranges = _add_buffer_to_intervals(ranges, n_channels,
-                                             pad_channels=i*pad_channels)
-            mask_signal_new = mask_channels(n_channels, ranges,
-                                            remove_intervals=remove_intervals)
-            ranges = intervals_where_mask_is_true(mask_signal_new)
-            if (np.count_nonzero(mask_signal_new) >= min_channels) or \
-                    (2*i*pad_channels >= min_channels):
-                return ranges
+    # TODO: compared to the previous implementation this should give new results because of a bugfix; previously,
+    #  in the ranges got padded by 1 x pad_channels in the 1st iteration, 2 x pad_channels in the 2nd iteration,
+    #  3 x pad_channels in the 3rd iteration, and so on
+    for i in itertools.count():
+        ranges = _add_buffer_to_intervals(ranges, n_channels, pad_channels=pad_channels)
+        mask_signal = mask_channels(n_channels, ranges, remove_intervals=remove_intervals)
+        ranges = intervals_where_mask_is_true(mask_signal)
+        # TODO: find something better for the second break condition
+        if (np.count_nonzero(mask_signal) >= min_channels) or (2 * i * pad_channels >= spectrum.size):
+            break
     return ranges
 
 
