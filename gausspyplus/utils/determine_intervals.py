@@ -33,62 +33,6 @@ def _add_buffer_to_intervals(ranges: List[Optional[List]],
     return _merge_overlapping_intervals(intervals)
 
 
-def mask_covering_gaussians(means, fwhms, n_channels, remove_intervals=None,
-                            range_slices=False, pad_channels=10, min_channels=100):
-    """Define mask around fitted Gaussians for goodness of fit calculations.
-
-    This is currently not in use in GaussPy+.
-
-    Parameters
-    ----------
-    means : list
-        List containing mean position values of all N fitted Gaussian components in the form [mean1, ..., meanN].
-    fwhms : list
-        List containing FWHM values of all N fitted Gaussian components in the form [fwhm1, ..., fwhmN].
-    n_channels : int
-        Number of spectral channels.
-    remove_intervals : list
-        Nested list containing info about ranges of the spectrum that should be masked out.
-    range_slices : bool
-        Default is 'False'. If set to 'True', the determined ranges are returned in additon to the mask.
-    pad_channels : int
-        Number of additional channels that get masked out on both sides of an identified (signal?) feature.
-    min_channels : int
-        Required minimum number of spectral channels that the signal ranges should contain.
-
-    Returns
-    -------
-    mask : numpy.ndarray
-        Boolean array that masks out all spectral channels not covered by fitted Gaussian components.
-
-    """
-    ranges = []
-    for mean, fwhm in zip(means, fwhms):
-        if 2*fwhm < fwhm + pad_channels:
-            pad = fwhm + pad_channels
-        else:
-            pad = 2*fwhm
-        ranges.append((int(mean - pad), int(mean + pad) + 2))
-
-    mask = mask_channels(n_channels, ranges, remove_intervals=remove_intervals)
-
-    ranges = intervals_where_mask_is_true(mask)
-
-    if pad_channels is not None:
-        i = 0
-        while np.count_nonzero(mask) < min_channels:
-            i += 1
-            ranges = add_buffer_to_intervals(ranges, n_channels, pad_channels=i*pad_channels)
-            mask = mask_channels(n_channels, ranges, remove_intervals=remove_intervals)
-            if 2*i*pad_channels >= min_channels:
-                break
-
-    if range_slices:
-        return mask, ranges
-
-    return mask
-
-
 def check_if_intervals_contain_signal(spectrum: np.ndarray,
                                       rms: float,
                                       ranges: List[Optional[List]],
