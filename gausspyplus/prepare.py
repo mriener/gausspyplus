@@ -242,8 +242,7 @@ class GaussPyPrepare(object):
                 data['noise_spike_ranges'].append(None)
 
         if self.testing:
-            suffix = '_test_Y{}X{}'.format(
-                self.data_location[0], self.data_location[1])
+            suffix = f'_test_Y{self.data_location[0]}X{self.data_location[1]}'
             data['testing'] = self.testing
         else:
             suffix = self.suffix
@@ -252,8 +251,7 @@ class GaussPyPrepare(object):
 
         if self.gausspy_pickle:
             path_to_file = os.path.join(
-                self.dirpath_pickle, '{}{}.pickle'.format(
-                    self.filename, suffix))
+                self.dirpath_pickle, f'{self.filename}{suffix}.pickle')
             pickle.dump(data, open(path_to_file, 'wb'), protocol=2)
             print("\033[92mFor GaussPyDecompose:\033[0m 'path_to_pickle_file' = '{}'".format(path_to_file))
 
@@ -296,7 +294,7 @@ class GaussPyPrepare(object):
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
 
-        filename = "{}{}_noise_map.fits".format(self.filename, self.suffix)
+        filename = f"{self.filename}{self.suffix}_noise_map.fits"
         path_to_file = os.path.join(
             os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
 

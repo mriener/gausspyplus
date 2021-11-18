@@ -75,7 +75,7 @@ class GaussPyTraining(object):
     def gausspy_train_alpha(self):
         from .gausspy_py3 import gp as gp
 
-        say('Using training set: {}'.format(self.path_to_training_set),
+        say(f'Using training set: {self.path_to_training_set}',
             logger=self.logger)
 
         g = gp.GaussianDecomposer()

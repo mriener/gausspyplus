@@ -73,8 +73,7 @@ def set_up_logger(parentDirname, filename, method='g+_decomposition'):
         os.makedirs(dirname)
     filename = os.path.splitext(os.path.basename(filename))[0]
 
-    logname = os.path.join(dirname, '{}_{}_{}.log'.format(
-        date_string, method, filename))
+    logname = os.path.join(dirname, f'{date_string}_{method}_{filename}.log')
     logging.basicConfig(filename=logname,
                         filemode='a',
                         format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
@@ -120,10 +119,9 @@ def timer(mode='start', start_time=None):
     if mode == 'start':
         return time.time()
     elif mode == 'stop':
-        print('\nrequired run time: {:.4f} s'.format(
-            time.time() - start_time))
+        print(f'\nrequired run time: {time.time() - start_time:.4f} s')
 
 
 def add_suffix_to_filename(filename, suffix=''):
     filename, fileExtension = os.path.splitext(filename)
-    return "{}{}{}".format(filename, suffix, fileExtension)
+    return f"{filename}{suffix}{fileExtension}"

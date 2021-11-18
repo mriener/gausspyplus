@@ -119,10 +119,10 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
     """
     say('\n\n  --> initialGuess() \n', verbose)
     say('Algorithm parameters: ', verbose)
-    say('alpha = {0}'.format(alpha), verbose)
-    say('SNR_thesh = {0}'.format(SNR_thresh), verbose)
-    say('SNR2_thesh = {0}'.format(SNR2_thresh), verbose)
-    say('BLFrac = {0}'.format(BLFrac), verbose)
+    say(f'alpha = {alpha}', verbose)
+    say(f'SNR_thesh = {SNR_thresh}', verbose)
+    say(f'SNR2_thesh = {SNR2_thresh}', verbose)
+    say(f'BLFrac = {BLFrac}', verbose)
 
     if not alpha:
         print('Must choose value for alpha, no default.')
@@ -148,7 +148,7 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
         u3 = tvdiff.TVdiff(u2,   dx=dv, alph=alpha)
         u4 = tvdiff.TVdiff(u3,   dx=dv, alph=alpha)
     elif mode == 'conv':
-        say('Convolution sigma [pixels]: {0}'.format(alpha), verbose)
+        say(f'Convolution sigma [pixels]: {alpha}', verbose)
         gauss_sigma = alpha
         gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
         gauss_dn = gauss_sigma_int * 6
@@ -185,9 +185,9 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
     if SNR2_thresh > 0.:
         wsort = np.argsort(np.abs(u2))
         RMSD2 = np.std(u2[wsort[0:int(0.5*len(u2))]]) / 0.377  # RMS based in +-1 sigma fluctuations
-        say('Second derivative noise: {0}'.format(RMSD2), verbose)
+        say(f'Second derivative noise: {RMSD2}', verbose)
         thresh2 = -RMSD2 * SNR2_thresh
-        say('Second derivative threshold: {0}'.format(thresh2), verbose)
+        say(f'Second derivative threshold: {thresh2}', verbose)
     else:
         thresh2 = 0.
     mask4 = np.array(u2.copy()[1:] < thresh2, dtype='int')  # Negative second derivative
@@ -199,7 +199,7 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
     offsets_data_i = np.array(np.where(zeros)).ravel()  # Index offsets
     offsets = fvel(offsets_data_i + 0.5)  # Velocity offsets (Added 0.5 July 23)
     N_components = len(offsets)
-    say('Components found for alpha={1}: {0}'.format(N_components, alpha), verbose=verbose)
+    say(f'Components found for alpha={alpha}: {N_components}', verbose=verbose)
 
     # Check if nothing was found, if so, return null
     # ----------------------------------------------
@@ -321,7 +321,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             ncomps_f1 = int(len(params_f1) / 3)
 
             del lmfit_params
-            say('LMFIT fit took {0} seconds.'.format(time.time()-t0))
+            say(f'LMFIT fit took {time.time() - t0} seconds.')
 
             if result.success:
                 # Compute intermediate residuals
@@ -388,7 +388,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         params_errs = errs_vec_from_lmfit(result2.params)
 
         del lmfit_params
-        say('Final fit took {0} seconds.'.format(time.time()-t0), verbose)
+        say(f'Final fit took {time.time() - t0} seconds.', verbose)
 
         ncomps_fit = int(len(params_fit)/3)
 
@@ -439,14 +439,14 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         else:
             plt.figtext(0.52, 0.47, 'Final fit (GaussPy)')
         if perform_final_fit:
-            plt.figtext(0.52, 0.45, 'Reduced Chi2: {0:3.3f}'.format(rchi2))
-            plt.figtext(0.52, 0.43, 'N components: {0}'.format(ncomps_fit))
+            plt.figtext(0.52, 0.45, f'Reduced Chi2: {rchi2:3.3f}')
+            plt.figtext(0.52, 0.43, f'N components: {ncomps_fit}')
 
         plt.figtext(0.12, 0.47, 'Phase-two initial guess')
-        plt.figtext(0.12, 0.45, 'N components: {0}'.format(ncomps_g2))
+        plt.figtext(0.12, 0.45, f'N components: {ncomps_g2}')
 
         plt.figtext(0.12, 0.87, 'Phase-one initial guess')
-        plt.figtext(0.12, 0.85, 'N components: {0}'.format(ncomps_g1))
+        plt.figtext(0.12, 0.85, f'N components: {ncomps_g1}')
 
         plt.figtext(0.52, 0.87, 'Intermediate fit')
 

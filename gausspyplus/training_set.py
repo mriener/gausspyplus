@@ -125,7 +125,7 @@ class GaussPyTrainingSet(object):
     def decompose_spectra(self):
         self.initialize()
         if self.verbose:
-            print("decompose {} spectra ...".format(self.n_spectra))
+            print(f"decompose {self.n_spectra} spectra ...")
 
         if self.random_seed is not None:
             random.seed(self.random_seed)

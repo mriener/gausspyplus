@@ -234,7 +234,7 @@ class SpatialFitting(object):
         if self.phase_two:
             phase = 2
 
-        string = 'Spatial refitting - Phase {}'.format(phase)
+        string = f'Spatial refitting - Phase {phase}'
         banner = len(string) * '='
         heading = '\n' + banner + '\n' + string + '\n' + banner
         say(heading, logger=self.logger)
@@ -837,7 +837,7 @@ class SpatialFitting(object):
 
         for i, item in enumerate(results_list):
             if not isinstance(item, list):
-                say("Error for spectrum with index {}: {}".format(i, item),
+                say(f"Error for spectrum with index {i}: {item}",
                     logger=self.logger)
                 continue
 
@@ -1925,7 +1925,7 @@ class SpatialFitting(object):
         for amps, fwhms, means in zip(
                 split_amps_tot, split_fwhms_tot, split_means_tot):
             if (len(means) == 1) or not split_fwhm:
-                key = "{}".format(len(dictComps) + 1)
+                key = f"{len(dictComps) + 1}"
                 dictComps[key] = {
                     "amps": amps, "means": means, "fwhms": fwhms}
                 continue
@@ -1949,7 +1949,7 @@ class SpatialFitting(object):
             lst = [list(l) for l in lst]
 
             for sublst in lst:
-                key = "{}".format(len(dictComps) + 1)
+                key = f"{len(dictComps) + 1}"
                 dictComps[key] = {"amps": amps[sublst],
                                   "means": means[sublst],
                                   "fwhms": fwhms[sublst]}
@@ -2141,9 +2141,9 @@ class SpatialFitting(object):
         params, params_min, params_max = ([] for _ in range(3))
         for key in ['amp', 'fwhm', 'mean']:
             for nr in dictComps.keys():
-                params.append(dictComps[nr]['{}_ini'.format(key)])
-                params_min.append(dictComps[nr]['{}_bounds'.format(key)][0])
-                params_max.append(dictComps[nr]['{}_bounds'.format(key)][1])
+                params.append(dictComps[nr][f'{key}_ini'])
+                params_min.append(dictComps[nr][f'{key}_bounds'][0])
+                params_max.append(dictComps[nr][f'{key}_bounds'][1])
 
         #  get new best fit
         best_fit_list = get_best_fit(
@@ -2222,7 +2222,7 @@ class SpatialFitting(object):
     def save_final_results(self):
         """Save the results of the spatially coherent refitting iterations."""
         pathToFile = os.path.join(
-            self.decomp_dirname, '{}.pickle'.format(self.fin_filename))
+            self.decomp_dirname, f'{self.fin_filename}.pickle')
         pickle.dump(self.decomposition, open(pathToFile, 'wb'), protocol=2)
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             self.fin_filename, self.decomp_dirname), logger=self.logger)
@@ -2626,7 +2626,7 @@ class SpatialFitting(object):
 
         """
         self.refitting_iteration += 1
-        say('\nthreshold for required components: {:.3f}'.format(self.min_p),
+        say(f'\nthreshold for required components: {self.min_p:.3f}',
             logger=self.logger)
 
         self.determine_spectra_for_flagging()

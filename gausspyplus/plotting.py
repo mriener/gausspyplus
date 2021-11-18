@@ -186,7 +186,7 @@ def xlabel_from_header(header, vel_unit):
         return xlabel
 
     if 'CTYPE3' in header.keys():
-        xlabel = '{} [{}]'.format(header['CTYPE3'], vel_unit)
+        xlabel = f"{header['CTYPE3']} [{vel_unit}]"
 
     return xlabel
 
@@ -201,7 +201,7 @@ def ylabel_from_header(header):
 
     bunit = ''
     if 'BUNIT' in header.keys():
-        bunit = ' [{}]'.format(header['BUNIT'])
+        bunit = f" [{header['BUNIT']}]"
 
     return btype + bunit
 
@@ -235,24 +235,23 @@ def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss, pvalue)
     idx_string = ''
     if index_data is not None:
         if index_data != idx:
-            idx_string = ' (Idx$_{{data}}$={})'.format(index_data)
+            idx_string = f' (Idx$_{{data}}$={index_data})'
 
     loc_string = ''
     if xi is not None:
-        loc_string = ', X={}, Y={}'.format(xi, yi)
+        loc_string = f', X={xi}, Y={yi}'
 
     ncomps_string = ''
     if ncomps is not None:
-        ncomps_string = ', N$_{{comp}}$={}'.format(ncomps)
+        ncomps_string = f', N$_{{comp}}$={ncomps}'
 
     rchi2_string = ''
     if rchi2 is not None:
-        rchi2_string = ', $\\chi_{{red}}^{{2}}$={:.3f}'.format(rchi2)
+        rchi2_string = f', $\\chi_{{red}}^{{2}}$={rchi2:.3f}'
 
     rchi2gauss_string = ''
     if rchi2gauss is not None:
-        rchi2gauss_string = ', $\\chi_{{red, gauss}}^{{2}}$={:.3f}'.format(
-            rchi2gauss)
+        rchi2gauss_string = f', $\\chi_{{red, gauss}}^{{2}}$={rchi2gauss:.3f}'
 
     pvalue_string = ''
     # if pvalue is not None:
@@ -423,9 +422,9 @@ def plot_spectra(pathToDataPickle, *args,
 
         if ((i + 1) % (rowbreak*cols) == 0) or ((i + 1) == n_spectra):
             if multiple_pdfs:
-                filename = '{}{}_plots_part_{}.pdf'.format(fileName, suffix, k + 1)
+                filename = f'{fileName}{suffix}_plots_part_{k + 1}.pdf'
             else:
-                filename = '{}{}_plots.pdf'.format(fileName, suffix)
+                filename = f'{fileName}{suffix}_plots.pdf'
 
             fig.tight_layout()
 

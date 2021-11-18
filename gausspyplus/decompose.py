@@ -121,7 +121,7 @@ class GaussPyDecompose(object):
             self.logger = set_up_logger(
                 self.dirpath_gpy, self.filename, method='g+_decomposition')
 
-        say("\npickle load '{}'...".format(self.file), logger=self.logger)
+        say(f"\npickle load '{self.file}'...", logger=self.logger)
 
         with open(self.path_to_pickle_file, "rb") as pickle_file:
             self.pickled_data = pickle.load(pickle_file, encoding='latin1')
@@ -163,7 +163,7 @@ class GaussPyDecompose(object):
         if self.main_beam_efficiency is None:
             warnings.warn('assuming intensities are already corrected for main beam efficiency')
 
-        warnings.warn("converting velocity values to {}".format(self.vel_unit))
+        warnings.warn(f"converting velocity values to {self.vel_unit}")
 
     def decompose(self):
         if self.single_prepared_spectrum:
@@ -277,7 +277,7 @@ class GaussPyDecompose(object):
     def save_initial_guesses(self):
         say('\npickle dump GaussPy initial guesses...', logger=self.logger)
 
-        filename = '{}{}_fit_ini.pickle'.format(self.filename, self.suffix)
+        filename = f'{self.filename}{self.suffix}_fit_ini.pickle'
         pathname = os.path.join(self.decomp_dirname, filename)
 
         dct_initial_guesses = {}
@@ -314,7 +314,7 @@ class GaussPyDecompose(object):
 
         dct_final_guesses["improve_fit_settings"] = self.fitting
 
-        filename = '{}{}_fit_fin.pickle'.format(self.filename, self.suffix)
+        filename = f'{self.filename}{self.suffix}_fit_fin.pickle'
         pathname = os.path.join(self.decomp_dirname, filename)
         pickle.dump(dct_final_guesses, open(pathname, 'wb'), protocol=2)
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
@@ -351,7 +351,7 @@ class GaussPyDecompose(object):
         mode : str
             'full_decomposition' recreates the whole FITS cube, 'integrated_intensity' creates a cube with the integrated intensity values of the Gaussian components placed at their mean positions, 'main_component' only retains the fitted component with the largest amplitude value
         """
-        say('\ncreate {} cube...'.format(mode), logger=self.logger)
+        say(f'\ncreate {mode} cube...', logger=self.logger)
 
         x = self.header['NAXIS1']
         y = self.header['NAXIS2']
@@ -395,13 +395,13 @@ class GaussPyDecompose(object):
 
         if mode == 'main_component':
             comment = 'Fit component with highest amplitude per spectrum.'
-            filename = "{}{}_main.fits".format(self.filename, self.suffix)
+            filename = f"{self.filename}{self.suffix}_main.fits"
         elif mode == 'integrated_intensity':
             comment = 'Integrated intensity of fit component at VLSR position.'
-            filename = "{}{}_wco.fits".format(self.filename, self.suffix)
+            filename = f"{self.filename}{self.suffix}_wco.fits"
         elif mode == 'full_decomposition':
             comment = 'Recreated dataset from fit components.'
-            filename = "{}{}_decomp.fits".format(self.filename, self.suffix)
+            filename = f"{self.filename}{self.suffix}_decomp.fits"
 
         array[self.nan_mask] = np.nan
 
@@ -542,7 +542,7 @@ class GaussPyDecompose(object):
         if not os.path.exists(tableDirname):
             os.makedirs(tableDirname)
 
-        filename = '{}{}_wco.dat'.format(self.filename, self.suffix)
+        filename = f'{self.filename}{self.suffix}_wco.dat'
         pathToTable = os.path.join(tableDirname, filename)
         table.write(pathToTable, format='ascii', overwrite=True)
         say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
@@ -567,8 +567,7 @@ class GaussPyDecompose(object):
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
 
-        filename = "{}{}_component_map.fits".format(
-            self.filename, self.suffix)
+        filename = f"{self.filename}{self.suffix}_component_map.fits"
         pathToFile = os.path.join(
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
@@ -597,8 +596,7 @@ class GaussPyDecompose(object):
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
 
-        filename = "{}{}_rchi2_map.fits".format(
-            self.filename, self.suffix)
+        filename = f"{self.filename}{self.suffix}_rchi2_map.fits"
         pathToFile = os.path.join(
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
@@ -633,8 +631,7 @@ class GaussPyDecompose(object):
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
 
-        filename = "{}{}_{}_veldisp_map.fits".format(
-            self.filename, self.suffix, mode)
+        filename = f"{self.filename}{self.suffix}_{mode}_veldisp_map.fits"
         pathToFile = os.path.join(
             os.path.dirname(self.dirname), 'gpy_maps', filename)
 
