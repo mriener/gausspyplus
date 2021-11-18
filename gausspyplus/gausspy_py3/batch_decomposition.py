@@ -112,7 +112,7 @@ def func(use_ncpus=None):
     if use_ncpus is None:
         use_ncpus = int(0.75 * ncpus)
     # p = multiprocessing.Pool(ncpus, init_worker)
-    print('using {} out of {} cpus'.format(use_ncpus, ncpus))
+    print(f'using {use_ncpus} out of {ncpus} cpus')
     try:
         results_list = parallel_process(ilist, decompose_one, n_jobs=use_ncpus)
     except KeyboardInterrupt:

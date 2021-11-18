@@ -114,7 +114,7 @@ def paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
             params_max[ncomps:2*ncomps] = ncomps*[max_fwhm]
 
     for i in range(len(paramvec)):
-        params.add('p{}'.format(str(i + 1)), value=paramvec[i],
+        params.add(f'p{str(i + 1)}', value=paramvec[i],
                    min=params_min[i], max=params_max[i])
     return params
 

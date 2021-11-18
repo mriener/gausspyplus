@@ -111,7 +111,7 @@ class Finalize(object):
                 try:
                     setattr(sp, key, value)
                 except ValueError:
-                    raise Exception('Could not parse parameter {} from dct_params'.format(key))
+                    raise Exception(f'Could not parse parameter {key} from dct_params')
 
         sp.log_output = False
         sp.path_to_pickle_file = self.path_to_pickle_file
@@ -124,7 +124,7 @@ class Finalize(object):
 
         for i, item in enumerate(results_list):
             if not isinstance(item, list):
-                say("Error for index {}: {}".format(i, item))
+                say(f"Error for index {i}: {item}")
                 continue
 
             index, means_interval, n_centroids = item
@@ -278,7 +278,7 @@ class Finalize(object):
 
         for i, item in enumerate(results_list):
             if not isinstance(item, list):
-                say("Error for spectrum with index {}: {}".format(i, item))
+                say(f"Error for spectrum with index {i}: {item}")
                 continue
 
         # results_list = [item for item in results_list if len(item) > 0]
@@ -373,7 +373,7 @@ class Finalize(object):
             else:
                 filename = self.filename
 
-            filename = "{}{}.fits".format(filename, suffix)
+            filename = f"{filename}{suffix}.fits"
             path_to_file = os.path.join(
                 self.dirpath_gpy, 'gpy_maps', filename)
 
@@ -519,7 +519,7 @@ class Finalize(object):
             Result from `return_hdu_options`.
 
         """
-        say('\ncreate {} cube...'.format(mode))
+        say(f'\ncreate {mode} cube...')
 
         x = self.header['NAXIS1']
         y = self.header['NAXIS2']

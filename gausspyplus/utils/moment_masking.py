@@ -100,11 +100,11 @@ class MomentMask(object):
 
         if self.target_resolution_spatial is None:
             self.target_resolution_spatial = 2*self.current_resolution_spatial
-            warnings.warn('No smoothing resolution specified. Will smooth to a resolution of {}'.format(self.target_resolution_spatial))
+            warnings.warn(f'No smoothing resolution specified. Will smooth to a resolution of {self.target_resolution_spatial}')
 
         if self.target_resolution_spectral is None:
             self.target_resolution_spectral = 2*self.current_resolution_spectral
-            warnings.warn('No smoothing resolution specified. Will smooth to a resolution of {}'.format(self.target_resolution_spectral))
+            warnings.warn(f'No smoothing resolution specified. Will smooth to a resolution of {self.target_resolution_spectral}')
 
         if self.target_resolution_spatial <= self.current_resolution_spatial:
             raise Exception('target_resolution_spatial had to be >= current_resolution_spatial')
@@ -131,13 +131,13 @@ class MomentMask(object):
 
         # 2) Generate a smoothed version of the data cube T_S(v,x,y) by degrading the resolution spatially by a factor of ~2 and in velocity to the width of the narrowest spectral lines generally observed.
 
-        say('Smoothing cube spatially to a resolution of {} ...'.format(self.target_resolution_spatial), verbose=self.verbose)
+        say(f'Smoothing cube spatially to a resolution of {self.target_resolution_spatial} ...', verbose=self.verbose)
 
         self.dataSmoothed, self.headerSmoothed = spatial_smoothing(
             self.data.copy(), self.header, target_resolution=self.target_resolution_spatial,
             current_resolution=self.current_resolution_spatial)
 
-        say('Smoothing cube spectrally to a resolution of {} ...'.format(self.target_resolution_spectral), verbose=self.verbose)
+        say(f'Smoothing cube spectrally to a resolution of {self.target_resolution_spectral} ...', verbose=self.verbose)
 
         self.dataSmoothed, self.headerSmoothed = spectral_smoothing(
             self.dataSmoothed, self.headerSmoothed, target_resolution=self.target_resolution_spectral,
@@ -154,7 +154,7 @@ class MomentMask(object):
         if self.path_to_noise_map is None:
             self.calculate_rms_noise()
         else:
-            say('Using rms values from {} for the thresholding step for the smoothed cube...'.format(os.path.basename(self.path_to_noise_map)), verbose=self.verbose)
+            say(f'Using rms values from {os.path.basename(self.path_to_noise_map)} for the thresholding step for the smoothed cube...', verbose=self.verbose)
 
         # 4) Generate a masking cube M(v,x,y) initially filled with zeros with the same dimensions as T and TS. The moment masked cube TM(v,x,y) will be calculated as M*T.
 
@@ -196,12 +196,12 @@ class MomentMask(object):
             self.data[:, ypos, xpos][~mask] = 0
 
     def calculate_rms_noise(self):
-        say('Determining average rms noise from {} spectra ...'.format(self.number_rms_spectra), verbose=self.verbose)
+        say(f'Determining average rms noise from {self.number_rms_spectra} spectra ...', verbose=self.verbose)
         average_rms = calculate_average_rms_noise(
             self.dataSmoothedWithNans, self.number_rms_spectra,
             max_consecutive_channels=self.max_consecutive_channels,
             pad_channels=self.pad_channels, random_seed=self.random_seed)
-        say('Determined average rms value of {}'.format(average_rms), verbose=self.verbose)
+        say(f'Determined average rms value of {average_rms}', verbose=self.verbose)
 
         say('Determining noise of smoothed cube ...', verbose=self.verbose)
 
@@ -215,7 +215,7 @@ class MomentMask(object):
 
         for i, rms in tqdm(enumerate(results_list)):
             if not isinstance(rms, np.float):
-                warnings.warn('Problems with entry {} from resulting parallel_processing list, skipping entry'.format(i))
+                warnings.warn(f'Problems with entry {i} from resulting parallel_processing list, skipping entry')
                 continue
             else:
                 ypos, xpos = self.locations[i]
@@ -237,7 +237,7 @@ class MomentMask(object):
                         suffix='', path_to_output_file=None, comments=[]):
         if path_to_output_file is None:
             path_to_output_file = self.get_path_to_output_file(
-                suffix='{}_mom_{}_map'.format(suffix, order))
+                suffix=f'{suffix}_mom_{order}_map')
         hdu = fits.PrimaryHDU(
             data=self.data.copy(), header=self.header.copy())
         if slice_params is None:
@@ -253,7 +253,7 @@ class MomentMask(object):
                     path_to_output_file=None, comments=[]):
         if path_to_output_file is None:
             path_to_output_file = self.get_path_to_output_file(
-                suffix='{}_pv_map'.format(suffix))
+                suffix=f'{suffix}_pv_map')
         hdu = fits.PrimaryHDU(
             data=self.data.copy(), header=self.header.copy())
         if slice_params is None:
@@ -264,7 +264,7 @@ class MomentMask(object):
 
     def get_path_to_output_file(self, suffix=''):
         if self.output_directory is not None:
-            filename = '{}{}.fits'.format(self.filename, suffix)
+            filename = f'{self.filename}{suffix}.fits'
             path_to_output_file = os.path.join(self.output_directory, filename)
         else:
             path_to_output_file = None

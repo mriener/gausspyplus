@@ -126,7 +126,7 @@ def func(use_ncpus=None, function='noise'):
     # p = multiprocessing.Pool(ncpus, init_worker)
     if use_ncpus is None:
         use_ncpus = int(ncpus*0.75)
-    print('Using {} of {} cpus'.format(use_ncpus, ncpus))
+    print(f'Using {use_ncpus} of {ncpus} cpus')
     try:
         if function == 'noise':
             results_list = parallel_process(mp_ilist, calculate_noise, n_jobs=use_ncpus)
@@ -150,7 +150,7 @@ def func_ts(total, use_ncpus=None):
     ncpus = multiprocessing.cpu_count()
     if use_ncpus is None:
         use_ncpus = int(0.75 * ncpus)
-    print('using {} out of {} cpus'.format(use_ncpus, ncpus))
+    print(f'using {use_ncpus} out of {ncpus} cpus')
     p = multiprocessing.Pool(use_ncpus, init_worker_ts)
 
     try:

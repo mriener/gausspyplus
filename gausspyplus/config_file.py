@@ -20,14 +20,14 @@ def append_keywords(config_file, dct, all_keywords=False, description=True):
         if all_keywords:
             if description:
                 config_file.append(
-                    '\n\n# {}'.format(dct[key]['description']))
-            config_file.append('\n{} = {}'.format(key, dct[key]['default']))
+                    f"\n\n# {dct[key]['description']}")
+            config_file.append(f"\n{key} = {dct[key]['default']}")
         else:
             if dct[key]['simple']:
                 if description:
                     config_file.append(
-                        '\n\n# {}'.format(dct[key]['description']))
-                config_file.append('\n{} = {}'.format(key, dct[key]['default']))
+                        f"\n\n# {dct[key]['description']}")
+                config_file.append(f"\n{key} = {dct[key]['default']}")
     return config_file
 
 
@@ -455,7 +455,7 @@ def get_values_from_config_file(self, config_file, config_key='DEFAULT'):
                 value = u.Unit(value)
                 setattr(self, key, value)
             else:
-                raise Exception('Could not parse parameter {} from config file'.format(key))
+                raise Exception(f'Could not parse parameter {key} from config file')
 
 
 def default_file_structure(output_directory='', suffix=''):
@@ -776,7 +776,7 @@ def default_file_structure(output_directory='', suffix=''):
         if filename == '_config_':
             filename += '.py'
         elif suffix:
-            filename += '--{}.py'.format(suffix)
+            filename += f'--{suffix}.py'
         else:
             filename += '.py'
 

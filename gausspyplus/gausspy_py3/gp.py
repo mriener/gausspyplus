@@ -93,7 +93,7 @@ class GaussianDecomposer(object):
         for index, key in enumerate(self.p):
             if key in ['data_list', 'errors', 'x_values', 'amplitudes', 'fwhms',
                        'means', 'amplitudes_fit', 'fwhms_fit', 'means_fit']:
-                print('len({0}) = {1}'.format(key, len(self.p[key])))
+                print(f'len({key}) = {len(self.p[key])}')
             else:
                 print(key, ' = ', self.p[key])
 
@@ -183,7 +183,7 @@ class GaussianDecomposer(object):
             except TypeError:
                 if result is not None:
                     failed_decompositions.append(
-                        'Problem with index {}: {}'.format(i, result))
+                        f'Problem with index {i}: {result}')
 
                 for key in new_keys:
                     output_data[key].append(None)
@@ -246,7 +246,7 @@ class GaussianDecomposer(object):
                 plt.plot(x, model_true, '-r', lw=0.5)
             plt.plot(x, sum_true, '-r', lw=1.0, label='True')
 
-        plt.title('index = {0}, ncomps = {1}'.format(index, ncomps), fontsize=16)
+        plt.title(f'index = {index}, ncomps = {ncomps}', fontsize=16)
         plt.legend(loc=0)
         plt.legend(loc=1)
         plt.show()

@@ -267,12 +267,12 @@ def train(objective_function=objective_function, training_data=None,
                 gd.alpha2_trace[i+1] = 0.
 
         say('', logger=logger)
-        say('{}, {}, {}, {}'.format(gd.alpha1_trace[i], learning_rate, gd.D_alpha1_trace[i], momentum1), logger=logger)
+        say(f'{gd.alpha1_trace[i]}, {learning_rate}, {gd.D_alpha1_trace[i]}, {momentum1}', logger=logger)
         say('iter {0}: F1={1:4.1f}%, alpha=[{2}, {3}], p=[{4:4.2f}, {5:4.2f}]'.format(i, 100 * np.exp(-gd.accuracy_trace[i]), np.round(gd.alpha1_trace[i], 2), np.round(gd.alpha2_trace[i], 2), np.round(momentum1, 2), np.round(momentum2, 2)), logger=logger, end=' ')
 
     #    if False: (use this to avoid convergence testing)
         if i <= 2 * window_size:
-            say(' (Convergence testing begins in {} iterations)'.format(int(2 * window_size - i)), logger=logger)
+            say(f' (Convergence testing begins in {int(2 * window_size - i)} iterations)', logger=logger)
         else:
             gd.alpha1means1[i] = np.mean(gd.alpha1_trace[i - window_size:i])
             gd.alpha1means2[i] = np.mean(gd.alpha1_trace[i - 2 * window_size:i - window_size])
@@ -288,12 +288,12 @@ def train(objective_function=objective_function, training_data=None,
                 converge_logic = (gd.fracdiff_alpha1 < thresh)
 
             c = count_ones_in_row(converge_logic)
-            say('  ({0:4.2F},{1:4.2F} < {2:4.2F} for {3} iters [{4} required])'.format(gd.fracdiff_alpha1[i], gd.fracdiff_alpha2[i], thresh, int(c[i]), iterations_for_convergence), logger=logger)
+            say(f'  ({gd.fracdiff_alpha1[i]:4.2F},{gd.fracdiff_alpha2[i]:4.2F} < {thresh:4.2F} for {int(c[i])} iters [{iterations_for_convergence} required])', logger=logger)
 
             if np.any(c > iterations_for_convergence):
                 i_converge = np.min(np.argwhere(c > iterations_for_convergence))
                 gd.iter_of_convergence = i_converge
-                say('Stable convergence achieved at iteration: {}'.format(i_converge), logger=logger)
+                say(f'Stable convergence achieved at iteration: {i_converge}', logger=logger)
                 break
 
     # Return best-fit alphas, and bookkeeping object

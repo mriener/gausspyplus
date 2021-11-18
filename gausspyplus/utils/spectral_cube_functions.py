@@ -273,7 +273,7 @@ def remove_additional_axes(data, header, max_dim=3,
         write_meta=False)
 
     while header['NAXIS'] > max_dim:
-        key = 'NAXIS{}'.format(header['NAXIS'])
+        key = f"NAXIS{header['NAXIS']}"
         if key in header.keys():
             header.remove(key)
 
@@ -349,7 +349,7 @@ def _get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
         The (unitless) wcs axis of the spectral cube, converted to 'to_unit' (if specified).
 
     """
-    key = 'NAXIS{}'.format(axis)
+    key = f'NAXIS{axis}'
     check_if_all_values_are_none(header, wcs, 'header', 'wcs')
     check_if_all_values_are_none(header, channels, 'header', 'channels')
     if header:
@@ -436,13 +436,13 @@ def get_slice_parameters(path_to_file=None, header=None, wcs=None,
     """
     if x_unit is None:
         x_unit = u.deg
-        warnings.warn('No unit for x_unit supplied. Assuming {} for x_unit.'.format(x_unit))
+        warnings.warn(f'No unit for x_unit supplied. Assuming {x_unit} for x_unit.')
     if y_unit is None:
         y_unit = u.deg
-        warnings.warn('No unit for y_unit supplied. Assuming {} for y_unit.'.format(y_unit))
+        warnings.warn(f'No unit for y_unit supplied. Assuming {y_unit} for y_unit.')
     if z_unit is None:
         z_unit = u.m/u.s
-        warnings.warn('No unit for z_unit supplied. Assuming {} for z_unit.'.format(z_unit))
+        warnings.warn(f'No unit for z_unit supplied. Assuming {z_unit} for z_unit.')
 
     if path_to_file:
         header = correct_header(fits.getheader(path_to_file))
@@ -770,7 +770,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
 
     if target_resolution is None:
         target_resolution = 2*current_resolution
-        warnings.warn('No smoothing resolution specified. Will smooth to a resolution of {}'.format(target_resolution))
+        warnings.warn(f'No smoothing resolution specified. Will smooth to a resolution of {target_resolution}')
 
     current_resolution = current_resolution.to(unit)
     target_resolution = target_resolution.to(unit)
@@ -818,8 +818,7 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
         data = data_reprojected
         header = _change_wcs_header_reproject(header, header_projection)
 
-    comments = ['spatially smoothed to a resolution of {}'.format(
-        target_resolution)] + comment
+    comments = [f'spatially smoothed to a resolution of {target_resolution}'] + comment
     header = update_header(header, comments=comments)
 
     if save:
@@ -872,7 +871,7 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
 
     if target_resolution is None:
         target_resolution = 2*current_resolution
-        warnings.warn('No smoothing resolution specified. Will smooth to a resolution of {}'.format(target_resolution))
+        warnings.warn(f'No smoothing resolution specified. Will smooth to a resolution of {target_resolution}')
 
     current_resolution = current_resolution.to(unit)
     target_resolution = target_resolution.to(unit)
@@ -898,7 +897,7 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
         spectrum_smoothed = convolve(spectrum, kernel)
         data[:, ypos, xpos] = spectrum_smoothed
 
-    comments = ['spectrally smoothed cube to a resolution of {}'.format(target_resolution)]
+    comments = [f'spectrally smoothed cube to a resolution of {target_resolution}']
     header = update_header(header, comments=comments)
 
     if save:
@@ -932,7 +931,7 @@ def get_path_to_output_file(path_to_file, suffix='_',
         dirname = os.path.dirname(path_to_file)
         filename = os.path.basename(path_to_file)
         fileBase, fileExtension = os.path.splitext(path_to_file)
-        filename = '{}{}{}'.format(fileBase, suffix, fileExtension)
+        filename = f'{fileBase}{suffix}{fileExtension}'
         path_to_output_file = os.path.join(dirname, filename)
     return path_to_output_file
 
@@ -966,7 +965,7 @@ def add_noise(average_rms, path_to_file=None, hdu=None, save=False,
         Initializer for np.random package.
 
     """
-    print('\nadding noise (rms = {}) to data...'.format(average_rms))
+    print(f'\nadding noise (rms = {average_rms}) to data...')
 
     check_if_all_values_are_none(hdu, path_to_file, 'hdu', 'path_to_file')
 
@@ -1060,8 +1059,7 @@ def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
         Default is `True`. Returns a astropy.io.fits.Header of the FITS array.
 
     """
-    print('\nmaking subcube with the slice parameters {}...'.format(
-        slice_params))
+    print(f'\nmaking subcube with the slice parameters {slice_params}...')
 
     check_if_all_values_are_none(hdu, path_to_file, 'hdu', 'path_to_file')
 
@@ -1130,13 +1128,12 @@ def _clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
             itertools.product(range(yMax), range(xMax)))
 
     if path_to_noise_map is not None:
-        print('\nusing supplied noise map to apply noise threshold '
-              'with snr={}...'.format(snr))
+        print(f'\nusing supplied noise map to apply noise threshold with snr={snr}...')
         noiseMap = open_fits_file(
             path_to_noise_map, get_header=False, remove_stokes=False, check_wcs=False)
         noiseMap = noiseMap[slice_params]
     else:
-        print('\napplying noise threshold to data with snr={}...'.format(snr))
+        print(f'\napplying noise threshold to data with snr={snr}...')
         noiseMap = np.zeros((yMax, xMax))
         max_consecutive_channels = determine_maximum_consecutive_channels(n_channels, p_limit)
 
@@ -1147,7 +1144,7 @@ def _clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
 
         for i, rms in tqdm(enumerate(results_list)):
             if not isinstance(rms, np.float):
-                warnings.warn('Problems with entry {} from resulting parallel_processing list, skipping entry'.format(i))
+                warnings.warn(f'Problems with entry {i} from resulting parallel_processing list, skipping entry')
                 continue
             else:
                 ypos, xpos = locations[i]
@@ -1286,7 +1283,7 @@ def _get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
         moment_data = np.apply_along_axis(moment2, 0, data)
 
     header = change_header(
-        header, comments=['moment {} map'.format(order)],
+        header, comments=[f'moment {order} map'],
         dct_keys={'BUNIT': (bunit * vel_unit).to_string()})
 
     return fits.PrimaryHDU(moment_data, header)
@@ -1348,7 +1345,7 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
 
 
     """
-    print('\ncreate a moment{} fits file from the cube'.format(order))
+    print(f'\ncreate a moment{order} fits file from the cube')
 
     check_if_value_is_none(restore_nans, nan_mask, 'restore_nans', 'nan_mask')
     check_if_all_values_are_none(hdu, path_to_file, 'hdu', 'path_to_file')
@@ -1386,11 +1383,11 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                 hdu.data[ypos, xpos] = np.nan
 
     if save:
-        suffix = 'mom{}_map'.format(order)
+        suffix = f'mom{order}_map'
         if path_to_output_file is None:
             path_to_output_file = get_path_to_output_file(
                 path_to_file, suffix=suffix,
-                filename='moment{}_map.fits'.format(order))
+                filename=f'moment{order}_map.fits')
 
         save_fits(hdu.data.astype(dtype), hdu.header, path_to_output_file,
                   verbose=True)
