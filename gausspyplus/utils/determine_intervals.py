@@ -1,4 +1,5 @@
 """Functions for interval determination."""
+from typing import List
 
 import numpy as np
 
@@ -7,44 +8,28 @@ from .noise_estimation import determine_peaks, mask_channels
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
 
 
-def add_buffer_to_intervals(ranges, n_channels, pad_channels=5):
-    """Extend interval range on both sides by a number of channels.
-
-    Parameters
-    ----------
-    ranges : list
-        List of intervals [(low, upp), ...].
-    n_channels : int
-        Number of spectral channels.
-    pad_channels : int
-        Number of channels by which an interval (low, upp) gets extended on both sides, resulting in (low - pad_channels, upp + pad_channels).
-
-    Returns
-    -------
-    ranges_new : list
-        New list of intervals [(low - pad_channels, upp + pad_channels), ...].
-
-    """
-    ranges_new = []
-    intervals = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
-
-    # merge intervals if they are overlapping
-    sorted_by_lower_bound = sorted(intervals, key=lambda tup: tup[0])
-
-    for higher in sorted_by_lower_bound:
-        if not ranges_new:
-            ranges_new.append(higher)
+def _merge_overlapping_intervals(intervals: List[List]) -> List[List]:
+    """Merge overlapping intervals (Credit: https://stackoverflow.com/a/43600953)."""
+    intervals.sort(key=lambda interval: interval[0])
+    merged_intervals = [intervals[0]]
+    for current in intervals:
+        previous = merged_intervals[-1]
+        if current[0] <= previous[1]:
+            previous[1] = max(previous[1], current[1])
         else:
-            lower = ranges_new[-1]
-            # test for intersection between lower and higher:
-            # we know via sorting that lower[0] <= higher[0]
-            if higher[0] <= lower[1]:
-                upper_bound = max(lower[1], higher[1])
-                ranges_new[-1] = (lower[0], upper_bound)  # replace by merged interval
-            else:
-                ranges_new.append(higher)
+            merged_intervals.append(current)
+    return merged_intervals
 
-    return ranges_new
+
+def _add_buffer_to_intervals(ranges: List[Optional[List]],
+                             n_channels: int,
+                             pad_channels: int = 5) -> List[Optional[List]]:
+    """Pad intervals on lower and upper sides and merge overlapping intervals."""
+    # TODO: this needs to be tested and compared time-wise with the previous
+    if not ranges:  # in case ranges is an empty list
+        return ranges
+    intervals = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
+    return _merge_overlapping_intervals(intervals)
 
 
 def mask_covering_gaussians(means, fwhms, n_channels, remove_intervals=None,
@@ -191,7 +176,9 @@ def get_signal_ranges(spectrum, rms, pad_channels=5, snr=3., significance=5.,
     if pad_channels is not None:
         while True:
             i += 1
-            ranges = add_buffer_to_intervals(ranges, n_channels,
+            # TODO: something is not right here: if pad_channels is 5, in first round ranges gets padded with 5 channels,
+            #  and in second round the already padded ranges gets padded by another 10 channels?
+            ranges = _add_buffer_to_intervals(ranges, n_channels,
                                              pad_channels=i*pad_channels)
             mask_signal_new = mask_channels(n_channels, ranges,
                                             remove_intervals=remove_intervals)
