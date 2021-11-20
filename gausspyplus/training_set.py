@@ -1,3 +1,4 @@
+import functools
 import itertools
 import os
 import pickle
@@ -62,50 +63,74 @@ class GaussPyTrainingSet(object):
                 self, config_file, config_key='training')
 
     def check_settings(self):
+        # TODO: refactor check_if_all_values_are_none with f strings to avoid repeated variable name
         check_if_all_values_are_none(self.path_to_file, self.dirpath_gpy,
                                      'path_to_file', 'dirpath_gpy')
         check_if_all_values_are_none(self.path_to_file, self.filename,
                                      'path_to_file', 'filename')
 
-    def initialize(self):
-        self.minStddev = None
-        if self.min_fwhm is not None:
-            self.minStddev = self.min_fwhm/2.355
+    @functools.cached_property
+    def min_stddev(self):
+        return None if self.min_fwhm is None else self.min_fwhm / 2.355
 
-        self.maxStddev = None
-        if self.max_fwhm is not None:
-            self.maxStddev = self.max_fwhm/2.355
+    @functools.cached_property
+    def max_stddev(self):
+        return None if self.max_fwhm is None else self.max_fwhm / 2.355
 
-        if self.path_to_file is not None:
-            self.dirname = os.path.dirname(self.path_to_file)
-            self.filename = os.path.basename(self.path_to_file)
+    @functools.cached_property
+    def noise_map(self):
+        return None if self.path_to_noise_map is None else fits.getdata(self.path_to_noise_map)
 
-        if self.dirpath_gpy is not None:
-            self.dirname = self.dirpath_gpy
+    @functools.cached_property
+    def dirpath(self):
+        return self.dirpath_gpy if self.dirpath_gpy is not None else Path(self.path_to_file).parent
 
-        self.filename, self.file_extension = os.path.splitext(self.filename)
+    @functools.cached_property
+    def filename(self):
+        return self.filename if self.filename is not None else Path(self.path_to_file).stem
 
-        self.header = None
+    @functools.cached_property
+    def input_file_type(self):
+        return Path(self.filename if self.filename is not None else self.path_to_file).suffix
 
-        if self.file_extension == '.fits':
+    @functools.cached_property
+    def n_channels(self):
+        return self.data.shape[0] if self.input_file_type == '.fits' else len(self.data[0])
+
+    @functools.cached_property
+    def channels(self):
+        return np.arange(self.n_channels)
+
+    @functools.cached_property
+    def input_object(self):
+        if self.input_file_type == '.fits':
             hdu = fits.open(self.path_to_file)[0]
-            self.data = hdu.data
-            self.header = hdu.header
+            data, header = remove_additional_axes(hdu.data, hdu.header)
+            return fits.PrimaryHDU(data=data, header=header)
+        elif self.input_file_type == '.pickle':
+            with open(self.path_to_file, "rb") as pickle_file:
+                return pickle.load(pickle_file, encoding='latin1')
 
-            self.data, self.header = remove_additional_axes(
-                self.data, self.header)
-            self.n_channels = self.data.shape[0]
-        else:
-            with open(os.path.join(self.path_to_file), "rb") as pickle_file:
-                dctData = pickle.load(pickle_file, encoding='latin1')
-            self.data = dctData['data_list']
-            self.n_channels = len(self.data[0])
+    @functools.cached_property
+    def data(self):
+        return self.input_object.data if self.input_file_type == '.fits' else self.input_object['data_list']
 
-        self.channels = np.arange(self.n_channels)
+    @functools.cached_property
+    def header(self):
+        return self.input_object.header if self.input_file_type == '.fits' else None
 
-        self.noise_map = None
-        if self.path_to_noise_map is not None:
-            self.noise_map = fits.getdata(self.path_to_noise_map)
+    @functools.cached_property
+    def max_consecutive_channels(self):
+        return determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
+
+    @functools.cached_property
+    def n_available_spectra(self):
+        return self.data.shape[1] * self.data.shape[2] if self.input_file_type == '.fits' else len(self.data)
+
+    @functools.cached_property
+    def locations(self):
+        return (list(itertools.product(range(self.data.shape[1]), range(self.data.shape[2])))
+                if self.input_file_type == '.fits' else None)
 
     def say(self, message):
         """Diagnostic messages."""
@@ -115,7 +140,7 @@ class GaussPyTrainingSet(object):
             print(message)
 
     def _save_result(self, data):
-        (dirpath_out := Path(self.dirname, 'gpy_training')).mkdir(exist_ok=True, parents=True)
+        (dirpath_out := Path(self.dirpath, 'gpy_training')).mkdir(exist_ok=True, parents=True)
         filename = (self.filename_out if self.filename_out is not None
                     else f'{self.filename}-training_set-{self.n_spectra}_spectra{self.suffix}.pickle')
         if not filename.endswith('.pickle'):
@@ -125,34 +150,21 @@ class GaussPyTrainingSet(object):
             pickle.dump(data, file, protocol=2)
         self.say(f"\n\033[92mSAVED FILE:\033[0m '{filename}' in '{str(dirpath_out)}'")
 
-
     def decompose_spectra(self):
-        self.initialize()
+        if self.path_to_file is None:
+            raise Exception("'path_to_file' needs to be specified")
         if self.verbose:
             print(f"decompose {self.n_spectra} spectra ...")
-
         if self.random_seed is not None:
             random.seed(self.random_seed)
 
         data = {}
 
-        self.mask_omit = mask_channels(self.n_channels, self.mask_out_ranges)
-
-        self.max_consecutive_channels = determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
-
-        if self.header:
-            yValues = np.arange(self.data.shape[1])
-            xValues = np.arange(self.data.shape[2])
-            nSpectra = yValues.size * xValues.size
-            self.locations = list(itertools.product(yValues, xValues))
-            indices = random.sample(list(range(nSpectra)), nSpectra)
-        else:
-            nSpectra = len(self.data)
-            indices = random.sample(list(range(nSpectra)), nSpectra)
-            # indices = np.array([4506])  # for testing
+        indices = random.sample(range(self.n_available_spectra), self.n_available_spectra)
+        # indices = np.array([4506])  # for testing
 
         if self.use_all:
-            self.n_spectra = nSpectra
+            self.n_spectra = self.n_available_spectra
 
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([indices, [self]])
@@ -172,9 +184,8 @@ class GaussPyTrainingSet(object):
             if not self.save_all and (fit_results.reduced_chi2_value > self.rchi2_limit):
                 continue
 
-            if self.amp_threshold is not None:
-                if max(fit_results.amplitude_values) < self.amp_threshold:
-                    continue
+            if self.amp_threshold is not None and max(fit_results.amplitude_values) < self.amp_threshold:
+                continue
 
             data['data_list'] = data.get('data_list', []) + [fit_results.intensity_values]
             if self.header:
@@ -242,7 +253,7 @@ class GaussPyTrainingSet(object):
         modelled_spectrum = combined_gaussian(amps=amplitude_values,
                                               fwhms=fwhm_values,
                                               means=mean_values,
-                                              x=np.arange(len(spectrum)))
+                                              x=self.channels)
         mask_signal = mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
         rchi2 = None if n_comps == 0 else goodness_of_fit(data=spectrum,
                                                           best_fit_final=modelled_spectrum,
@@ -303,12 +314,12 @@ class GaussPyTrainingSet(object):
                 improve = True
                 break
 
-            if self.maxStddev is not None and stddev > self.maxStddev:
+            if self.max_stddev is not None and stddev > self.max_stddev:
                 revised_gaussians.remove(initial_guess)
                 improve = True
                 break
 
-            if self.minStddev is not None and stddev < self.minStddev:
+            if self.min_stddev is not None and stddev < self.min_stddev:
                 revised_gaussians.remove(initial_guess)
                 improve = True
                 break
@@ -367,8 +378,8 @@ if __name__ == '__main__':
     training_set = GaussPyTrainingSet()
     rms = 0.10634302494716603
     training_set.n_channels = spectrum.size
-    training_set.maxStddev = training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
-    training_set.minStddev = training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
+    # training_set.maxStddev = training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
+    # training_set.minStddev = training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
     maxima = training_set._get_maxima(spectrum, rms)
     fit_values = training_set.gaussian_fitting(spectrum, rms)
     print(fit_values)
