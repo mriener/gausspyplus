@@ -7,13 +7,13 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 
-from .config_file import get_values_from_config_file
-from .gausspy_py3.gp_plus import get_fully_blended_gaussians
-from .utils.fit_quality_checks import negative_residuals
-from .utils.gaussian_functions import gaussian, combined_gaussian, area_of_gaussian
-from .utils.output import say
-from .utils.spectral_cube_functions import correct_header, change_header, update_header, save_fits, return_hdu_options
-from .spatial_fitting import SpatialFitting
+from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians
+from gausspyplus.utils.fit_quality_checks import negative_residuals
+from gausspyplus.utils.gaussian_functions import gaussian, combined_gaussian, area_of_gaussian
+from gausspyplus.utils.output import say
+from gausspyplus.utils.spectral_cube_functions import correct_header, change_header, update_header, save_fits, return_hdu_options
+from gausspyplus.spatial_fitting import SpatialFitting
 
 
 class Finalize(object):

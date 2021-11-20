@@ -4,8 +4,8 @@ import numpy as np
 import warnings
 from scipy.stats import normaltest, kstest
 
-from .noise_estimation import determine_peaks
-from .output import format_warning
+from gausspyplus.utils.noise_estimation import determine_peaks
+from gausspyplus.utils.output import format_warning
 warnings.showwarning = format_warning
 
 

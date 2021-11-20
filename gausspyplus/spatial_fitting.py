@@ -15,14 +15,12 @@ from functools import reduce
 from networkx.algorithms.components.connected import connected_components
 from tqdm import tqdm
 
-from .config_file import get_values_from_config_file
-from .gausspy_py3.gp_plus import split_params, get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
-from .utils.determine_intervals import mask_covering_gaussians
-from .utils.fit_quality_checks import goodness_of_fit
-from .utils.gaussian_functions import combined_gaussian
-from .utils.grouping_functions import to_graph, get_neighbors
-from .utils.noise_estimation import mask_channels
-from .utils.output import set_up_logger, say
+from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.gausspy_py3.gp_plus import split_params, get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
+from gausspyplus.utils.gaussian_functions import combined_gaussian
+from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
+from gausspyplus.utils.noise_estimation import mask_channels
+from gausspyplus.utils.output import set_up_logger, say
 
 
 class SpatialFitting(object):

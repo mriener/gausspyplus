@@ -13,11 +13,11 @@ import numpy as np
 from astropy.io import fits
 from tqdm import tqdm
 
-from .config_file import get_values_from_config_file
-from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
-from .utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
-from .utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say
-from .utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
+from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
+from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
+from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say
+from gausspyplus.utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
 
 
 class GaussPyPrepare(object):
