@@ -20,8 +20,7 @@ from scipy.signal import argrelextrema
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
-from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit,\
-    check_residual_for_normality
+from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
 from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
 from gausspyplus.utils.output import check_if_all_values_are_none
@@ -50,7 +49,6 @@ class GaussPyTrainingSet(object):
         self.pad_channels = 5
         self.min_channels = 100
         self.snr_noise_spike = 5.
-        self.min_pvalue = 0.01
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.rchi2_limit = 1.5
         self.use_all = False
@@ -171,12 +169,11 @@ class GaussPyTrainingSet(object):
         for result in results_list:
             if result is None:
                 continue
-            fit_values, spectrum, location, signal_ranges, rms, rchi2, pvalue, index, i = result
+            fit_values, spectrum, location, signal_ranges, rms, rchi2, index, i = result
             # the next four lines are added to deal with the use_all=True feature
             if rchi2 is None:
                 continue
             if not self.save_all and (rchi2 > self.rchi2_limit):
-            # if not self.save_all and (pvalue < self.min_pvalue):
                 continue
 
             amps, fwhms, means = ([] for i in range(3))
@@ -198,7 +195,6 @@ class GaussPyTrainingSet(object):
             # TODO: Change rms from list of list to single value
             data['error'] = data.get('error', []) + [[rms]]
             data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
-            data['pvalue'] = data.get('pvalue', []) + [pvalue]
             data['amplitudes'] = data.get('amplitudes', []) + [amps]
             data['fwhms'] = data.get('fwhms', []) + [fwhms]
             data['means'] = data.get('means', []) + [means]
@@ -257,14 +253,10 @@ class GaussPyTrainingSet(object):
                                               x=np.arange(len(spectrum)))
         mask_signal = mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
         rchi2 = None if n_comps == 0 else goodness_of_fit(spectrum, modelled_spectrum, rms, n_comps, mask=mask_signal)
-        # TODO: check if pvalue is currently used, otherwise remove it
-        pvalue = check_residual_for_normality(spectrum - modelled_spectrum, rms, mask=mask_signal)
 
         # TODO: change the rchi2_limit value??
-        # if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
         if (fit_values and (rchi2 < self.rchi2_limit)) or self.use_all:
-            return [fit_values, spectrum, location, signal_ranges, rms,
-                    rchi2, pvalue, index, i]
+            return [fit_values, spectrum, location, signal_ranges, rms, rchi2, index, i]
         else:
             return None
 
