@@ -1,14 +1,8 @@
-# @Author: riener
-# @Date:   2019-02-18T16:27:12+01:00
-# @Filename: training_set.py
-# @Last modified by:   riener
-
-# @Last modified time: 19-09-2020
-
 import itertools
 import os
 import pickle
 import random
+from collections import namedtuple
 from pathlib import Path
 from typing import Optional, List
 
@@ -25,6 +19,7 @@ from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
 from gausspyplus.utils.output import check_if_all_values_are_none
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
+from gausspyplus.definitions import FitResults
 
 
 optimizers.DEFAULT_MAXITER = 1000  # set maximum iterations for SLSQPLSQFitter
@@ -162,43 +157,36 @@ class GaussPyTrainingSet(object):
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([indices, [self]])
 
-        results_list = gausspyplus.parallel_processing.func_ts(
+        results = gausspyplus.parallel_processing.func_ts(
             self.n_spectra, use_ncpus=self.use_ncpus)
         print('SUCCESS\n')
 
-        for result in results_list:
-            if result is None:
-                continue
-            fit_values, spectrum, location, signal_ranges, rms, rchi2, index, i = result
-            # the next four lines are added to deal with the use_all=True feature
-            if rchi2 is None:
-                continue
-            if not self.save_all and (rchi2 > self.rchi2_limit):
-                continue
+        fit_results: Optional[namedtuple]
 
-            amps, fwhms, means = ([] for i in range(3))
-            # TODO: this has already been done earlier on; maybe it makes more sense to directly return amps, means and fwhms values
-            if fit_values is not None:
-                for item in fit_values:
-                    amps.append(item[0])
-                    means.append(item[1])
-                    fwhms.append(item[2]*2.355)
+        for fit_results in results:
+            if fit_results is None:
+                continue
+            # the next four lines are added to deal with the use_all=True feature
+            if fit_results.reduced_chi2_value is None:
+                continue
+            if not self.save_all and (fit_results.reduced_chi2_value > self.rchi2_limit):
+                continue
 
             if self.amp_threshold is not None:
-                if max(amps) < self.amp_threshold:
+                if max(fit_results.amplitude_values) < self.amp_threshold:
                     continue
 
-            data['data_list'] = data.get('data_list', []) + [spectrum]
+            data['data_list'] = data.get('data_list', []) + [fit_results.intensity_values]
             if self.header:
-                data['location'] = data.get('location', []) + [location]
-            data['index'] = data.get('index', []) + [index]
+                data['location'] = data.get('location', []) + [fit_results.position_yx]
+            data['index'] = data.get('index', []) + [fit_results.index]
             # TODO: Change rms from list of list to single value
-            data['error'] = data.get('error', []) + [[rms]]
-            data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
-            data['amplitudes'] = data.get('amplitudes', []) + [amps]
-            data['fwhms'] = data.get('fwhms', []) + [fwhms]
-            data['means'] = data.get('means', []) + [means]
-            data['signal_ranges'] = data.get('signal_ranges', []) + [signal_ranges]
+            data['error'] = data.get('error', []) + [[fit_results.rms_noise]]
+            data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [fit_results.reduced_chi2_value]
+            data['amplitudes'] = data.get('amplitudes', []) + [fit_results.amplitude_values]
+            data['fwhms'] = data.get('fwhms', []) + [fit_results.fwhm_values]
+            data['means'] = data.get('means', []) + [fit_results.mean_values]
+            data['signal_ranges'] = data.get('signal_ranges', []) + [fit_results.signal_intervals]
         data['x_values'] = self.channels
         if self.header:
             data['header'] = self.header
@@ -206,6 +194,7 @@ class GaussPyTrainingSet(object):
         self._save_result(data)
 
     def decompose(self, index, i):
+        # TODO: is the variable i needed here?
         if self.header:
             location = self.locations[index]
             spectrum = self.data[:, location[0], location[1]].copy()
@@ -247,16 +236,31 @@ class GaussPyTrainingSet(object):
         fit_values = self.gaussian_fitting(spectrum, rms)
 
         n_comps = len(fit_values)
-        modelled_spectrum = combined_gaussian(amps=[fit_params[0] for fit_params in fit_values],
-                                              fwhms=[fit_params[2] * 2.355 for fit_params in fit_values],
-                                              means=[fit_params[1] for fit_params in fit_values],
+        amplitude_values = [fit_params[0] for fit_params in fit_values]
+        fwhm_values = [fit_params[2] * 2.355 for fit_params in fit_values]
+        mean_values = [fit_params[1] for fit_params in fit_values]
+        modelled_spectrum = combined_gaussian(amps=amplitude_values,
+                                              fwhms=fwhm_values,
+                                              means=mean_values,
                                               x=np.arange(len(spectrum)))
         mask_signal = mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
-        rchi2 = None if n_comps == 0 else goodness_of_fit(spectrum, modelled_spectrum, rms, n_comps, mask=mask_signal)
-
+        rchi2 = None if n_comps == 0 else goodness_of_fit(data=spectrum,
+                                                          best_fit_final=modelled_spectrum,
+                                                          errors=rms,
+                                                          ncomps_fit=n_comps,
+                                                          mask=mask_signal)
         # TODO: change the rchi2_limit value??
+        # TODO: if self.use_all is True then fit_values needs to be None instead of []
         if (fit_values and (rchi2 < self.rchi2_limit)) or self.use_all:
-            return [fit_values, spectrum, location, signal_ranges, rms, rchi2, index, i]
+            return FitResults(amplitude_values=amplitude_values,
+                              mean_values=mean_values,
+                              fwhm_values=fwhm_values,
+                              intensity_values=spectrum,
+                              position_yx=location,
+                              signal_intervals=signal_ranges,
+                              rms_noise=rms,
+                              reduced_chi2_value=rchi2,
+                              index=index)
         else:
             return None
 
