@@ -176,6 +176,7 @@ class GaussPyTrainingSet(object):
                 continue
 
             amps, fwhms, means = ([] for i in range(3))
+            # TODO: this has already been done earlier on; maybe it makes more sense to directly return amps, means and fwhms values
             if fit_values is not None:
                 for item in fit_values:
                     amps.append(item[0])
@@ -190,6 +191,7 @@ class GaussPyTrainingSet(object):
             if self.header:
                 data['location'] = data.get('location', []) + [location]
             data['index'] = data.get('index', []) + [index]
+            # TODO: Change rms from list of list to single value
             data['error'] = data.get('error', []) + [[rms]]
             data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [rchi2]
             data['pvalue'] = data.get('pvalue', []) + [pvalue]
@@ -236,27 +238,33 @@ class GaussPyTrainingSet(object):
         if np.isnan(rms):
             return None
 
-        noise_spike_ranges = get_noise_spike_ranges(
-            spectrum, rms, snr_noise_spike=self.snr_noise_spike)
+        noise_spike_ranges = get_noise_spike_ranges(spectrum, rms, snr_noise_spike=self.snr_noise_spike)
         if self.mask_out_ranges:
             noise_spike_ranges += self.mask_out_ranges
 
-        signal_ranges = get_signal_ranges(
-            spectrum, rms, snr=self.snr, significance=self.significance,
-            pad_channels=self.pad_channels, min_channels=self.min_channels,
-            remove_intervals=noise_spike_ranges)
+        signal_ranges = get_signal_ranges(spectrum,
+                                          rms,
+                                          snr=self.snr,
+                                          significance=self.significance,
+                                          pad_channels=self.pad_channels,
+                                          min_channels=self.min_channels,
+                                          remove_intervals=noise_spike_ranges)
 
-        if signal_ranges:
-            mask_signal = mask_channels(self.n_channels, signal_ranges)
-        else:
-            mask_signal = None
+        fit_values = self.gaussian_fitting(spectrum, rms)
 
-        maxima = self._get_maxima(spectrum, rms)
-        fit_values, rchi2, pvalue = self.gaussian_fitting(
-            spectrum, maxima, rms, mask_signal=mask_signal)
+        n_comps = len(fit_values)
+        modelled_spectrum = combined_gaussian(amps=[fit_params[0] for fit_params in fit_values],
+                                              fwhms=[fit_params[2] * 2.355 for fit_params in fit_values],
+                                              means=[fit_params[1] for fit_params in fit_values],
+                                              x=np.arange(len(spectrum)))
+        mask_signal = mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
+        rchi2 = None if n_comps == 0 else goodness_of_fit(spectrum, modelled_spectrum, rms, n_comps, mask=mask_signal)
+        # TODO: check if pvalue is currently used, otherwise remove it
+        pvalue = check_residual_for_normality(spectrum - modelled_spectrum, rms, mask=mask_signal)
+
         # TODO: change the rchi2_limit value??
         # if ((fit_values is not None) and (pvalue > self.min_pvalue)) or self.use_all:
-        if ((fit_values is not None) and (rchi2 < self.rchi2_limit)) or self.use_all:
+        if (fit_values and (rchi2 < self.rchi2_limit)) or self.use_all:
             return [fit_values, spectrum, location, signal_ranges, rms,
                     rchi2, pvalue, index, i]
         else:
@@ -271,9 +279,9 @@ class GaussPyTrainingSet(object):
                              comparator=np.greater,
                              order=self.order)[0]
 
-    def gaussian_fitting(self, spectrum, maxima, rms, mask_signal=None):
+    def gaussian_fitting(self, spectrum, rms):
         initial_gaussian_models = []
-        for idx in maxima:
+        for idx in self._get_maxima(spectrum, rms):
             initial_gaussian_model = models.Gaussian1D(amplitude=spectrum[idx], mean=idx, stddev=2)
             initial_gaussian_model.bounds['amplitude'] = (None, 1.1 * spectrum[idx])
             initial_gaussian_models.append(initial_gaussian_model)
@@ -285,18 +293,7 @@ class GaussPyTrainingSet(object):
                 improve, initial_gaussian_models = self.check_fit_parameters(fit_values, initial_gaussian_models, rms)
             else:
                 improve = False
-
-        n_comps = len(fit_values)
-        channels = np.arange(len(spectrum))
-        combined_gauss = combined_gaussian(amps=[fit_params[0] for fit_params in fit_values],
-                                           fwhms=[fit_params[2] * 2.355 for fit_params in fit_values],
-                                           means=[fit_params[1] for fit_params in fit_values],
-                                           x=channels)
-
-        rchi2 = None if n_comps == 0 else goodness_of_fit(spectrum, combined_gauss, rms, n_comps, mask=mask_signal)
-        pvalue = check_residual_for_normality(spectrum - combined_gauss, rms, mask=mask_signal)
-
-        return fit_values, rchi2, pvalue
+        return fit_values
 
     def check_fit_parameters(self, fit_values, gaussians, rms):
         improve = False
