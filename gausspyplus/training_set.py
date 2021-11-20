@@ -9,6 +9,8 @@ import itertools
 import os
 import pickle
 import random
+from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 
@@ -16,14 +18,14 @@ from astropy.io import fits
 from astropy.modeling import models, fitting, optimizers
 from scipy.signal import argrelextrema
 
-from .config_file import get_values_from_config_file
-from .utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
-from .utils.fit_quality_checks import determine_significance, goodness_of_fit,\
+from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
+from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit,\
     check_residual_for_normality
-from .utils.gaussian_functions import gaussian
-from .utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
-from .utils.output import check_if_all_values_are_none
-from .utils.spectral_cube_functions import remove_additional_axes
+from gausspyplus.utils.gaussian_functions import gaussian
+from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
+from gausspyplus.utils.output import check_if_all_values_are_none
+from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
 
 
 class GaussPyTrainingSet(object):
@@ -246,7 +248,7 @@ class GaussPyTrainingSet(object):
         else:
             mask_signal = None
 
-        maxima = self.get_maxima(spectrum, rms)
+        maxima = self._get_maxima(spectrum, rms)
         fit_values, rchi2, pvalue = self.gaussian_fitting(
             spectrum, maxima, rms, mask_signal=mask_signal)
         # TODO: change the rchi2_limit value??
@@ -257,14 +259,14 @@ class GaussPyTrainingSet(object):
         else:
             return None
 
-    def get_maxima(self, spectrum, rms):
-        array = spectrum.copy()
-        #  set all spectral data points below threshold to zero
-        low_values = array < self.snr*rms
-        array[low_values] = 0
-        #  find local maxima (order of x considers x neighboring data points)
-        maxima = argrelextrema(array, np.greater, order=self.order)
-        return maxima
+    def _get_maxima(self, spectrum: np.ndarray, rms: float) -> Tuple[np.ndarray]:
+        """Set intensity values below threshold to zero and find local maxima.
+
+        The value of order defines how many neighboring spectral channels are considered for the comparison.
+        """
+        return argrelextrema(data=np.where(spectrum < self.snr*rms, 0, spectrum),
+                             comparator=np.greater,
+                             order=self.order)
 
     def gaussian_fitting(self, spectrum, maxima, rms, mask_signal=None):
         # TODO: don't hardcode the value of stddev_ini
@@ -385,4 +387,17 @@ class GaussPyTrainingSet(object):
 
 
 if __name__ == '__main__':
-    pass
+    from astropy.io import fits
+    ROOT = Path(os.path.realpath(__file__)).parents[0]
+    data = fits.getdata(ROOT / 'data' / 'grs-test_field.fits')
+    # spectrum = data[:, 26, 8]
+    # results = determine_peaks(spectrum, amp_threshold=0.4)
+    spectrum = data[:, 31, 40]
+    training_set = GaussPyTrainingSet()
+    rms = 0.10634302494716603
+    maxima = training_set._get_maxima(spectrum, rms)
+    # %timeit training_set._get_maxima(spectrum, rms)
+    # before refactoring: 147 µs ± 12.1 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+    # after refactoring: 106 µs ± 315 ns per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+    print(maxima)
+
