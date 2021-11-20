@@ -204,47 +204,51 @@ class GaussPyTrainingSet(object):
 
         self._save_result(data)
 
-    def decompose(self, index, i):
-        # TODO: is the variable i needed here?
-        if self.header:
-            location = self.locations[index]
-            spectrum = self.data[:, location[0], location[1]].copy()
+    def _get_spectrum(self, index):
+        if self.input_file_type == '.fits':
+            y_position, x_position = self.locations[index]
+            spectrum = self.data[:, y_position, x_position].copy()
         else:
-            location = None
             spectrum = self.data[index].copy()
-
         if self.mask_out_ranges:
             nan_mask = mask_channels(self.n_channels, self.mask_out_ranges)
             spectrum[nan_mask] = np.nan
+        return spectrum
 
+    def _get_rms_noise(self, index, spectrum):
         if self.noise_map is not None:
-            rms = self.noise_map[location[0], location[1]]
-            nans = np.isnan(spectrum)
-            spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms
-        else:
-            rms = determine_noise(
-                spectrum,
-                max_consecutive_channels=self.max_consecutive_channels,
-                pad_channels=self.pad_channels,
-                idx=index,
-                average_rms=None)
+            y_position, x_position = self.locations[index]
+            return self.noise_map[y_position, x_position]
+        return determine_noise(spectrum=spectrum,
+                               max_consecutive_channels=self.max_consecutive_channels,
+                               pad_channels=self.pad_channels,
+                               idx=index)
 
-        if np.isnan(rms):
+    def decompose(self, index, i):
+        # TODO: is the variable i needed here?
+        spectrum = self._get_spectrum(index)
+        rms_noise = self._get_rms_noise(index, spectrum)
+        # If no noise can be determined from the spectrum, we cannot fit the spectrum and skip the remaining steps
+        if np.isnan(rms_noise):
             return None
 
-        noise_spike_ranges = get_noise_spike_ranges(spectrum, rms, snr_noise_spike=self.snr_noise_spike)
+        # We cannot deal with NaN values in the spectrum, so we replace them with random values samples from the noise
+        nans = np.isnan(spectrum)
+        spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms_noise
+
+        noise_spike_ranges = get_noise_spike_ranges(spectrum, rms_noise, snr_noise_spike=self.snr_noise_spike)
         if self.mask_out_ranges:
             noise_spike_ranges += self.mask_out_ranges
 
         signal_ranges = get_signal_ranges(spectrum,
-                                          rms,
+                                          rms_noise,
                                           snr=self.snr,
                                           significance=self.significance,
                                           pad_channels=self.pad_channels,
                                           min_channels=self.min_channels,
                                           remove_intervals=noise_spike_ranges)
 
-        fit_values = self.gaussian_fitting(spectrum, rms)
+        fit_values = self.gaussian_fitting(spectrum, rms_noise)
 
         n_comps = len(fit_values)
         amplitude_values = [fit_params[0] for fit_params in fit_values]
@@ -257,7 +261,7 @@ class GaussPyTrainingSet(object):
         mask_signal = mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
         rchi2 = None if n_comps == 0 else goodness_of_fit(data=spectrum,
                                                           best_fit_final=modelled_spectrum,
-                                                          errors=rms,
+                                                          errors=rms_noise,
                                                           ncomps_fit=n_comps,
                                                           mask=mask_signal)
         # TODO: change the rchi2_limit value??
@@ -267,9 +271,9 @@ class GaussPyTrainingSet(object):
                               mean_values=mean_values,
                               fwhm_values=fwhm_values,
                               intensity_values=spectrum,
-                              position_yx=location,
+                              position_yx=self.locations[index],
                               signal_intervals=signal_ranges,
-                              rms_noise=rms,
+                              rms_noise=rms_noise,
                               reduced_chi2_value=rchi2,
                               index=index)
         else:
