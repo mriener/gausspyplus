@@ -12,11 +12,11 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
-from .utils.noise_estimation import determine_noise
-from .prepare import GaussPyPrepare
-from .spatial_fitting import SpatialFitting
-from .training_set import GaussPyTrainingSet
-from .finalize import Finalize
+from gausspyplus.utils.noise_estimation import determine_noise
+from gausspyplus.prepare import GaussPyPrepare
+from gausspyplus.spatial_fitting import SpatialFitting
+from gausspyplus.training_set import GaussPyTrainingSet
+from gausspyplus.finalize import Finalize
 
 # ------------MULTIPROCESSING------------
 

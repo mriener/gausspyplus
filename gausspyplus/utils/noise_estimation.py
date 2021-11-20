@@ -12,8 +12,13 @@ import numpy as np
 from astropy.stats import median_absolute_deviation
 from tqdm import tqdm
 
-# from .output import format_warning
-# warnings.showwarning = format_warning
+
+import sys
+ROOT = Path(os.path.realpath(__file__)).parents[2]
+sys.path.append(str(ROOT))
+
+from gausspyplus.utils.output import format_warning
+warnings.showwarning = format_warning
 
 
 def determine_maximum_consecutive_channels(n_channels: int, p_limit: float) -> int:

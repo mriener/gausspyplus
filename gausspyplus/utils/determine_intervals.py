@@ -1,10 +1,12 @@
 """Functions for interval determination."""
-from typing import List
+import itertools
+import os
+from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
 
-from .noise_estimation import determine_peaks, mask_channels
+import sys
 
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
 
@@ -128,7 +130,9 @@ def get_noise_spike_ranges(spectrum: np.ndarray, rms: float, snr_noise_spike: in
     -------
     Nested list containing slice information about intervals of the spectrum that potentially contain noise
         spike features. These intervals are neglected from goodness-of-fit calculations.
+
     """
+    # TODO: change name of function to determine_noise_spike_intervals
     _, ranges = determine_peaks(spectrum, peak='negative', amp_threshold=snr_noise_spike*rms)
     return ranges.tolist()
 

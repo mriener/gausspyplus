@@ -7,8 +7,8 @@
 import os
 import warnings
 
-from .config_file import get_values_from_config_file
-from .utils.output import format_warning, set_up_logger, say
+from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.utils.output import format_warning, set_up_logger, say
 warnings.showwarning = format_warning
 
 

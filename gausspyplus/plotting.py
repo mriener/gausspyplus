@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 from astropy import units as u
 from tqdm import tqdm
 
-from .utils.gaussian_functions import gaussian, combined_gaussian
-from .utils.spectral_cube_functions import get_spectral_axis, correct_header
+from gausspyplus.utils.gaussian_functions import gaussian, combined_gaussian
+from gausspyplus.utils.spectral_cube_functions import get_spectral_axis, correct_header
 
 
 def get_points_for_colormap(vmin, vmax, central_val=0.):

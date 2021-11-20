@@ -20,8 +20,8 @@ from astropy.wcs import WCS
 from datetime import datetime
 from tqdm import tqdm
 
-from .output import check_if_value_is_none, check_if_all_values_are_none, format_warning, save_file
-from .noise_estimation import determine_maximum_consecutive_channels, determine_noise
+from gausspyplus.utils.output import check_if_value_is_none, check_if_all_values_are_none, format_warning, save_file
+from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, determine_noise
 
 warnings.showwarning = format_warning
 
