@@ -10,7 +10,7 @@ import os
 import pickle
 import random
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, List
 
 import numpy as np
 
@@ -22,10 +22,13 @@ from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit,\
     check_residual_for_normality
-from gausspyplus.utils.gaussian_functions import gaussian
+from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
 from gausspyplus.utils.output import check_if_all_values_are_none
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
+
+
+optimizers.DEFAULT_MAXITER = 1000  # set maximum iterations for SLSQPLSQFitter
 
 
 class GaussPyTrainingSet(object):
@@ -259,135 +262,112 @@ class GaussPyTrainingSet(object):
         else:
             return None
 
-    def _get_maxima(self, spectrum: np.ndarray, rms: float) -> Tuple[np.ndarray]:
+    def _get_maxima(self, spectrum: np.ndarray, rms: float) -> np.ndarray:
         """Set intensity values below threshold to zero and find local maxima.
 
         The value of order defines how many neighboring spectral channels are considered for the comparison.
         """
         return argrelextrema(data=np.where(spectrum < self.snr*rms, 0, spectrum),
                              comparator=np.greater,
-                             order=self.order)
+                             order=self.order)[0]
 
     def gaussian_fitting(self, spectrum, maxima, rms, mask_signal=None):
-        # TODO: don't hardcode the value of stddev_ini
-        stddev_ini = 2  # in channels
-
-        gaussians = []
-        # loop through spectral channels of the local maxima, fit Gaussians
-        sortedAmps = np.argsort(spectrum[maxima])[::-1]
-
-        for idx in sortedAmps:
-            mean, amp = maxima[0][idx], spectrum[maxima][idx]
-            gauss = models.Gaussian1D(amp, mean, stddev_ini)
-            gauss.bounds['amplitude'] = (None, 1.1*amp)
-            gaussians.append(gauss)
+        initial_gaussian_models = []
+        for idx in maxima:
+            initial_gaussian_model = models.Gaussian1D(amplitude=spectrum[idx], mean=idx, stddev=2)
+            initial_gaussian_model.bounds['amplitude'] = (None, 1.1 * spectrum[idx])
+            initial_gaussian_models.append(initial_gaussian_model)
 
         improve = True
-        while improve is True:
-            fit_values = self.determine_gaussian_fit_models(
-                gaussians, spectrum)
-            if fit_values is not None:
-                improve, gaussians = self.check_fit_parameters(
-                        fit_values, gaussians, rms)
+        while improve:
+            fit_values = self.determine_gaussian_fit_models(initial_gaussian_models, spectrum)
+            if fit_values:
+                improve, initial_gaussian_models = self.check_fit_parameters(fit_values, initial_gaussian_models, rms)
             else:
                 improve = False
 
-        if fit_values is not None:
-            comps = len(fit_values)
-        else:
-            comps = 0
-
+        n_comps = len(fit_values)
         channels = np.arange(len(spectrum))
-        if comps > 0:
-            for j in range(len(fit_values)):
-                gauss = gaussian(
-                    fit_values[j][0], fit_values[j][2]*2.355, fit_values[j][1], channels)
-                if j == 0:
-                    combined_gauss = gauss
-                else:
-                    combined_gauss += gauss
-        else:
-            combined_gauss = np.zeros(len(channels))
-        if comps > 0:
-            rchi2 = goodness_of_fit(spectrum, combined_gauss, rms, comps, mask=mask_signal)
-        else:
-            rchi2 = None
+        combined_gauss = combined_gaussian(amps=[fit_params[0] for fit_params in fit_values],
+                                           fwhms=[fit_params[2] * 2.355 for fit_params in fit_values],
+                                           means=[fit_params[1] for fit_params in fit_values],
+                                           x=channels)
 
-        pvalue = check_residual_for_normality(
-            spectrum - combined_gauss, rms, mask=mask_signal)
+        rchi2 = None if n_comps == 0 else goodness_of_fit(spectrum, combined_gauss, rms, n_comps, mask=mask_signal)
+        pvalue = check_residual_for_normality(spectrum - combined_gauss, rms, mask=mask_signal)
 
         return fit_values, rchi2, pvalue
 
     def check_fit_parameters(self, fit_values, gaussians, rms):
         improve = False
         revised_gaussians = gaussians.copy()
-        for initial_guess, final_fit in zip(gaussians, fit_values):
-            if (final_fit[0] < self.snr*rms):
+        for initial_guess, (amp, mean, stddev) in zip(gaussians, fit_values):
+            if amp < self.snr * rms:
                 revised_gaussians.remove(initial_guess)
                 improve = True
                 break
-
-            if final_fit[2] <= 0:
-                print('negative!')
-                # TODO: remove this negative Gaussian
-            significance = determine_significance(
-                final_fit[0], final_fit[2]*2.35482, rms)
+            significance = determine_significance(amp=amp, fwhm=stddev * 2.35482, rms=rms)
             if significance < self.significance:
                 revised_gaussians.remove(initial_guess)
                 improve = True
                 break
 
-            if self.maxStddev is not None:
-                if final_fit[2] > self.maxStddev:
-                    revised_gaussians.remove(initial_guess)
-                    improve = True
-                    break
+            if self.maxStddev is not None and stddev > self.maxStddev:
+                revised_gaussians.remove(initial_guess)
+                improve = True
+                break
 
-            if self.minStddev is not None:
-                if final_fit[2] < self.minStddev:
-                    revised_gaussians.remove(initial_guess)
-                    improve = True
-                    break
+            if self.minStddev is not None and stddev < self.minStddev:
+                revised_gaussians.remove(initial_guess)
+                improve = True
+                break
 
         if improve:
             gaussians = revised_gaussians
         return improve, gaussians
 
-    def determine_gaussian_fit_models(self, gaussians, spectrum):
-        fit_values = None
-        optimizers.DEFAULT_MAXITER = 1000
-        channels = np.arange(self.n_channels)
+    @staticmethod
+    def _get_initial_fit_model(gaussians):
+        """Return a superposition of the initial guesses for the Gaussian fits."""
+        initial_fit_model = gaussians[0]
+        for gaussian_model in gaussians[1:]:
+            initial_fit_model += gaussian_model
+        return initial_fit_model
 
-        # To fit the data create a new superposition with initial
-        # guesses for the parameters:
-        if len(gaussians) > 0:
-            gg_init = gaussians[0]
+    @staticmethod
+    def _perform_fit(initial_fit_model, channels, spectrum):
+        fitter = fitting.SLSQPLSQFitter()
+        try:
+            return fitter(initial_fit_model, channels, spectrum, disp=False)
+        except TypeError:
+            return fitter(initial_fit_model, channels, spectrum, verblevel=False)
 
-            if len(gaussians) > 1:
-                for i in range(1, len(gaussians)):
-                    gg_init += gaussians[i]
-
-            fitter = fitting.SLSQPLSQFitter()
-            try:
-                gg_fit = fitter(gg_init, channels, spectrum, disp=False)
-            except TypeError:
-                gg_fit = fitter(gg_init, channels, spectrum, verblevel=False)
-
-            fit_values = []
-            if len(gg_fit.param_sets) > 3:
-                for i in range(len(gg_fit.submodel_names)):
-                    fit_values.append([gg_fit[i].amplitude.value,
-                                       gg_fit[i].mean.value,
-                                       abs(gg_fit[i].stddev.value)])
-            else:
-                fit_values.append([gg_fit.amplitude.value,
-                                   gg_fit.mean.value,
-                                   abs(gg_fit.stddev.value)])
+    @staticmethod
+    def _get_fit_parameters(final_fit_model):
+        fit_values = []
+        if len(final_fit_model.param_sets) > 3:
+            for i in range(len(final_fit_model.submodel_names)):
+                fit_values.append([final_fit_model[i].amplitude.value,
+                                   final_fit_model[i].mean.value,
+                                   abs(final_fit_model[i].stddev.value)])
+        else:
+            fit_values.append([final_fit_model.amplitude.value,
+                               final_fit_model.mean.value,
+                               abs(final_fit_model.stddev.value)])
         return fit_values
+
+    def determine_gaussian_fit_models(self, gaussians, spectrum: np.ndarray) -> List[Optional[List]]:
+        """Return list of fit parameters [[amp_1, mean_1, stddev_1], ... [amp_N, mean_N, stddev_N]]."""
+        if len(gaussians) == 0:
+            return []
+        initial_fit_model = GaussPyTrainingSet._get_initial_fit_model(gaussians)
+        final_fit_model = GaussPyTrainingSet._perform_fit(initial_fit_model=initial_fit_model,
+                                                          channels=np.arange(self.n_channels),
+                                                          spectrum=spectrum)
+        return GaussPyTrainingSet._get_fit_parameters(final_fit_model=final_fit_model)
 
 
 if __name__ == '__main__':
-    from astropy.io import fits
     ROOT = Path(os.path.realpath(__file__)).parents[0]
     data = fits.getdata(ROOT / 'data' / 'grs-test_field.fits')
     # spectrum = data[:, 26, 8]
@@ -395,9 +375,10 @@ if __name__ == '__main__':
     spectrum = data[:, 31, 40]
     training_set = GaussPyTrainingSet()
     rms = 0.10634302494716603
+    training_set.n_channels = spectrum.size
+    training_set.maxStddev = training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
+    training_set.minStddev = training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
     maxima = training_set._get_maxima(spectrum, rms)
-    # %timeit training_set._get_maxima(spectrum, rms)
-    # before refactoring: 147 µs ± 12.1 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)
-    # after refactoring: 106 µs ± 315 ns per loop (mean ± std. dev. of 7 runs, 10000 loops each)
-    print(maxima)
+    fit_values = training_set.gaussian_fitting(spectrum, rms)
+    print(fit_values)
 
