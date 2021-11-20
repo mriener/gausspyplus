@@ -18,9 +18,9 @@ def test_determine_maximum_consecutive_channels():
 
 
 def test_get_rms_noise():
-    from ..utils.noise_estimation import get_rms_noise
+    from ..utils.noise_estimation import determine_noise
     spectrum = DATA[:, 31, 40]
-    rms_noise = get_rms_noise(spectrum)
+    rms_noise = determine_noise(spectrum)
     assert np.allclose(rms_noise, 0.10634302494716603)
 
 
