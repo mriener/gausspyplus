@@ -3,7 +3,6 @@ import itertools
 import os
 import pickle
 import random
-from collections import namedtuple
 from pathlib import Path
 from typing import Optional, List
 
@@ -18,7 +17,6 @@ from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_s
 from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
 from gausspyplus.utils.gaussian_functions import combined_gaussian
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
-from gausspyplus.utils.output import check_if_all_values_are_none
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
 from gausspyplus.definitions import FitResults
 
@@ -61,13 +59,6 @@ class GaussPyTrainingSet(object):
         if config_file:
             get_values_from_config_file(
                 self, config_file, config_key='training')
-
-    def check_settings(self):
-        # TODO: refactor check_if_all_values_are_none with f strings to avoid repeated variable name
-        check_if_all_values_are_none(self.path_to_file, self.dirpath_gpy,
-                                     'path_to_file', 'dirpath_gpy')
-        check_if_all_values_are_none(self.path_to_file, self.filename,
-                                     'path_to_file', 'filename')
 
     @functools.cached_property
     def min_stddev(self):
@@ -136,13 +127,6 @@ class GaussPyTrainingSet(object):
     def threshold_amplitude(self):
         return self.amp_threshold if self.amp_threshold is not None else 0
 
-    def say(self, message):
-        """Diagnostic messages."""
-        # if self.log_output:
-        #     self.logger.info(message)
-        if self.verbose:
-            print(message)
-
     def _prepare_training_set(self, results):
         return {'data_list': [fit.intensity_values for fit in results],
                 'location': [fit.position_yx for fit in results],
@@ -167,7 +151,7 @@ class GaussPyTrainingSet(object):
 
         with open(dirpath_out / filename, 'wb') as file:
             pickle.dump(data, file, protocol=2)
-        self.say(f"\n\033[92mSAVED FILE:\033[0m '{filename}' in '{str(dirpath_out)}'")
+        print(f"\n\033[92mSAVED FILE:\033[0m '{filename}' in '{str(dirpath_out)}'")
 
     def decompose_spectra(self):
         if self.path_to_file is None:
@@ -378,4 +362,3 @@ if __name__ == '__main__':
     maxima = training_set._get_maxima(spectrum, rms)
     fit_values = training_set.gaussian_fitting(spectrum, rms)
     print(fit_values)
-
