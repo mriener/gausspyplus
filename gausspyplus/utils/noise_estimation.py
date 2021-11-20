@@ -233,7 +233,9 @@ def determine_noise(spectrum,
                     pad_channels: int = 5,
                     idx: Optional[int] = None,
                     average_rms: Optional[int] = None,
-                    random_seed: int = 111):
+                    random_seed: int = 111,
+                    min_fraction_noise_channels: float = 0.1,
+                    min_fraction_average_rms: float = 0.1):
     """Determine the root-mean-square noise value of a spectrum.
 
     Parameters
@@ -260,36 +262,24 @@ def determine_noise(spectrum,
         max_consecutive_channels = determine_maximum_consecutive_channels(n_channels=spectrum.size, p_limit=0.02)
     np.random.seed(random_seed)  # TODO: check if this is really needed here?
 
-    if np.isnan(spectrum).all():
-        rms_noise = np.nan
-    elif np.isnan(spectrum).any():
-        # TODO: Case where spectrum contains nans and only positive values
-        nans = np.isnan(spectrum)
-        rms_noise = _determine_valid_noise_channels_and_calculate_rms_noise(
-            spectrum[~nans],
-            max_consecutive_channels=max_consecutive_channels,
-            pad_channels=pad_channels,
-            idx=idx,
-            average_rms=average_rms,
-            min_fraction_noise_channels=0.1,
-            min_fraction_average_rms=0.1
-        )
-        spectrum[nans] = np.random.randn(np.count_nonzero(nans)) * rms_noise
-
-    elif (spectrum >= 0).all():
+    # TODO: The following is only a problem if channels WITHIN the spectrum are NaNs, so that the calculation of
+    #  consecutive intervals can be faulty
+    spectrum_without_nans = spectrum[~np.isnan(spectrum)]
+    if spectrum_without_nans.size == 0:
+        return np.nan
+    elif (spectrum_without_nans >= 0).all():
         warnings.warn('Masking spectra that contain only values >= 0')
-        rms_noise = np.nan
+        return np.nan
     else:
-        rms_noise = _determine_valid_noise_channels_and_calculate_rms_noise(
-            spectrum,
+        return _determine_valid_noise_channels_and_calculate_rms_noise(
+            spectrum=spectrum_without_nans,
             max_consecutive_channels=max_consecutive_channels,
             pad_channels=pad_channels,
             idx=idx,
             average_rms=average_rms,
-            min_fraction_noise_channels=0.1,
-            min_fraction_average_rms=0.1
+            min_fraction_noise_channels=min_fraction_noise_channels,
+            min_fraction_average_rms=min_fraction_average_rms
         )
-    return rms_noise
 
 
 def calculate_average_rms_noise(data: np.ndarray,
