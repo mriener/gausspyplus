@@ -92,12 +92,6 @@ class GaussPyTrainingSet(object):
 
         self.filename, self.file_extension = os.path.splitext(self.filename)
 
-        if self.filename_out is None:
-            self.filename_out = '{}-training_set-{}_spectra{}.pickle'.format(
-                self.filename, self.n_spectra, self.suffix)
-        elif not self.filename_out.endswith('.pickle'):
-            self.filename_out = self.filename_out + '.pickle'
-
         self.header = None
 
         if self.file_extension == '.fits':
@@ -127,6 +121,18 @@ class GaussPyTrainingSet(object):
         if self.verbose:
             print(message)
 
+    def _save_result(self, data):
+        (dirpath_out := Path(self.dirname, 'gpy_training')).mkdir(exist_ok=True, parents=True)
+        filename = (self.filename_out if self.filename_out is not None
+                    else f'{self.filename}-training_set-{self.n_spectra}_spectra{self.suffix}.pickle')
+        if not filename.endswith('.pickle'):
+            filename += '.pickle'
+
+        with open(dirpath_out / filename, 'wb') as file:
+            pickle.dump(data, file, protocol=2)
+        self.say(f"\n\033[92mSAVED FILE:\033[0m '{filename}' in '{str(dirpath_out)}'")
+
+
     def decompose_spectra(self):
         self.initialize()
         if self.verbose:
@@ -154,8 +160,6 @@ class GaussPyTrainingSet(object):
 
         if self.use_all:
             self.n_spectra = nSpectra
-            self.filename_out = '{}-training_set-{}_spectra{}.pickle'.format(
-                self.filename, self.n_spectra, self.suffix)
 
         import gausspyplus.parallel_processing
         gausspyplus.parallel_processing.init([indices, [self]])
@@ -203,13 +207,7 @@ class GaussPyTrainingSet(object):
         if self.header:
             data['header'] = self.header
 
-        dirname = os.path.join(self.dirname, 'gpy_training')
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-
-        path_to_file = os.path.join(dirname, self.filename_out)
-        pickle.dump(data, open(path_to_file, 'wb'), protocol=2)
-        self.say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(self.filename_out, dirname))
+        self._save_result(data)
 
     def decompose(self, index, i):
         if self.header:
