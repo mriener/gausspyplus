@@ -86,7 +86,7 @@ class GaussPyTrainingSet(object):
         return self.dirpath_gpy if self.dirpath_gpy is not None else Path(self.path_to_file).parent
 
     @functools.cached_property
-    def filename(self):
+    def filename_in(self):
         return self.filename if self.filename is not None else Path(self.path_to_file).stem
 
     @functools.cached_property
@@ -132,6 +132,10 @@ class GaussPyTrainingSet(object):
         return (list(itertools.product(range(self.data.shape[1]), range(self.data.shape[2])))
                 if self.input_file_type == '.fits' else None)
 
+    @functools.cached_property
+    def threshold_amplitude(self):
+        return self.amp_threshold if self.amp_threshold is not None else 0
+
     def say(self, message):
         """Diagnostic messages."""
         # if self.log_output:
@@ -139,10 +143,25 @@ class GaussPyTrainingSet(object):
         if self.verbose:
             print(message)
 
-    def _save_result(self, data):
+    def _prepare_training_set(self, results):
+        return {'data_list': [fit.intensity_values for fit in results],
+                'location': [fit.position_yx for fit in results],
+                'index': [fit.index for fit in results],
+                # TODO: Change rms from list of list to single value
+                'error': [[fit.rms_noise] for fit in results],
+                'best_fit_rchi2': [fit.reduced_chi2_value for fit in results],
+                'amplitudes': [fit.amplitude_values for fit in results],
+                'fwhms': [fit.fwhm_values for fit in results],
+                'means': [fit.mean_values for fit in results],
+                'signal_ranges': [fit.signal_intervals for fit in results],
+                'x_values': self.channels,
+                'header': self.header
+                }
+
+    def _save_as_pickled_file(self, data):
         (dirpath_out := Path(self.dirpath, 'gpy_training')).mkdir(exist_ok=True, parents=True)
         filename = (self.filename_out if self.filename_out is not None
-                    else f'{self.filename}-training_set-{self.n_spectra}_spectra{self.suffix}.pickle')
+                    else f'{self.filename_in}-training_set-{self.n_spectra}_spectra{self.suffix}.pickle')
         if not filename.endswith('.pickle'):
             filename += '.pickle'
 
@@ -158,8 +177,6 @@ class GaussPyTrainingSet(object):
         if self.random_seed is not None:
             random.seed(self.random_seed)
 
-        data = {}
-
         indices = random.sample(range(self.n_available_spectra), self.n_available_spectra)
         # indices = np.array([4506])  # for testing
 
@@ -172,37 +189,9 @@ class GaussPyTrainingSet(object):
         results = gausspyplus.parallel_processing.func_ts(
             self.n_spectra, use_ncpus=self.use_ncpus)
         print('SUCCESS\n')
-
-        fit_results: Optional[namedtuple]
-
-        for fit_results in results:
-            if fit_results is None:
-                continue
-            # the next four lines are added to deal with the use_all=True feature
-            if fit_results.reduced_chi2_value is None:
-                continue
-            if not self.save_all and (fit_results.reduced_chi2_value > self.rchi2_limit):
-                continue
-
-            if self.amp_threshold is not None and max(fit_results.amplitude_values) < self.amp_threshold:
-                continue
-
-            data['data_list'] = data.get('data_list', []) + [fit_results.intensity_values]
-            if self.header:
-                data['location'] = data.get('location', []) + [fit_results.position_yx]
-            data['index'] = data.get('index', []) + [fit_results.index]
-            # TODO: Change rms from list of list to single value
-            data['error'] = data.get('error', []) + [[fit_results.rms_noise]]
-            data['best_fit_rchi2'] = data.get('best_fit_rchi2', []) + [fit_results.reduced_chi2_value]
-            data['amplitudes'] = data.get('amplitudes', []) + [fit_results.amplitude_values]
-            data['fwhms'] = data.get('fwhms', []) + [fit_results.fwhm_values]
-            data['means'] = data.get('means', []) + [fit_results.mean_values]
-            data['signal_ranges'] = data.get('signal_ranges', []) + [fit_results.signal_intervals]
-        data['x_values'] = self.channels
-        if self.header:
-            data['header'] = self.header
-
-        self._save_result(data)
+        
+        training_set = self._prepare_training_set([result for result in results if result is not None])
+        self._save_as_pickled_file(training_set)
 
     def _get_spectrum(self, index):
         if self.input_file_type == '.fits':
@@ -232,7 +221,7 @@ class GaussPyTrainingSet(object):
         if np.isnan(rms_noise):
             return None
 
-        # We cannot deal with NaN values in the spectrum, so we replace them with random values samples from the noise
+        # We cannot deal with NaN values in the spectrum, so we replace them with random values sampled from the noise
         nans = np.isnan(spectrum)
         spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms_noise
 
@@ -266,7 +255,9 @@ class GaussPyTrainingSet(object):
                                                           mask=mask_signal)
         # TODO: change the rchi2_limit value??
         # TODO: if self.use_all is True then fit_values needs to be None instead of []
-        if (fit_values and (rchi2 < self.rchi2_limit)) or self.use_all:
+        if self.use_all or (fit_values and
+                            rchi2 < self.rchi2_limit and
+                            max(amplitude_values) > self.threshold_amplitude):
             return FitResults(amplitude_values=amplitude_values,
                               mean_values=mean_values,
                               fwhm_values=fwhm_values,
