@@ -19,9 +19,6 @@ from scipy.ndimage.filters import median_filter, convolve
 
 from .gp_plus import try_to_improve_fitting, goodness_of_fit
 
-# Python Regularized derivatives
-from . import tvdiff
-
 
 def vals_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter values from LMFIT Parameters object."""
@@ -141,13 +138,7 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
 
     # Take regularized derivatives
     t0 = time.time()
-    if mode == 'python':
-        say('Taking python derivatives...', verbose)
-        u = tvdiff.TVdiff(data, dx=dv, alph=alpha)
-        u2 = tvdiff.TVdiff(u,    dx=dv, alph=alpha)
-        u3 = tvdiff.TVdiff(u2,   dx=dv, alph=alpha)
-        u4 = tvdiff.TVdiff(u3,   dx=dv, alph=alpha)
-    elif mode == 'conv':
+    if mode == 'conv':
         say(f'Convolution sigma [pixels]: {alpha}', verbose)
         gauss_sigma = alpha
         gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
