@@ -111,6 +111,10 @@ class GaussPyPrepare(object):
                 if self.testing else self.input_object.data)
 
     @functools.cached_property
+    def locations(self):
+        return list(itertools.product(range(self.data.shape[1]), range(self.data.shape[2])))
+
+    @functools.cached_property
     def header(self):
         return self.input_object.header
 
@@ -142,7 +146,7 @@ class GaussPyPrepare(object):
         self.log_output = False
         self.check_settings()
 
-        result = self.calculate_rms_noise(location=[0, 0], idx=0)
+        result = self.calculate_rms_noise(index=0)
         idx, spectrum, location, rms, signal_ranges, noise_spike_ranges = result
 
         return {
@@ -181,13 +185,6 @@ class GaussPyPrepare(object):
         data = {}
         channels = np.arange(self.data.shape[0])
 
-        if self.testing:
-            locations = [(0, 0)]
-        else:
-            yMax = self.data.shape[1]
-            xMax = self.data.shape[2]
-            locations = list(itertools.product(range(yMax), range(xMax)))
-
         data['header'] = self.header
         # TODO: Info about NaNs can be safed more efficient -> but where is this used? Make sure to change it everywhere
         data['nan_mask'] = np.isnan(self.data)
@@ -199,12 +196,11 @@ class GaussPyPrepare(object):
         data['signal_ranges'], data['noise_spike_ranges'] = ([] for _ in range(2))
 
         import gausspyplus.parallel_processing
-        gausspyplus.parallel_processing.init([locations, [self]])
+        # TODO: The first argument len(self.locations) is needed to later on use the same code as for training_set.py
+        gausspyplus.parallel_processing.init([len(self.locations), [self]])
 
-        results_list = gausspyplus.parallel_processing.func(
-            use_ncpus=self.use_ncpus,
-            function='gpy_noise')
-
+        results_list = gausspyplus.parallel_processing.func(use_ncpus=self.use_ncpus,
+                                                            function='gpy_noise')
         print('SUCCESS\n')
 
         # TODO: this is just needed for the noise map -> create this later?
@@ -222,16 +218,16 @@ class GaussPyPrepare(object):
 
             if not np.isnan(error):
                 # TODO: return spectrum = None if spectrum wasn't part nans
-                # and changes with randomly rms sampled values
-                # then add condition if spectrum is None for next line
-                # data['data_list'].append(self.data[:, ypos, xpos])
+                #  and changes with randomly rms sampled values
+                #  then add condition if spectrum is None for next line
+                #  data['data_list'].append(self.data[:, ypos, xpos])
                 data['data_list'].append(spectrum)
                 data['error'].append([error])
                 data['signal_ranges'].append(signal_ranges)
                 data['noise_spike_ranges'].append(noise_spike_ranges)
             else:
                 # TODO: rework that so that list is initialized with None values
-                # and this condition is obsolete?
+                #  and this condition is obsolete?
                 data['data_list'].append(None)
                 data['error'].append([None])
                 # if self.signal_mask:
@@ -252,10 +248,17 @@ class GaussPyPrepare(object):
             pickle.dump(data, open(path_to_file, 'wb'), protocol=2)
             print("\033[92mFor GaussPyDecompose:\033[0m 'path_to_pickle_file' = '{}'".format(path_to_file))
 
-    def _get_rms_noise(self, index, spectrum, location):
+    def _get_spectrum(self, index):
+        y_position, x_position = self.locations[index]
+        spectrum = self.data[:, y_position, x_position].copy()
+        if self.mask_out_ranges:
+            nan_mask = mask_channels(self.n_channels, self.mask_out_ranges)
+            spectrum[nan_mask] = np.nan
+        return spectrum
+
+    def _get_rms_noise(self, index, spectrum):
         if self.noise_map is not None:
-            # TODO: change location to self.locations[index] as in training_set
-            y_position, x_position = location
+            y_position, x_position = self.locations[index]
             return self.noise_map[y_position, x_position]
         return determine_noise(spectrum=spectrum,
                                max_consecutive_channels=self.max_consecutive_channels,
@@ -282,15 +285,9 @@ class GaussPyPrepare(object):
                                  min_channels=self.min_channels,
                                  remove_intervals=noise_spike_ranges)
 
-    def calculate_rms_noise(self, location, idx):
-        ypos, xpos = location
-        spectrum = self.data[:, ypos, xpos].copy()
-
-        if self.mask_out_ranges:
-            nan_mask = mask_channels(self.n_channels, self.mask_out_ranges)
-            spectrum[nan_mask] = np.nan
-
-        rms = self._get_rms_noise(idx, spectrum, location)
+    def calculate_rms_noise(self, index):
+        spectrum = self._get_spectrum(index)
+        rms = self._get_rms_noise(index, spectrum)
 
         # TODO: does this make sense here?
         #  if spectrum contains nans they will be replaced by noise values randomly sampled from the calculated rms
@@ -301,7 +298,7 @@ class GaussPyPrepare(object):
         noise_spike_ranges = self._get_noise_spike_ranges(spectrum, rms)
         signal_ranges = self._get_signal_ranges(spectrum, rms, noise_spike_ranges)
 
-        return [idx, spectrum, location, rms, signal_ranges, noise_spike_ranges]
+        return [index, spectrum, self.locations[index], rms, signal_ranges, noise_spike_ranges]
 
     def produce_noise_map(self, dtype='float32'):
         comments = ['noise map']
@@ -312,8 +309,8 @@ class GaussPyPrepare(object):
         path_to_file = os.path.join(
             os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
 
-        save_fits(self.errors.astype(dtype), header, path_to_file,
-                  verbose=False)
+        save_fits(self.errors.astype(dtype), header, path_to_file, verbose=False)
+        #  TODO: put the color coding as an additional keyword in say?
         say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, os.path.dirname(path_to_file)), logger=self.logger)
 

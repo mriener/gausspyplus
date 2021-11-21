@@ -36,7 +36,7 @@ def init_worker_ts():
 def init(mp_info):
     global mp_ilist, mp_data, mp_params
     mp_data, mp_params = mp_info
-    mp_ilist = np.arange(len(mp_data))
+    mp_ilist = np.arange(mp_data if isinstance(mp_data, int) else len(mp_data))
 
 
 def calculate_noise(i):
@@ -58,7 +58,7 @@ def refit_spectrum_2(i):
 
 
 def calculate_noise_gpy(i):
-    result = GaussPyPrepare.calculate_rms_noise(mp_params[0], mp_data[i], i)
+    result = GaussPyPrepare.calculate_rms_noise(mp_params[0], i)
     return result
 
 
