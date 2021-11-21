@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 
 from astropy.io import fits
-from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.definitions import PreparedSpectrum
 from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
 from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say
@@ -123,6 +123,10 @@ class GaussPyPrepare(object):
         return self.data.shape[0]
 
     @functools.cached_property
+    def channels(self):
+        return np.arange(self.n_channels)
+
+    @functools.cached_property
     def max_consecutive_channels(self):
         return determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
 
@@ -146,19 +150,17 @@ class GaussPyPrepare(object):
         self.log_output = False
         self.check_settings()
 
-        result = self.calculate_rms_noise(index=0)
-        idx, spectrum, location, rms, signal_ranges, noise_spike_ranges = result
-
+        spectrum = self.calculate_rms_noise(index=0)
         return {
             'header': self.header,
             'nan_mask': np.isnan(self.data),
-            'x_values': np.arange(self.data.shape[0]),
-            'data_list': [spectrum],
-            'error': [[rms]],
-            'index': [idx],
-            'location': [location],
-            'signal_ranges': [signal_ranges],
-            'noise_spike_ranges': [noise_spike_ranges],
+            'x_values': self.channels,
+            'data_list': [spectrum.intensity_values],
+            'error': [[spectrum.rms_noise]],
+            'index': [spectrum.index],
+            'location': [spectrum.position_yx],
+            'signal_ranges': [spectrum.signal_intervals],
+            'noise_spike_ranges': [spectrum.noise_spike_intervals],
         }
 
     def prepare_cube(self):
@@ -176,24 +178,36 @@ class GaussPyPrepare(object):
                                                        max_consecutive_channels=self.max_consecutive_channels)
         say(f'>> calculated rms value of {self.average_rms:.3f} from data', logger=self.logger)
 
+    def _prepare_output(self, results):
+        return {'data_list': [spectrum.intensity_values for spectrum in results],
+                'location': [spectrum.position_yx for spectrum in results],
+                'index': [spectrum.index for spectrum in results],
+                # TODO: Change rms from list of list to single value
+                'error': [[spectrum.rms_noise] for spectrum in results],
+                'signal_ranges': [spectrum.signal_intervals for spectrum in results],
+                'noise_spike_ranges': [spectrum.noise_spike_intervals for spectrum in results],
+                # TODO: Info about NaNs can be safed more efficient -> but where is this used? Make sure to change it
+                #  everywhere
+                'nan_mask': np.isnan(self.data),
+                'x_values': self.channels,
+                'header': self.header,
+                # TODO: does the following lead to problems?
+                'testing': self.testing,
+                }
+
+    def _save_as_pickled_file(self, results):
+        say("\npickle dump dictionary...", logger=self.logger)
+        suffix = f'_test_Y{self.data_location[0]}X{self.data_location[1]}' if self.testing else self.suffix
+        path_to_file = self.dirpath_pickle / f'{self.filename_in}'
+        with open(f'{path_to_file}{suffix}.pickle', 'wb') as file:
+            pickle.dump(results, file, protocol=2)
+        print("\033[92mFor GaussPyDecompose:\033[0m 'path_to_pickle_file' = '{}'".format(path_to_file))
+
     def prepare_gausspy_pickle(self):
         say('\npreparing GaussPy cube...', logger=self.logger)
 
         if not self.simulation and not self.testing and self.path_to_noise_map is None and self.average_rms is None:
             self.calculate_average_rms_from_data()
-
-        data = {}
-        channels = np.arange(self.data.shape[0])
-
-        data['header'] = self.header
-        # TODO: Info about NaNs can be safed more efficient -> but where is this used? Make sure to change it everywhere
-        data['nan_mask'] = np.isnan(self.data)
-        data['x_values'] = channels
-        data['data_list'], data['error'], data['index'], data['location'] = (
-            [] for _ in range(4))
-
-        # if self.signal_mask:
-        data['signal_ranges'], data['noise_spike_ranges'] = ([] for _ in range(2))
 
         import gausspyplus.parallel_processing
         # TODO: The first argument len(self.locations) is needed to later on use the same code as for training_set.py
@@ -203,50 +217,21 @@ class GaussPyPrepare(object):
                                                             function='gpy_noise')
         print('SUCCESS\n')
 
+        problems = ((index, item) for index, item in enumerate(results_list) if not isinstance(item, PreparedSpectrum))
+        for index, error_message in problems:
+            print(f"The following problem occurred while preparing spectrum with {index=}: {error_message}")
+
+        results = self._prepare_output([result for result in results_list if isinstance(result, PreparedSpectrum)])
+
         # TODO: this is just needed for the noise map -> create this later?
         self.errors = np.empty((self.data.shape[1], self.data.shape[2]))
-
-        for i, item in tqdm(enumerate(results_list)):
-            if not isinstance(item, list):
-                print(i, item)
-                continue
-            idx, spectrum, (ypos, xpos), error, signal_ranges, noise_spike_ranges =\
-                item
-            self.errors[ypos, xpos] = error
-            data['index'].append(idx)
-            data['location'].append((ypos, xpos))
-
-            if not np.isnan(error):
-                # TODO: return spectrum = None if spectrum wasn't part nans
-                #  and changes with randomly rms sampled values
-                #  then add condition if spectrum is None for next line
-                #  data['data_list'].append(self.data[:, ypos, xpos])
-                data['data_list'].append(spectrum)
-                data['error'].append([error])
-                data['signal_ranges'].append(signal_ranges)
-                data['noise_spike_ranges'].append(noise_spike_ranges)
-            else:
-                # TODO: rework that so that list is initialized with None values
-                #  and this condition is obsolete?
-                data['data_list'].append(None)
-                data['error'].append([None])
-                # if self.signal_mask:
-                data['signal_ranges'].append(None)
-                data['noise_spike_ranges'].append(None)
-
-        if self.testing:
-            suffix = f'_test_Y{self.data_location[0]}X{self.data_location[1]}'
-            data['testing'] = self.testing
-        else:
-            suffix = self.suffix
-
-        say("\npickle dump dictionary...", logger=self.logger)
+        y_positions = [loc[0] for loc in results['location']]
+        x_positions = [loc[1] for loc in results['location']]
+        rms_values = [rms[0] for rms in results['error']]
+        self.errors[y_positions, x_positions] = rms_values
 
         if self.gausspy_pickle:
-            path_to_file = os.path.join(
-                self.dirpath_pickle, f'{self.filename_in}{suffix}.pickle')
-            pickle.dump(data, open(path_to_file, 'wb'), protocol=2)
-            print("\033[92mFor GaussPyDecompose:\033[0m 'path_to_pickle_file' = '{}'".format(path_to_file))
+            self._save_as_pickled_file(results)
 
     def _get_spectrum(self, index):
         y_position, x_position = self.locations[index]
@@ -298,7 +283,12 @@ class GaussPyPrepare(object):
         noise_spike_ranges = self._get_noise_spike_ranges(spectrum, rms)
         signal_ranges = self._get_signal_ranges(spectrum, rms, noise_spike_ranges)
 
-        return [index, spectrum, self.locations[index], rms, signal_ranges, noise_spike_ranges]
+        return PreparedSpectrum(intensity_values=(None if np.isnan(rms) else spectrum),
+                                position_yx=self.locations[index],
+                                rms_noise=(None if np.isnan(rms) else rms),
+                                signal_intervals=signal_ranges,
+                                noise_spike_intervals=noise_spike_ranges,
+                                index=index)
 
     def produce_noise_map(self, dtype='float32'):
         comments = ['noise map']
