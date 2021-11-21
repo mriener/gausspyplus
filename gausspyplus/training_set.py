@@ -195,7 +195,8 @@ class GaussPyTrainingSet(object):
         return determine_noise(spectrum=spectrum,
                                max_consecutive_channels=self.max_consecutive_channels,
                                pad_channels=self.pad_channels,
-                               idx=index)
+                               idx=index,
+                               average_rms=None)
 
     def decompose(self, index, i):
         # TODO: is the variable i needed here?
