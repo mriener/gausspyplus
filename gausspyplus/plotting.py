@@ -1,14 +1,10 @@
-# @Author: riener
-# @Date:   2018-12-19T17:26:54+01:00
-# @Filename: plotting.py
-# @Last modified by:   riener
-# @Last modified time: 09-04-2019
-
 import itertools
 import os
 import pickle
 import random
 import sys
+from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -22,6 +18,7 @@ from tqdm import tqdm
 
 from gausspyplus.utils.gaussian_functions import gaussian, combined_gaussian
 from gausspyplus.utils.spectral_cube_functions import get_spectral_axis, correct_header
+from gausspyplus.definitions import Spectrum
 
 
 def get_points_for_colormap(vmin, vmax, central_val=0.):
@@ -38,10 +35,10 @@ def get_points_for_colormap(vmin, vmax, central_val=0.):
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
-    '''
-    Function to offset the "center" of a colormap. Useful for
-    data with a negative min and positive max and you want the
-    middle of the colormap's dynamic range to be at zero.
+    """Function to offset the "center" of a colormap.
+
+    Useful for data with a negative min and positive max and you want the middle of the colormap's dynamic range to
+    be at zero.
 
     Input
     -----
@@ -58,7 +55,7 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
       stop : Offset from highest point in the colormap's range.
           Defaults to 1.0 (no upper offset). Should be between
           `midpoint` and 1.0.
-    '''
+    """
     cdict = {
         'red': [],
         'green': [],
@@ -89,74 +86,82 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
     return newcmap
 
 
-def pickle_load_file(pathToFile):
+# TODO: Use this also elsewhere and not only in this module?
+def _pickle_load_file(pathToFile):
     with open(os.path.join(pathToFile), "rb") as pickle_file:
-        if (sys.version_info > (3, 0)):
-            data = pickle.load(pickle_file, encoding='latin1')
+        if sys.version_info > (3, 0):
+            return pickle.load(pickle_file, encoding='latin1')
         else:
-            data = pickle.load(pickle_file)
-    return data
+            return pickle.load(pickle_file)
 
 
-def get_list_indices(data, subcube=False, pixel_range=None,
-                     list_indices=None, n_spectra=None, random_seed=111):
+def _get_x_positions_from_pixel_range(pixel_range: dict) -> np.ndarray:
+    xmin, xmax = pixel_range['x']
+    return np.arange(xmin, xmax + 1)
+
+
+def _get_y_positions_from_pixel_range(pixel_range: dict) -> np.ndarray:
+    ymin, ymax = pixel_range['y']
+    return np.arange(ymin, ymax + 1)[::-1]
+
+
+def _get_x_positions_from_data(data: dict) -> np.ndarray:
+    xmin = min(data['location'], key=lambda pos: pos[1])
+    xmax = max(data['location'], key=lambda pos: pos[1])
+    return np.arange(xmin, xmax + 1)
+
+
+def _get_y_positions_from_data(data: dict) -> np.ndarray:
+    ymin = min(data['location'], key=lambda pos: pos[0])
+    ymax = max(data['location'], key=lambda pos: pos[0])
+    return np.arange(ymin, ymax + 1)[::-1]
+
+
+def _get_grid_layout(data, subcube=False, pixel_range=None):
+    if not subcube or (pixel_range is None):
+        return None
+    x_positions = _get_x_positions_from_data(data) if subcube else _get_x_positions_from_pixel_range(pixel_range)
+    y_positions = _get_y_positions_from_data(data) if subcube else _get_y_positions_from_pixel_range(pixel_range)
+    n_cols = len(x_positions)
+    n_rows = len(y_positions)
+    return [n_cols, n_rows]
+
+
+def _data_contains_only_nans(data, index):
+    if 'nan_mask' not in data.keys():
+        return False
+    y_pos, x_pos = data['location'][index]
+    return data['nan_mask'][:, y_pos, x_pos].all()
+
+
+def _get_list_indices(data: dict,
+                      subcube=False,
+                      pixel_range: Optional[dict] = None,
+                      list_indices: Optional[list] = None,
+                      n_spectra: Optional[int] = None,
+                      random_seed: int = 111) -> list[int]:
     random.seed(random_seed)
     # TODO: incorporate the nan_mask in this scheme
-    grid_layout = None
     if subcube or (pixel_range is not None):
-        if pixel_range is not None:
-            xmin, xmax = pixel_range['x']
-            ymin, ymax = pixel_range['y']
-        else:
-            ymin, xmin = min(data['location'])
-            ymax, xmax = max(data['location'])
-        yValues = np.arange(ymin, ymax + 1)[::-1]
-        xValues = np.arange(xmin, xmax + 1)
-        locations = list(itertools.product(yValues, xValues))
-        cols = len(xValues)
-        rows = len(yValues)
-        grid_layout = [cols, rows]
-        n_spectra = cols*rows
-
+        x_positions = _get_x_positions_from_data(data) if subcube else _get_x_positions_from_pixel_range(pixel_range)
+        y_positions = _get_y_positions_from_data(data) if subcube else _get_y_positions_from_pixel_range(pixel_range)
+        list_indices = [data['location'].index(location) for location in itertools.product(y_positions, x_positions)]
+    elif (list_indices is None) and (n_spectra is not None):
         list_indices = []
-        for location in locations:
-            list_indices.append(data['location'].index(location))
+        indices = list(range(len(data['data_list'])))
+        for index in random.sample(indices, len(indices)):
+            if not _data_contains_only_nans(data, index):
+                list_indices.append(index)
+                if len(list_indices) == n_spectra:
+                    break
     elif list_indices is None:
-        if n_spectra is None:
-            n_spectra = len(data['data_list'])
-            list_indices = np.arange(n_spectra)
-        else:
-            list_indices = []
-            nIndices = len(data['data_list'])
-            randomIndices = random.sample(range(nIndices), nIndices)
-            for idx in randomIndices:
-                if 'nan_mask' in data.keys():
-                    yi, xi = data['location'][idx]
-                    if data['nan_mask'][:, yi, xi].all() != True:
-                        list_indices.append(idx)
-                        if len(list_indices) == n_spectra:
-                            break
-                else:
-                    list_indices.append(idx)
-                    if len(list_indices) == n_spectra:
-                        break
-    else:
-        n_spectra = len(list_indices)
-
-    list_indices = [i for i in list_indices if data['data_list'][i] is not None]
-    n_spectra = len(list_indices)
-
-    return list_indices, n_spectra, grid_layout
+        list_indices = np.arange(len(data['data_list']))
+    return [i for i in list_indices if data['data_list'][i] is not None]
 
 
-def get_figure_params(n_channels, n_spectra, cols, rowsize, rowbreak,
-                      grid_layout, subcube=False):
-    if n_channels > 700:
-        colsize = round(rowsize*n_channels/659, 2)
-    else:
-        colsize = rowsize
-
-    # if subcube is False:
+def _get_figure_params(n_channels, n_spectra, cols, rowsize, rowbreak,
+                      grid_layout):
+    colsize = round(rowsize*n_channels/659, 2) if n_channels > 700 else rowsize
     if grid_layout is None:
         rows = int(n_spectra / (cols))
         if n_spectra % cols != 0:
@@ -179,39 +184,24 @@ def get_figure_params(n_channels, n_spectra, cols, rowsize, rowbreak,
     return cols, rows, rowbreak, colsize, multiple_pdfs
 
 
-def xlabel_from_header(header, vel_unit):
-    xlabel = 'Channels'
-
-    if header is None:
-        return xlabel
-
-    if 'CTYPE3' in header.keys():
-        xlabel = f"{header['CTYPE3']} [{vel_unit}]"
-
-    return xlabel
+def _xlabel_from_header(header, vel_unit):
+    return 'Channels' if header is None or 'CTYPE3' not in header.keys() else f"{header['CTYPE3']} [{vel_unit}]"
 
 
-def ylabel_from_header(header):
+def _ylabel_from_header(header):
     if header is None:
         return 'Intensity'
-
-    btype = 'Intensity'
-    if 'BTYPE' in header.keys():
-        btype = header['BTYPE']
-
-    bunit = ''
-    if 'BUNIT' in header.keys():
-        bunit = f" [{header['BUNIT']}]"
-
+    btype = header['BTYPE'] if 'BTYPE' in header.keys() else 'Intensity'
+    bunit = f" [{header['BUNIT']}]" if 'BUNIT' in header.keys() else ''
     return btype + bunit
 
 
-def add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
+def add_figure_properties(ax, rms, x_min, x_max,
                           header=None, residual=False, fontsize=10, vel_unit=u.km/u.s):
     # TODO: read labels automatically from header
-    ax.set_xlim(fig_min_channel, fig_max_channel)
-    ax.set_xlabel(xlabel_from_header(header, vel_unit), fontsize=fontsize)
-    ax.set_ylabel(ylabel_from_header(header), fontsize=fontsize)
+    ax.set_xlim(x_min, x_max)
+    ax.set_xlabel(_xlabel_from_header(header, vel_unit), fontsize=fontsize)
+    ax.set_ylabel(_ylabel_from_header(header), fontsize=fontsize)
 
     ax.tick_params(labelsize=fontsize - 2)
 
@@ -225,52 +215,74 @@ def add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
         ax.set_title('Residual', fontsize=fontsize)
 
 
-def plot_signal_ranges(ax, data, idx, fig_channels):
-    if 'signal_ranges' in data.keys():
-        for low, upp in data['signal_ranges'][idx]:
+def _plot_signal_ranges(ax, spectrum, fig_channels, signal_ranges):
+    if signal_ranges and spectrum.signal_intervals is not None:
+        for low, upp in spectrum.signal_intervals:
             ax.axvspan(fig_channels[low], fig_channels[upp - 1], alpha=0.1, color='indianred')
 
 
-def get_title_string(idx, index_data, xi, yi, ncomps, rchi2, rchi2gauss, pvalue):
-    idx_string = ''
-    if index_data is not None:
-        if index_data != idx:
-            idx_string = f' (Idx$_{{data}}$={index_data})'
-
-    loc_string = ''
-    if xi is not None:
-        loc_string = f', X={xi}, Y={yi}'
-
-    ncomps_string = ''
-    if ncomps is not None:
-        ncomps_string = f', N$_{{comp}}$={ncomps}'
-
-    rchi2_string = ''
-    if rchi2 is not None:
-        rchi2_string = f', $\\chi_{{red}}^{{2}}$={rchi2:.3f}'
-
-    rchi2gauss_string = ''
-    if rchi2gauss is not None:
-        rchi2gauss_string = f', $\\chi_{{red, gauss}}^{{2}}$={rchi2gauss:.3f}'
-
-    pvalue_string = ''
-    # if pvalue is not None:
-    #     pvalue_string = ', $p_{{value}}$={:.3f}'.format(
-    #         pvalue)
-
-    title = 'Idx={}{}{}{}{}{}{}'.format(
-        idx, idx_string, loc_string, ncomps_string, rchi2_string,
-        rchi2gauss_string, pvalue_string)
-    return title
+def _get_title(spectrum, idx):
+    idx_string = ('' if spectrum.index is None or spectrum.index == idx
+                  else f' (Idx$_{{data}}$={spectrum.index})')
+    y_pos, x_pos = spectrum.position_yx
+    loc_string = ('' if y_pos is None
+                  else f', X={x_pos}, Y={y_pos}')
+    ncomps_string = ('' if spectrum.n_fit_components is None
+                     else f', N$_{{comp}}$={spectrum.n_fit_components}')
+    rchi2_string = ('' if spectrum.reduced_chi2_value is None
+                    else f', $\\chi_{{red}}^{{2}}$={spectrum.reduced_chi2_value:.3f}')
+    return f'Idx={idx}{idx_string}{loc_string}{ncomps_string}{rchi2_string}'
 
 
-def scale_fontsize(rowsize):
-    rowsize_scale = 4
-    if rowsize >= rowsize_scale:
-        fontsize = 10 + int(rowsize - rowsize_scale)
-    else:
-        fontsize = 10 - int(rowsize - rowsize_scale)
-    return fontsize
+def _scale_fontsize(rowsize, rowsize_scale=4):
+    return (
+        10 + int(rowsize - rowsize_scale)
+        if rowsize >= rowsize_scale
+        else 10 - int(rowsize - rowsize_scale)
+    )
+
+
+def _get_path_to_plots(pathToDataPickle, path_to_decomp_pickle):
+    return Path(pathToDataPickle).parent if path_to_decomp_pickle is None else Path(path_to_decomp_pickle).parent
+
+
+def _get_spectrum(data, idx):
+    return Spectrum(
+        index=data['index'][idx] if 'index' in data.keys() else None,
+        intensity_values=data['data_list'][idx],
+        position_yx=(data['location'][idx] if 'location' in data.keys() else (None, None)),
+        rms_noise=data['error'][idx][0],
+        signal_intervals=(data['signal_ranges'][idx] if 'signal_ranges' in data.keys() else None),
+        noise_spike_intervals=(data['noise_spike_intervals'][idx] if 'noise_spike_intervals' in data.keys() else None),
+    )
+
+
+def _update_spectrum_with_fit_results_from_decomposition(spectrum: Spectrum, decomp, idx):
+    return spectrum._replace(
+        n_fit_components=len(decomp['amplitudes_fit'][idx]),
+        amplitude_values=decomp['amplitudes_fit'][idx],
+        mean_values=decomp['means_fit'][idx],
+        fwhm_values=decomp['fwhms_fit'][idx],
+        reduced_chi2_value=decomp['best_fit_rchi2'][idx]
+    )
+
+
+def _update_spectrum_with_fit_results_from_training_set(spectrum: Spectrum, data, idx):
+    return spectrum._replace(
+        n_fit_components=len(data['amplitudes'][idx]),
+        amplitude_values=data['amplitudes'][idx],
+        mean_values=data['means'][idx],
+        fwhm_values=data['fwhms'][idx],
+        reduced_chi2_value=data['best_fit_rchi2'][idx]
+    )
+
+
+def _plot_individual_components(ax, fig_channels, channels, spectrum, gaussians):
+    if not gaussians:
+        return
+    for amp, fwhm, mean in zip(spectrum.amplitude_values, spectrum.fwhm_values, spectrum.mean_values):
+        gauss = gaussian(amp, fwhm, mean, channels)
+        ax.plot(fig_channels, gauss, ls='solid', lw=1, color='orangered')
 
 
 def plot_spectra(pathToDataPickle,
@@ -281,43 +293,43 @@ def plot_spectra(pathToDataPickle,
                  signal_ranges=True, random_seed=111, vel_unit=u.km/u.s):
 
     print("\nPlotting...")
-
-    if path_to_plots is None:
-        if path_to_decomp_pickle is None:
-            path_to_plots = os.path.dirname(pathToDataPickle)
-        else:
-            path_to_plots = os.path.dirname(path_to_decomp_pickle)
-
-    decomposition = True
-    if path_to_decomp_pickle is None:
-        decomposition = False
+    
+    path_to_plots = path_to_plots if path_to_plots is not None else _get_path_to_plots(pathToDataPickle,
+                                                                                       path_to_decomp_pickle)
 
     fileName, file_extension = os.path.splitext(os.path.basename(pathToDataPickle))
 
-    data = pickle_load_file(pathToDataPickle)
-    if (not training_set) and decomposition:
-        decomp = pickle_load_file(path_to_decomp_pickle)
+    data = _pickle_load_file(pathToDataPickle)
+    if (not training_set) and path_to_decomp_pickle is not None:
+        decomp = _pickle_load_file(path_to_decomp_pickle)
         fileName, file_extension = os.path.splitext(
             os.path.basename(path_to_decomp_pickle))
 
-    channels, fig_channels = (data['x_values'] for _ in range(2))
+    channels = data['x_values']
     n_channels = len(channels)
-    fig_min_channel, fig_max_channel = fig_channels[0], fig_channels[-1]
 
     if 'header' in data.keys():
         header = correct_header(data['header'])
         fig_channels = get_spectral_axis(header=header, to_unit=vel_unit)
-        fig_min_channel, fig_max_channel = fig_channels[0], fig_channels[-1]
     else:
         header = None
+        fig_channels = channels
 
-    list_indices, n_spectra, grid_layout = get_list_indices(
-        data, subcube=subcube, pixel_range=pixel_range, list_indices=list_indices, n_spectra=n_spectra, random_seed=random_seed)
+    x_min, x_max = fig_channels[0], fig_channels[-1]
 
-    cols, rows, rowbreak, colsize, multiple_pdfs = get_figure_params(
-        n_channels, n_spectra, cols, rowsize, rowbreak, grid_layout, subcube=subcube)
+    grid_layout = _get_grid_layout(data, subcube=subcube, pixel_range=pixel_range)
+    list_indices = _get_list_indices(data,
+                                     subcube=subcube,
+                                     pixel_range=pixel_range,
+                                     list_indices=list_indices,
+                                     n_spectra=n_spectra,
+                                     random_seed=random_seed)
+    n_spectra = len(list_indices)
 
-    fontsize = scale_fontsize(rowsize)
+    cols, rows, rowbreak, colsize, multiple_pdfs = _get_figure_params(
+        n_channels, n_spectra, cols, rowsize, rowbreak, grid_layout)
+
+    fontsize = _scale_fontsize(rowsize)
 
     figsize = (cols*colsize, rowbreak*rowsize)
     fig = plt.figure(figsize=figsize)
@@ -330,90 +342,53 @@ def plot_spectra(pathToDataPickle,
 
     for i, idx in enumerate(list_indices):
         pbar.update(1)
-        if 'location' in data.keys():
-            yi, xi = data['location'][idx]
-        else:
-            yi, xi = (None for _ in range(2))
-
-        if 'index' in data.keys():
-            index_data = data['index'][idx]
-        else:
-            index_data = None
 
         if rowbreak is not None:
             k = int(i / (rowbreak*cols))
-            if (k + 1)*rowbreak > rows:
-                rows_in_figure = rows - k*rowbreak
-            else:
-                rows_in_figure = rowbreak
-
-        y = data['data_list'][idx]
-        rms = data['error'][idx][0]
-
-        if training_set:
-            fit_fwhms = data['fwhms'][idx]
-            fit_means = data['means'][idx]
-            fit_amps = data['amplitudes'][idx]
-        elif decomposition:
-            fit_fwhms = decomp['fwhms_fit'][idx]
-            fit_means = decomp['means_fit'][idx]
-            fit_amps = decomp['amplitudes_fit'][idx]
+            rows_in_figure = rows - k*rowbreak if (k + 1)*rowbreak > rows else rowbreak
+        spectrum = _get_spectrum(data, idx)
 
         row_i = int((i - (k*rowbreak*cols)) / cols)*3
         col_i = i % cols
         ax = plt.subplot2grid((3*rows_in_figure, cols),
                               (row_i, col_i), rowspan=2)
 
-        ax.step(fig_channels, y, color='black', lw=0.5, where='mid')
+        ax.step(fig_channels, spectrum.intensity_values, color='black', lw=0.5, where='mid')
 
-        ncomps, rchi2, rchi2gauss, pvalue = None, None, None, None
+        if path_to_decomp_pickle is not None or training_set:
+            # TODO: homogenize this, so the same keys are used for training_set and decomp
+            #  Currently training_set uses 'fwhms', 'means' and 'amplitudes' but decomposition uses
+            #  'fwhms_fit', 'means_fit', and 'amplitudes_fit'
+            if path_to_decomp_pickle is not None:
+                spectrum = _update_spectrum_with_fit_results_from_decomposition(spectrum, decomp, idx)
+            else:
+                spectrum = _update_spectrum_with_fit_results_from_training_set(spectrum, data, idx)
 
-        if decomposition or training_set:
-            combined_gauss = combined_gaussian(
-                fit_amps, fit_fwhms, fit_means, channels)
+            combined_gauss = combined_gaussian(amps=spectrum.amplitude_values,
+                                               fwhms=spectrum.fwhm_values,
+                                               means=spectrum.mean_values,
+                                               x=channels)
             ax.plot(fig_channels, combined_gauss, lw=2, color='orangered')
 
-            ncomps = len(fit_amps)
+            _plot_individual_components(ax, fig_channels, channels, spectrum, gaussians)
 
-            # Plot individual components
-            if gaussians:
-                for j in range(ncomps):
-                    gauss = gaussian(
-                        fit_amps[j], fit_fwhms[j], fit_means[j], channels)
-                    ax.plot(fig_channels, gauss, ls='solid', lw=1, color='orangered')
+        _plot_signal_ranges(ax, spectrum, fig_channels, signal_ranges)
 
-        if training_set:
-            rchi2 = data['best_fit_rchi2'][idx]
-            if 'pvalue' in data.keys():
-                pvalue = data['pvalue'][idx]
+        ax.set_title(_get_title(spectrum, idx), fontsize=fontsize)
 
-        elif decomposition:
-            rchi2 = decomp['best_fit_rchi2'][idx]
-
-        if signal_ranges:
-            plot_signal_ranges(ax, data, idx, fig_channels)
-
-        rchi2gauss = None
-        # TODO: incorporate rchi2_gauss
-
-        title = get_title_string(idx, index_data, xi, yi, ncomps,
-                                 rchi2, rchi2gauss, pvalue)
-        ax.set_title(title, fontsize=fontsize)
-
-        add_figure_properties(ax, rms, fig_min_channel, fig_max_channel,
+        add_figure_properties(ax, spectrum.rms_noise, x_min, x_max,
                               header=header, fontsize=fontsize, vel_unit=vel_unit)
 
-        if residual and (decomposition or training_set):
+        if residual and (path_to_decomp_pickle is not None or training_set):
             row_i = int((i - k*(rowbreak*cols)) / cols)*3 + 2
             col_i = i % cols
             ax = plt.subplot2grid((3*rows_in_figure, cols),
                                   (row_i, col_i))
 
-            ax.step(fig_channels, y - combined_gauss, color='black', lw=0.5, where='mid')
-            if signal_ranges:
-                plot_signal_ranges(ax, data, idx, fig_channels)
+            ax.step(fig_channels, spectrum.intensity_values - combined_gauss, color='black', lw=0.5, where='mid')
+            _plot_signal_ranges(ax, spectrum, fig_channels, signal_ranges)
 
-            add_figure_properties(ax, rms, fig_min_channel, fig_max_channel, header=header,
+            add_figure_properties(ax, spectrum.rms_noise, x_min, x_max, header=header,
                                   residual=True, fontsize=fontsize, vel_unit=vel_unit)
 
         if ((i + 1) % (rowbreak*cols) == 0) or ((i + 1) == n_spectra):
