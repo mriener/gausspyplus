@@ -273,7 +273,7 @@ def scale_fontsize(rowsize):
     return fontsize
 
 
-def plot_spectra(pathToDataPickle, *args,
+def plot_spectra(pathToDataPickle,
                  path_to_plots=None, path_to_decomp_pickle=None,
                  training_set=False, cols=5, rowsize=7.75, rowbreak=50, dpi=50,
                  n_spectra=None, suffix='', subcube=False, pixel_range=None,
@@ -281,10 +281,6 @@ def plot_spectra(pathToDataPickle, *args,
                  signal_ranges=True, random_seed=111, vel_unit=u.km/u.s):
 
     print("\nPlotting...")
-
-    #  for compatibility with older versions
-    if args:
-        path_to_plots = args[0]
 
     if path_to_plots is None:
         if path_to_decomp_pickle is None:
