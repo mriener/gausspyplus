@@ -4,7 +4,7 @@ import pickle
 import random
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 
@@ -159,29 +159,28 @@ def _get_list_indices(data: dict,
     return [i for i in list_indices if data['data_list'][i] is not None]
 
 
-def _get_figure_params(n_channels, n_spectra, cols, rowsize, rowbreak,
-                      grid_layout):
+def _get_figure_params(n_channels, n_spectra, n_cols, rowsize, max_rows_per_figure, grid_layout):
     colsize = round(rowsize*n_channels/659, 2) if n_channels > 700 else rowsize
     if grid_layout is None:
-        rows = int(n_spectra / (cols))
-        if n_spectra % cols != 0:
-            rows += 1
+        n_rows_total = int(n_spectra / (n_cols))
+        if n_spectra % n_cols != 0:
+            n_rows_total += 1
 
         multiple_pdfs = True
-        if rows < rowbreak:
-            rowbreak = rows
+        if n_rows_total < max_rows_per_figure:
+            max_rows_per_figure = n_rows_total
             multiple_pdfs = False
     else:
-        cols, rows = grid_layout
-        rowbreak = rows
+        n_cols, n_rows_total = grid_layout
+        max_rows_per_figure = n_rows_total
         multiple_pdfs = False
 
-    if (rowbreak*rowsize*100 > 2**16) or (cols*colsize*100 > 2**16):
+    if (max_rows_per_figure*rowsize*100 > 2**16) or (n_cols*colsize*100 > 2**16):
         errorMessage = \
             "Image size is too large. It must be less than 2^16 pixels in each direction. Restrict the number of columns or rows."
         raise Exception(errorMessage)
 
-    return cols, rows, rowbreak, colsize, multiple_pdfs
+    return n_cols, n_rows_total, max_rows_per_figure, colsize, multiple_pdfs
 
 
 def _xlabel_from_header(header, vel_unit):
@@ -196,10 +195,10 @@ def _ylabel_from_header(header):
     return btype + bunit
 
 
-def add_figure_properties(ax, rms, x_min, x_max,
+def add_figure_properties(ax, rms, spectral_channels,
                           header=None, residual=False, fontsize=10, vel_unit=u.km/u.s):
     # TODO: read labels automatically from header
-    ax.set_xlim(x_min, x_max)
+    ax.set_xlim(spectral_channels[0], spectral_channels[-1])
     ax.set_xlabel(_xlabel_from_header(header, vel_unit), fontsize=fontsize)
     ax.set_ylabel(_ylabel_from_header(header), fontsize=fontsize)
 
@@ -215,10 +214,10 @@ def add_figure_properties(ax, rms, x_min, x_max,
         ax.set_title('Residual', fontsize=fontsize)
 
 
-def _plot_signal_ranges(ax, spectrum, fig_channels, signal_ranges):
+def _plot_signal_ranges(ax, spectrum, spectral_channels, signal_ranges):
     if signal_ranges and spectrum.signal_intervals is not None:
         for low, upp in spectrum.signal_intervals:
-            ax.axvspan(fig_channels[low], fig_channels[upp - 1], alpha=0.1, color='indianred')
+            ax.axvspan(spectral_channels[low], spectral_channels[upp - 1], alpha=0.1, color='indianred')
 
 
 def _get_title(spectrum, idx):
@@ -277,45 +276,69 @@ def _update_spectrum_with_fit_results_from_training_set(spectrum: Spectrum, data
     )
 
 
-def _plot_individual_components(ax, fig_channels, channels, spectrum, gaussians):
+def _plot_individual_components(ax, spectral_channels, channels, spectrum, gaussians):
     if not gaussians:
         return
     for amp, fwhm, mean in zip(spectrum.amplitude_values, spectrum.fwhm_values, spectrum.mean_values):
         gauss = gaussian(amp, fwhm, mean, channels)
-        ax.plot(fig_channels, gauss, ls='solid', lw=1, color='orangered')
+        ax.plot(spectral_channels, gauss, ls='solid', lw=1, color='orangered')
 
 
-def plot_spectra(pathToDataPickle,
-                 path_to_plots=None, path_to_decomp_pickle=None,
-                 training_set=False, cols=5, rowsize=7.75, rowbreak=50, dpi=50,
-                 n_spectra=None, suffix='', subcube=False, pixel_range=None,
-                 list_indices=None, gaussians=True, residual=True,
-                 signal_ranges=True, random_seed=111, vel_unit=u.km/u.s):
+def _get_ax_for_residual_plot(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure):
+    row_i = int((idx_subplot - count_figures * (max_rows_per_figure * n_cols)) / n_cols) * 3 + 2
+    col_i = idx_subplot % n_cols
+    return plt.subplot2grid((3 * rows_in_figure, n_cols), (row_i, col_i))
+
+
+def _prepare_figure(n_cols, n_rows, colsize, rowsize):
+    fig = plt.figure(figsize=(n_cols * colsize, n_rows * rowsize))
+    fig.patch.set_facecolor('white')
+    fig.patch.set_alpha(1.0)
+    # fig.subplots_adjust(hspace=0.5)
+    return fig
+
+
+def plot_spectra(pathToDataPickle: Union[str, Path],
+                 path_to_plots: Optional[Union[str, Path]] = None,
+                 path_to_decomp_pickle: Optional[Union[str, Path]] = None,
+                 training_set: True = False,
+                 n_cols: float = 5,
+                 rowsize: float = 7.75,
+                 max_rows_per_figure: int = 50,
+                 dpi: int = 50,
+                 n_spectra: Optional[int] = None,
+                 suffix: int = '',
+                 subcube: bool = False,
+                 pixel_range: Optional[dict] = None,
+                 list_indices: Optional[list] = None,
+                 gaussians: bool = True,
+                 residual: bool = True,
+                 signal_ranges: bool = True,
+                 random_seed: int = 111,
+                 vel_unit=u.km/u.s):
 
     print("\nPlotting...")
     
-    path_to_plots = path_to_plots if path_to_plots is not None else _get_path_to_plots(pathToDataPickle,
-                                                                                       path_to_decomp_pickle)
+    path_to_plots = Path(path_to_plots) if path_to_plots is not None else _get_path_to_plots(pathToDataPickle,
+                                                                                             path_to_decomp_pickle)
+    path_to_plots.mkdir(parents=True, exist_ok=True)
 
-    fileName, file_extension = os.path.splitext(os.path.basename(pathToDataPickle))
+    filename = Path(pathToDataPickle).stem
 
     data = _pickle_load_file(pathToDataPickle)
     if (not training_set) and path_to_decomp_pickle is not None:
         decomp = _pickle_load_file(path_to_decomp_pickle)
-        fileName, file_extension = os.path.splitext(
-            os.path.basename(path_to_decomp_pickle))
+        filename = Path(path_to_decomp_pickle).stem
 
     channels = data['x_values']
     n_channels = len(channels)
 
     if 'header' in data.keys():
         header = correct_header(data['header'])
-        fig_channels = get_spectral_axis(header=header, to_unit=vel_unit)
+        spectral_channels = get_spectral_axis(header=header, to_unit=vel_unit)
     else:
         header = None
-        fig_channels = channels
-
-    x_min, x_max = fig_channels[0], fig_channels[-1]
+        spectral_channels = channels
 
     grid_layout = _get_grid_layout(data, subcube=subcube, pixel_range=pixel_range)
     list_indices = _get_list_indices(data,
@@ -326,106 +349,83 @@ def plot_spectra(pathToDataPickle,
                                      random_seed=random_seed)
     n_spectra = len(list_indices)
 
-    cols, rows, rowbreak, colsize, multiple_pdfs = _get_figure_params(
-        n_channels, n_spectra, cols, rowsize, rowbreak, grid_layout)
+    n_cols, n_rows_total, max_rows_per_figure, colsize, multiple_pdfs = _get_figure_params(
+        n_channels, n_spectra, n_cols, rowsize, max_rows_per_figure, grid_layout)
 
     fontsize = _scale_fontsize(rowsize)
 
-    figsize = (cols*colsize, rowbreak*rowsize)
-    fig = plt.figure(figsize=figsize)
-
-    fig.patch.set_facecolor('white')
-    fig.patch.set_alpha(1.0)
-    # fig.subplots_adjust(hspace=0.5)
+    fig = _prepare_figure(n_cols=n_cols,
+                          n_rows=max_rows_per_figure,
+                          colsize=colsize,
+                          rowsize=rowsize)
+    count_figures = 0
+    rows_in_figure = min(n_rows_total, max_rows_per_figure)
 
     pbar = tqdm(total=n_spectra)
 
-    for i, idx in enumerate(list_indices):
-        pbar.update(1)
+    for idx_subplot, idx_data in enumerate(list_indices):
+        spectrum = _get_spectrum(data, idx_data)
 
-        if rowbreak is not None:
-            k = int(i / (rowbreak*cols))
-            rows_in_figure = rows - k*rowbreak if (k + 1)*rowbreak > rows else rowbreak
-        spectrum = _get_spectrum(data, idx)
+        row_i = int((idx_subplot - (count_figures*max_rows_per_figure*n_cols)) / n_cols)*3
+        col_i = idx_subplot % n_cols
+        ax = plt.subplot2grid(shape=(3*rows_in_figure, n_cols), loc=(row_i, col_i), rowspan=2)
 
-        row_i = int((i - (k*rowbreak*cols)) / cols)*3
-        col_i = i % cols
-        ax = plt.subplot2grid((3*rows_in_figure, cols),
-                              (row_i, col_i), rowspan=2)
-
-        ax.step(fig_channels, spectrum.intensity_values, color='black', lw=0.5, where='mid')
+        ax.step(spectral_channels, spectrum.intensity_values, color='black', lw=0.5, where='mid')
 
         if path_to_decomp_pickle is not None or training_set:
             # TODO: homogenize this, so the same keys are used for training_set and decomp
             #  Currently training_set uses 'fwhms', 'means' and 'amplitudes' but decomposition uses
             #  'fwhms_fit', 'means_fit', and 'amplitudes_fit'
             if path_to_decomp_pickle is not None:
-                spectrum = _update_spectrum_with_fit_results_from_decomposition(spectrum, decomp, idx)
+                spectrum = _update_spectrum_with_fit_results_from_decomposition(spectrum, decomp, idx_data)
             else:
-                spectrum = _update_spectrum_with_fit_results_from_training_set(spectrum, data, idx)
+                spectrum = _update_spectrum_with_fit_results_from_training_set(spectrum, data, idx_data)
 
-            combined_gauss = combined_gaussian(amps=spectrum.amplitude_values,
-                                               fwhms=spectrum.fwhm_values,
-                                               means=spectrum.mean_values,
-                                               x=channels)
-            ax.plot(fig_channels, combined_gauss, lw=2, color='orangered')
+            modelled_spectrum = combined_gaussian(amps=spectrum.amplitude_values,
+                                                  fwhms=spectrum.fwhm_values,
+                                                  means=spectrum.mean_values,
+                                                  x=channels)
+            ax.plot(spectral_channels, modelled_spectrum, lw=2, color='orangered')
 
-            _plot_individual_components(ax, fig_channels, channels, spectrum, gaussians)
+            _plot_individual_components(ax, spectral_channels, channels, spectrum, gaussians)
 
-        _plot_signal_ranges(ax, spectrum, fig_channels, signal_ranges)
+        _plot_signal_ranges(ax, spectrum, spectral_channels, signal_ranges)
 
-        ax.set_title(_get_title(spectrum, idx), fontsize=fontsize)
+        ax.set_title(_get_title(spectrum, idx_data), fontsize=fontsize)
 
-        add_figure_properties(ax, spectrum.rms_noise, x_min, x_max,
+        add_figure_properties(ax, spectrum.rms_noise, spectral_channels,
                               header=header, fontsize=fontsize, vel_unit=vel_unit)
 
         if residual and (path_to_decomp_pickle is not None or training_set):
-            row_i = int((i - k*(rowbreak*cols)) / cols)*3 + 2
-            col_i = i % cols
-            ax = plt.subplot2grid((3*rows_in_figure, cols),
-                                  (row_i, col_i))
+            ax = _get_ax_for_residual_plot(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure)
+            ax.step(spectral_channels, spectrum.intensity_values - modelled_spectrum, color='black', lw=0.5, where='mid')
+            _plot_signal_ranges(ax, spectrum, spectral_channels, signal_ranges)
 
-            ax.step(fig_channels, spectrum.intensity_values - combined_gauss, color='black', lw=0.5, where='mid')
-            _plot_signal_ranges(ax, spectrum, fig_channels, signal_ranges)
-
-            add_figure_properties(ax, spectrum.rms_noise, x_min, x_max, header=header,
+            add_figure_properties(ax, spectrum.rms_noise, spectral_channels, header=header,
                                   residual=True, fontsize=fontsize, vel_unit=vel_unit)
+        pbar.update(1)
 
-        if ((i + 1) % (rowbreak*cols) == 0) or ((i + 1) == n_spectra):
-            if multiple_pdfs:
-                filename = f'{fileName}{suffix}_plots_part_{k + 1}.pdf'
-            else:
-                filename = f'{fileName}{suffix}_plots.pdf'
-
+        if ((idx_subplot + 1) % (max_rows_per_figure*n_cols) == 0) or ((idx_subplot + 1) == n_spectra):
             fig.tight_layout()
-
-            if not os.path.exists(path_to_plots):
-                os.makedirs(path_to_plots)
-            pathname = os.path.join(path_to_plots, filename)
-            fig.savefig(pathname, dpi=dpi, overwrite=True)
+            suffix_for_multipage_plots = f'_plots_part_{count_figures + 1}' if multiple_pdfs else ''
+            fig.savefig(path_to_plots / f'{filename}{suffix}_plots{suffix_for_multipage_plots}.pdf',
+                        dpi=dpi,
+                        overwrite=True)
             plt.close()
 
-            #  close progress bar before print statement to avoid duplicate
-            #  progress bars
+            #  close progress bar before print statement to avoid duplicate progress bars
             if pbar.n >= n_spectra:
                 pbar.close()
             print("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, path_to_plots))
 
-            remaining_rows = rowbreak
-            #  for last iteration
-            if (k + 2)*rowbreak > rows:
-                remaining_rows = rows - (k + 1)*rowbreak
-                figsize = (cols*colsize, remaining_rows*rowsize)
-
-            if (figsize[0] == 0) or (figsize[1] == 0):
+            remaining_rows = n_rows_total - (count_figures + 1) * max_rows_per_figure
+            if remaining_rows <= 0:
                 break
 
-            fig = plt.figure(figsize=figsize)
-
-            # set up new subplot grid
-            gridspec.GridSpec(cols, remaining_rows, wspace=0.2, hspace=0.2)
-
-            fig.patch.set_facecolor('white')
-            fig.patch.set_alpha(1.0)
-            fig.subplots_adjust(hspace=0.5)
+            count_figures += 1
+            rows_in_figure = min(remaining_rows, max_rows_per_figure)
+            fig = _prepare_figure(n_cols=n_cols,
+                                  n_rows=rows_in_figure,
+                                  colsize=colsize,
+                                  rowsize=rowsize)
     plt.close()
