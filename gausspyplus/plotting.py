@@ -1,8 +1,10 @@
+import functools
 import itertools
 import os
 import pickle
 import random
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
@@ -245,8 +247,8 @@ def _get_path_to_plots(pathToDataPickle, path_to_decomp_pickle):
     return Path(pathToDataPickle).parent if path_to_decomp_pickle is None else Path(path_to_decomp_pickle).parent
 
 
-def _get_spectrum(data, idx):
-    return Spectrum(
+def _get_spectrum(data, idx, decomposition, training_set):
+    spectrum = Spectrum(
         index=data['index'][idx] if 'index' in data.keys() else None,
         intensity_values=data['data_list'][idx],
         position_yx=(data['location'][idx] if 'location' in data.keys() else (None, None)),
@@ -254,15 +256,23 @@ def _get_spectrum(data, idx):
         signal_intervals=(data['signal_ranges'][idx] if 'signal_ranges' in data.keys() else None),
         noise_spike_intervals=(data['noise_spike_intervals'][idx] if 'noise_spike_intervals' in data.keys() else None),
     )
+    # TODO: homogenize this, so the same keys are used for training_set and decomposition
+    #  Currently training_set uses 'fwhms', 'means' and 'amplitudes' but decomposition uses
+    #  'fwhms_fit', 'means_fit', and 'amplitudes_fit'
+    if decomposition:
+        spectrum = _update_spectrum_with_fit_results_from_decomposition(spectrum, decomposition, idx)
+    elif training_set:
+        spectrum = _update_spectrum_with_fit_results_from_training_set(spectrum, data, idx)
+    return spectrum
 
 
-def _update_spectrum_with_fit_results_from_decomposition(spectrum: Spectrum, decomp, idx):
+def _update_spectrum_with_fit_results_from_decomposition(spectrum: Spectrum, decomposition, idx):
     return spectrum._replace(
-        n_fit_components=len(decomp['amplitudes_fit'][idx]),
-        amplitude_values=decomp['amplitudes_fit'][idx],
-        mean_values=decomp['means_fit'][idx],
-        fwhm_values=decomp['fwhms_fit'][idx],
-        reduced_chi2_value=decomp['best_fit_rchi2'][idx]
+        n_fit_components=len(decomposition['amplitudes_fit'][idx]),
+        amplitude_values=decomposition['amplitudes_fit'][idx],
+        mean_values=decomposition['means_fit'][idx],
+        fwhm_values=decomposition['fwhms_fit'][idx],
+        reduced_chi2_value=decomposition['best_fit_rchi2'][idx]
     )
 
 
@@ -284,10 +294,12 @@ def _plot_individual_components(ax, spectral_channels, channels, spectrum, gauss
         ax.plot(spectral_channels, gauss, ls='solid', lw=1, color='orangered')
 
 
-def _get_ax_for_residual_plot(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure):
-    row_i = int((idx_subplot - count_figures * (max_rows_per_figure * n_cols)) / n_cols) * 3 + 2
+def _get_axis(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure, residual=False):
+    row_i = int((idx_subplot - count_figures * (max_rows_per_figure * n_cols)) / n_cols) * 3
     col_i = idx_subplot % n_cols
-    return plt.subplot2grid((3 * rows_in_figure, n_cols), (row_i, col_i))
+    return plt.subplot2grid(shape=(3 * rows_in_figure, n_cols),
+                            loc=(row_i + (2 if residual else 0), col_i),
+                            rowspan=(1 if residual else 2))
 
 
 def _prepare_figure(n_cols, n_rows, colsize, rowsize):
@@ -298,10 +310,43 @@ def _prepare_figure(n_cols, n_rows, colsize, rowsize):
     return fig
 
 
+@dataclass
+class Data:
+    path_to_data_pickle: Union[str, Path]
+    path_to_decomp_pickle: Optional[Union[str, Path]] = None
+    training_set: bool = False
+    vel_unit: u = u.km / u.s
+
+    @functools.cached_property
+    def data(self):
+        return _pickle_load_file(self.path_to_data_pickle)
+
+    @functools.cached_property
+    def decomposition(self):
+        return _pickle_load_file(self.path_to_decomp_pickle) if self.path_to_decomp_pickle else None
+
+    @functools.cached_property
+    def channels(self):
+        return self.data['x_values']
+
+    @functools.cached_property
+    def n_channels(self):
+        return len(self.channels)
+
+    @functools.cached_property
+    def header(self):
+        return correct_header(self.data['header']) if 'header' in self.data.keys() else None
+
+    @functools.cached_property
+    def spectral_channels(self):
+        return self.channels if self.header is None else get_spectral_axis(header=self.header,
+                                                                           to_unit=self.vel_unit)
+
+
 def plot_spectra(pathToDataPickle: Union[str, Path],
                  path_to_plots: Optional[Union[str, Path]] = None,
                  path_to_decomp_pickle: Optional[Union[str, Path]] = None,
-                 training_set: True = False,
+                 training_set: bool = False,
                  n_cols: float = 5,
                  rowsize: float = 7.75,
                  max_rows_per_figure: int = 50,
@@ -323,25 +368,15 @@ def plot_spectra(pathToDataPickle: Union[str, Path],
                                                                                              path_to_decomp_pickle)
     path_to_plots.mkdir(parents=True, exist_ok=True)
 
-    filename = Path(pathToDataPickle).stem
+    data = Data(path_to_data_pickle=pathToDataPickle,
+                path_to_decomp_pickle=path_to_decomp_pickle,
+                training_set=training_set,
+                vel_unit=vel_unit)
 
-    data = _pickle_load_file(pathToDataPickle)
-    if (not training_set) and path_to_decomp_pickle is not None:
-        decomp = _pickle_load_file(path_to_decomp_pickle)
-        filename = Path(path_to_decomp_pickle).stem
+    filename = Path(path_to_decomp_pickle).stem if path_to_decomp_pickle else Path(pathToDataPickle).stem
 
-    channels = data['x_values']
-    n_channels = len(channels)
-
-    if 'header' in data.keys():
-        header = correct_header(data['header'])
-        spectral_channels = get_spectral_axis(header=header, to_unit=vel_unit)
-    else:
-        header = None
-        spectral_channels = channels
-
-    grid_layout = _get_grid_layout(data, subcube=subcube, pixel_range=pixel_range)
-    list_indices = _get_list_indices(data,
+    grid_layout = _get_grid_layout(data.data, subcube=subcube, pixel_range=pixel_range)
+    list_indices = _get_list_indices(data.data,
                                      subcube=subcube,
                                      pixel_range=pixel_range,
                                      list_indices=list_indices,
@@ -350,7 +385,7 @@ def plot_spectra(pathToDataPickle: Union[str, Path],
     n_spectra = len(list_indices)
 
     n_cols, n_rows_total, max_rows_per_figure, colsize, multiple_pdfs = _get_figure_params(
-        n_channels, n_spectra, n_cols, rowsize, max_rows_per_figure, grid_layout)
+        data.n_channels, n_spectra, n_cols, rowsize, max_rows_per_figure, grid_layout)
 
     fontsize = _scale_fontsize(rowsize)
 
@@ -364,44 +399,36 @@ def plot_spectra(pathToDataPickle: Union[str, Path],
     pbar = tqdm(total=n_spectra)
 
     for idx_subplot, idx_data in enumerate(list_indices):
-        spectrum = _get_spectrum(data, idx_data)
+        spectrum = _get_spectrum(data.data, idx_data, data.decomposition, data.training_set)
+        ax = _get_axis(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure)
+        ax.step(data.spectral_channels, spectrum.intensity_values, color='black', lw=0.5, where='mid')
 
-        row_i = int((idx_subplot - (count_figures*max_rows_per_figure*n_cols)) / n_cols)*3
-        col_i = idx_subplot % n_cols
-        ax = plt.subplot2grid(shape=(3*rows_in_figure, n_cols), loc=(row_i, col_i), rowspan=2)
-
-        ax.step(spectral_channels, spectrum.intensity_values, color='black', lw=0.5, where='mid')
-
-        if path_to_decomp_pickle is not None or training_set:
-            # TODO: homogenize this, so the same keys are used for training_set and decomp
-            #  Currently training_set uses 'fwhms', 'means' and 'amplitudes' but decomposition uses
-            #  'fwhms_fit', 'means_fit', and 'amplitudes_fit'
-            if path_to_decomp_pickle is not None:
-                spectrum = _update_spectrum_with_fit_results_from_decomposition(spectrum, decomp, idx_data)
-            else:
-                spectrum = _update_spectrum_with_fit_results_from_training_set(spectrum, data, idx_data)
-
+        if data.decomposition or data.training_set:
             modelled_spectrum = combined_gaussian(amps=spectrum.amplitude_values,
                                                   fwhms=spectrum.fwhm_values,
                                                   means=spectrum.mean_values,
-                                                  x=channels)
-            ax.plot(spectral_channels, modelled_spectrum, lw=2, color='orangered')
+                                                  x=data.channels)
+            ax.plot(data.spectral_channels, modelled_spectrum, lw=2, color='orangered')
 
-            _plot_individual_components(ax, spectral_channels, channels, spectrum, gaussians)
+            _plot_individual_components(ax, data.spectral_channels, data.channels, spectrum, gaussians)
 
-        _plot_signal_ranges(ax, spectrum, spectral_channels, signal_ranges)
+        _plot_signal_ranges(ax, spectrum, data.spectral_channels, signal_ranges)
 
         ax.set_title(_get_title(spectrum, idx_data), fontsize=fontsize)
 
-        add_figure_properties(ax, spectrum.rms_noise, spectral_channels,
-                              header=header, fontsize=fontsize, vel_unit=vel_unit)
+        add_figure_properties(ax, spectrum.rms_noise, data.spectral_channels,
+                              header=data.header, fontsize=fontsize, vel_unit=vel_unit)
 
-        if residual and (path_to_decomp_pickle is not None or training_set):
-            ax = _get_ax_for_residual_plot(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure)
-            ax.step(spectral_channels, spectrum.intensity_values - modelled_spectrum, color='black', lw=0.5, where='mid')
-            _plot_signal_ranges(ax, spectrum, spectral_channels, signal_ranges)
+        if residual and (data.decomposition or data.training_set):
+            ax = _get_axis(idx_subplot, count_figures, n_cols, max_rows_per_figure, rows_in_figure, residual=True)
+            ax.step(data.spectral_channels,
+                    spectrum.intensity_values - modelled_spectrum,
+                    color='black',
+                    lw=0.5,
+                    where='mid')
+            _plot_signal_ranges(ax, spectrum, data.spectral_channels, signal_ranges)
 
-            add_figure_properties(ax, spectrum.rms_noise, spectral_channels, header=header,
+            add_figure_properties(ax, spectrum.rms_noise, data.spectral_channels, header=data.header,
                                   residual=True, fontsize=fontsize, vel_unit=vel_unit)
         pbar.update(1)
 
