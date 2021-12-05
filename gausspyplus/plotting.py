@@ -6,7 +6,7 @@ import random
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 
 import numpy as np
 
@@ -97,33 +97,21 @@ def _pickle_load_file(pathToFile):
             return pickle.load(pickle_file)
 
 
-def _get_x_positions_from_pixel_range(pixel_range: dict) -> np.ndarray:
-    xmin, xmax = pixel_range['x']
-    return np.arange(xmin, xmax + 1)
-
-
-def _get_y_positions_from_pixel_range(pixel_range: dict) -> np.ndarray:
-    ymin, ymax = pixel_range['y']
-    return np.arange(ymin, ymax + 1)[::-1]
-
-
-def _get_x_positions_from_data(data: dict) -> np.ndarray:
-    xmin = min(data['location'], key=lambda pos: pos[1])
-    xmax = max(data['location'], key=lambda pos: pos[1])
-    return np.arange(xmin, xmax + 1)
-
-
-def _get_y_positions_from_data(data: dict) -> np.ndarray:
-    ymin = min(data['location'], key=lambda pos: pos[0])
-    ymax = max(data['location'], key=lambda pos: pos[0])
-    return np.arange(ymin, ymax + 1)[::-1]
+def _get_positions_from(data_or_pixel_range: dict, axis: Literal['x', 'y'] = 'x') -> np.ndarray:
+    try:
+        # only data has the key location; pixel_range has the keys 'x' and 'y'
+        pos_min = min(data_or_pixel_range['location'], key=lambda pos: pos[int(axis == 'x')])
+        pos_max = max(data_or_pixel_range['location'], key=lambda pos: pos[int(axis == 'x')])
+    except KeyError:
+        pos_min, pos_max = data_or_pixel_range[axis]
+    return np.arange(pos_min, pos_max + 1)[::(1 if axis == 'x' else -1)]
 
 
 def _get_grid_layout(data, subcube=False, pixel_range=None):
     if not subcube or (pixel_range is None):
         return None
-    x_positions = _get_x_positions_from_data(data) if subcube else _get_x_positions_from_pixel_range(pixel_range)
-    y_positions = _get_y_positions_from_data(data) if subcube else _get_y_positions_from_pixel_range(pixel_range)
+    x_positions = _get_positions_from(data, axis='x') if subcube else _get_positions_from(pixel_range, axis='x')
+    y_positions = _get_positions_from(data, axis='y') if subcube else _get_positions_from(pixel_range, axis='y')
     n_cols = len(x_positions)
     n_rows = len(y_positions)
     return [n_cols, n_rows]
@@ -145,8 +133,8 @@ def _get_list_indices(data: dict,
     random.seed(random_seed)
     # TODO: incorporate the nan_mask in this scheme
     if subcube or (pixel_range is not None):
-        x_positions = _get_x_positions_from_data(data) if subcube else _get_x_positions_from_pixel_range(pixel_range)
-        y_positions = _get_y_positions_from_data(data) if subcube else _get_y_positions_from_pixel_range(pixel_range)
+        x_positions = _get_positions_from(data, axis='x') if subcube else _get_positions_from(pixel_range, axis='x')
+        y_positions = _get_positions_from(data, axis='y') if subcube else _get_positions_from(pixel_range, axis='y')
         list_indices = [data['location'].index(location) for location in itertools.product(y_positions, x_positions)]
     elif (list_indices is None) and (n_spectra is not None):
         list_indices = []
