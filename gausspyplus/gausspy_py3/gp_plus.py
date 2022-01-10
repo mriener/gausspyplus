@@ -32,32 +32,35 @@ def split_params(params, ncomps):
     return amps, fwhms, offsets
 
 
-def number_of_components(params):
+def _number_of_components(params):
     """Compute number of Gaussian components."""
-    return int(len(params) / 3)
+    return len(params) // 3
 
 
-def gaussian_function(peak, FWHM, mean):
+# TODO: shift function to utils.gaussian_functions (combine with similar function there)
+def _gaussian_function(peak: float, fwhm: float, mean: float) -> Callable:
     """Return a Gaussian function."""
-    sigma = FWHM / 2.354820045  # (2 * sqrt( 2 * ln(2)))
+    sigma = fwhm / 2.354820045  # (2 * sqrt( 2 * ln(2)))
     return lambda x: peak * np.exp(-(x - mean)**2 / 2. / sigma**2)
 
 
-def func(x, *args):
+# TODO: shift function to utils.gaussian_functions
+def _func(x, *args):
     """Return multi-component Gaussian model F(x).
 
     Parameter vector kargs = [amp1, ..., ampN, width1, ..., widthN, mean1, ..., meanN],
     and therefore has len(args) = 3 x N_components.
     """
-    ncomps = number_of_components(args)
+    ncomps = _number_of_components(args)
     yout = x * 0.
     for i in range(ncomps):
-        yout = yout + gaussian_function(
+        yout = yout + _gaussian_function(
             args[i], args[i+ncomps], args[i+2*ncomps])(x)
     return yout
 
 
-def vals_vec_from_lmfit(lmfit_params):
+# TODO: Identical function in AGD_decomposer -> remove redundancy
+def _vals_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter values from LMFIT Parameters object."""
     if (sys.version_info >= (3, 0)):
         vals = [value.value for value in list(lmfit_params.values())]
@@ -66,7 +69,8 @@ def vals_vec_from_lmfit(lmfit_params):
     return vals
 
 
-def errs_vec_from_lmfit(lmfit_params):
+# TODO: Identical function in AGD_decomposer -> remove redundancy
+def _errs_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter uncertainties from LMFIT Parameters object."""
     if (sys.version_info >= (3, 0)):
         errs = [value.stderr for value in list(lmfit_params.values())]
@@ -77,8 +81,9 @@ def errs_vec_from_lmfit(lmfit_params):
     return errs
 
 
-def paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
-                      params_min=None, params_max=None):
+# TODO: Identical function in AGD_decomposer -> remove redundancy
+def _paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
+                       params_min=None, params_max=None):
     """Transform a Python iterable of parameters into a LMFIT Parameters object.
 
     Parameters
@@ -99,7 +104,7 @@ def paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
     params: lmfit.parameter.Parameters
 
     """
-    ncomps = number_of_components(paramvec)
+    ncomps = _number_of_components(paramvec)
     params = Parameters()
 
     if params_min is None:
@@ -114,30 +119,30 @@ def paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
             params_max[ncomps:2*ncomps] = ncomps*[max_fwhm]
 
     for i in range(len(paramvec)):
-        params.add(f'p{str(i + 1)}', value=paramvec[i],
-                   min=params_min[i], max=params_max[i])
+        params.add(name=f'p{i + 1}', value=paramvec[i], min=params_min[i], max=params_max[i])
+
     return params
 
 
-def perform_least_squares_fit(vel, data, errors, params_fit, dct,
-                              params_min=None, params_max=None):
+def _perform_least_squares_fit(vel, data, errors, params_fit, dct,
+                               params_min=None, params_max=None):
     # Objective functions for final fit
     def objective_leastsq(paramslm):
-        params = vals_vec_from_lmfit(paramslm)
-        resids = (func(vel, *params).ravel() - data.ravel()) / errors
+        params = _vals_vec_from_lmfit(paramslm)
+        resids = (_func(vel, *params).ravel() - data.ravel()) / errors
         return resids
 
     #  get new best fit
-    lmfit_params = paramvec_to_lmfit(
+    lmfit_params = _paramvec_to_lmfit(
         params_fit, max_amp=dct['max_amp'], max_fwhm=None,
         params_min=params_min, params_max=params_max)
     try:
         result = lmfit_minimize(
             objective_leastsq, lmfit_params, method='leastsq')
-        params_fit = vals_vec_from_lmfit(result.params)
-        params_errs = errs_vec_from_lmfit(result.params)
+        params_fit = _vals_vec_from_lmfit(result.params)
+        params_errs = _errs_vec_from_lmfit(result.params)
         # TODO: implement bootstrapping method to estimate error in case
-        # error is None (when parameters are close to given bounds)
+        #  error is None (when parameters are close to given bounds)
         # if (len(params_errs) != 0) and (sum(params_errs) == 0):
         #     print('okay')
         #     mini = lmfit.Minimizer(objective_leastsq, lmfit_params)
@@ -153,7 +158,7 @@ def perform_least_squares_fit(vel, data, errors, params_fit, dct,
         #         params_errs.append(std)
         #     print('params_errs', params_errs)
 
-        ncomps_fit = number_of_components(params_fit)
+        ncomps_fit = _number_of_components(params_fit)
 
         return params_fit, params_errs, ncomps_fit
     except (ValueError, TypeError):
@@ -181,8 +186,8 @@ def remove_components_from_sublists(lst, remove_indices):
     return lst
 
 
-def remove_components_above_max_ncomps(amps_fit, fwhms_fit, ncomps_max,
-                                       remove_indices, quality_control):
+def _remove_components_above_max_ncomps(amps_fit, fwhms_fit, ncomps_max,
+                                        remove_indices, quality_control):
     """Remove all fit components above specified limit.
 
     Parameters
@@ -226,9 +231,9 @@ def remove_components_above_max_ncomps(amps_fit, fwhms_fit, ncomps_max,
     return remove_indices, quality_control
 
 
-def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
-                     quality_control, signal_ranges=None,
-                     params_min=None, params_max=None):
+def _check_params_fit(vel, data, errors, params_fit, params_errs, dct,
+                      quality_control, signal_ranges=None,
+                      params_min=None, params_max=None):
     """Perform quality checks for the fitted Gaussians components.
 
     All Gaussian components that are not satisfying the criteria are discarded from the fit.
@@ -276,7 +281,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
         If 'True', the spectrum was refit because one or more of the Gaussian fit parameters did not satisfy the quality control parameters.
 
     """
-    ncomps_fit = number_of_components(params_fit)
+    ncomps_fit = _number_of_components(params_fit)
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
     amps_errs, fwhms_errs, offsets_errs = split_params(params_errs, ncomps_fit)
@@ -340,7 +345,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
                     continue
 
     if dct['max_ncomps'] is not None:
-        remove_indices, quality_control = remove_components_above_max_ncomps(
+        remove_indices, quality_control = _remove_components_above_max_ncomps(
             amps_fit, fwhms_fit, dct['max_ncomps'], remove_indices, quality_control)
 
     remove_indices = list(set(remove_indices))
@@ -366,7 +371,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
                 [amps_max, fwhms_max, offsets_max], remove_indices)
             params_max = amps_max + fwhms_max + offsets_max
 
-        params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
+        params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
             vel, data, errors, params_fit, dct, params_min=params_min, params_max=params_max)
 
         refit = True
@@ -374,8 +379,7 @@ def check_params_fit(vel, data, errors, params_fit, params_errs, dct,
     return params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit
 
 
-def check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit,
-                                          offsets_fit):
+def _check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit, offsets_fit):
     """Return index of Gaussian component contained within a range in the spectrum.
 
     The FWHM interval (mean - FWHM, mean + FWHM ) of the Gaussian component has to be fully contained in the range of the spectrum. If no Gaussians satisfy this criterion 'None' is returned. In case multiple Gaussians satisfy this criterion, the Gaussian with the highest FWHM parameter is selected.
@@ -414,8 +418,7 @@ def check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit,
         return int(remaining_indices[select])
 
 
-def replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance,
-                                       params_fit, exclude_idx, offset):
+def _replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance, params_fit, exclude_idx, offset):
     """Replace broad Gaussian fit component with initial guesses for two narrower components.
 
     Parameters
@@ -443,7 +446,7 @@ def replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance,
         Updated list from which the parameters of the broad Gaussian fit components were removed and the parameters of the two narrower components were added.
 
     """
-    ncomps_fit = number_of_components(params_fit)
+    ncomps_fit = _number_of_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
     # TODO: check if this is still necessary?
@@ -468,7 +471,7 @@ def replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance,
 
     for low, upp in zip([idx_low_residual, int(offset)],
                         [int(offset), idx_upp_residual]):
-        amp_guess, fwhm_guess, offset_guess = get_initial_guesses(
+        amp_guess, fwhm_guess, offset_guess = _get_initial_guesses(
             residual[low:upp], rms, snr, significance, peak='positive', maximum=True)
 
         if amp_guess.size == 0:
@@ -485,8 +488,7 @@ def replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance,
     return params_fit
 
 
-def get_initial_guesses(residual, rms, snr, significance, peak='positive',
-                        maximum=False):
+def _get_initial_guesses(residual, rms, snr, significance, peak='positive', maximum=False):
     """Get initial guesses of Gaussian fit parameters for residual peaks.
 
     Parameters
@@ -584,7 +586,7 @@ def get_fully_blended_gaussians(params_fit, get_count=False,
         Indices of fitted Gaussian components that satisfy the criterion for blendedness, sorted from lowest to highest amplitude values.
 
     """
-    ncomps_fit = number_of_components(params_fit)
+    ncomps_fit = _number_of_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
     # stddevs_fit = list(np.array(fwhms_fit) / 2.354820045)
     indices_blended = np.array([])
@@ -613,6 +615,16 @@ def get_fully_blended_gaussians(params_fit, get_count=False,
     return indices_blended[sort]
 
 
+def _return_as_list(var):
+    if isinstance(var, np.ndarray):
+        var = list(var)
+    elif not isinstance(var, list):
+        var = [var]
+    return var
+
+
+# TODO: Identical function in utils.grouping_functions -> remove redundancy; this function is imported also by
+#  spatial_fitting.py
 def remove_components(params_fit, remove_indices):
     """Remove parameters of Gaussian fit components.
 
@@ -629,21 +641,26 @@ def remove_components(params_fit, remove_indices):
         Updated list from which the parameters of the selected Gaussian fit components were removed.
 
     """
-    ncomps_fit = number_of_components(params_fit)
+    ncomps_fit = _number_of_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
-    if isinstance(remove_indices, np.ndarray):
-        remove_indices = list(remove_indices)
-    elif not isinstance(remove_indices, list):
-        remove_indices = [remove_indices]
+    # if isinstance(remove_indices, np.ndarray):
+    #     remove_indices = list(remove_indices)
+    # elif not isinstance(remove_indices, list):
+    #     remove_indices = [remove_indices]
+    remove_indices = _return_as_list(remove_indices)
 
-    amps_fit = list(np.delete(np.array(amps_fit), remove_indices))
-    fwhms_fit = list(np.delete(np.array(fwhms_fit), remove_indices))
-    offsets_fit = list(np.delete(np.array(offsets_fit), remove_indices))
-
-    params_fit = amps_fit + fwhms_fit + offsets_fit
-
-    return params_fit
+    # amps_fit = list(np.delete(np.array(amps_fit), remove_indices))
+    # fwhms_fit = list(np.delete(np.array(fwhms_fit), remove_indices))
+    # offsets_fit = list(np.delete(np.array(offsets_fit), remove_indices))
+    amps_fit = [amp for idx, amp in enumerate(amps_fit) if idx not in remove_indices]
+    fwhms_fit = [fwhm for idx, fwhm in enumerate(fwhms_fit) if idx not in remove_indices]
+    offsets_fit = [offset for idx, offset in enumerate(offsets_fit) if idx not in remove_indices]
+    return amps_fit + fwhms_fit + offsets_fit
+    #
+    # params_fit = amps_fit + fwhms_fit + offsets_fit
+    #
+    # return params_fit
 
 
 def get_best_fit(vel, data, errors, params_fit, dct, first=False,
@@ -695,20 +712,20 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     else:
         quality_control = []
 
-    ncomps_fit = number_of_components(params_fit)
+    # ncomps_fit = _number_of_components(params_fit)
 
-    params_fit, params_errs, ncomps_fit = perform_least_squares_fit(
+    params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
         vel, data, errors, params_fit, dct, params_min=params_min, params_max=params_max)
 
     #  check if fit components satisfy mandatory criteria
     if ncomps_fit > 0:
         refit = True
         while refit:
-            params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = check_params_fit(
+            params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = _check_params_fit(
                 vel, data, errors, params_fit, params_errs, dct,
                 quality_control, signal_ranges=signal_ranges)
 
-        best_fit = func(vel, *params_fit).ravel()
+        best_fit = _func(vel, *params_fit).ravel()
     else:
         best_fit = data * 0
 
@@ -793,7 +810,7 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
-    amp_guesses, fwhm_guesses, offset_guesses = get_initial_guesses(
+    amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual, errors[0], dct['snr_negative'], dct['significance'],
         peak='negative')
 
@@ -822,14 +839,14 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
     for amp, fwhm, offset in zip(amp_guesses, fwhm_guesses, offset_guesses):
         idx_low = max(0, int(offset - fwhm))
         idx_upp = int(offset + fwhm) + 2
-        exclude_idx = check_which_gaussian_contains_feature(
+        exclude_idx = _check_which_gaussian_contains_feature(
             idx_low, idx_upp, fwhms_fit, offsets_fit)
         if get_idx:
             return exclude_idx
         if exclude_idx is None:
             continue
 
-        params_fit = replace_gaussian_with_two_new_ones(
+        params_fit = _replace_gaussian_with_two_new_ones(
             data, vel, errors[0], dct['snr'], dct['significance'],
             params_fit, exclude_idx, offset)
 
@@ -845,10 +862,10 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
     return best_fit_list
 
 
-def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
-                                exclude_idx, signal_ranges=None,
-                                signal_mask=None, force_accept=False,
-                                noise_spike_mask=None):
+def _try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
+                                 exclude_idx, signal_ranges=None,
+                                 signal_mask=None, force_accept=False,
+                                 noise_spike_mask=None):
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we determine guesses for additional fit components from the residual that is produced if the component (i) is discarded and try a new fit. We only accept the new fit solution if it yields a better fit as determined by the AICc value.
@@ -883,7 +900,7 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     params_fit = best_fit_list[0]
     ncomps_fit = best_fit_list[2]
     aicc_old = best_fit_list[6]
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
+    # amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
     # idx_low_residual = max(
     #     0, int(offsets_fit[exclude_idx] - fwhms_fit[exclude_idx]/2))
@@ -913,7 +930,7 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
 
     residual = data - combined_gaussian(amps_fit, fwhms_fit, offsets_fit, vel)
 
-    amp_guesses, fwhm_guesses, offset_guesses = get_initial_guesses(
+    amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual, errors[0], dct['snr'], dct['significance'], peak='positive')
 
     #  return original best fit list if there are no guesses for new components to fit in the residual
@@ -941,9 +958,9 @@ def try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     return best_fit_list
 
 
-def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
-                            signal_ranges=None, signal_mask=None,
-                            force_accept=False, noise_spike_mask=None):
+def _check_for_broad_feature(vel, data, errors, best_fit_list, dct,
+                             signal_ranges=None, signal_mask=None,
+                             force_accept=False, noise_spike_mask=None):
     """Check for broad features and try to refit them.
 
     We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the second broadest component in the spectrum.
@@ -994,7 +1011,7 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
 
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
-    params_fit = replace_gaussian_with_two_new_ones(
+    params_fit = _replace_gaussian_with_two_new_ones(
         data, vel, errors[0], dct['snr'], dct['significance'],
         params_fit, exclude_idx, offsets_fit[exclude_idx])
 
@@ -1017,7 +1034,7 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
 
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
-    best_fit_list = try_fit_with_new_components(
+    best_fit_list = _try_fit_with_new_components(
         vel, data, errors, best_fit_list, dct, exclude_idx,
         signal_ranges=signal_ranges, signal_mask=signal_mask,
         force_accept=force_accept, noise_spike_mask=noise_spike_mask)
@@ -1025,9 +1042,9 @@ def check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     return best_fit_list
 
 
-def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
-                              signal_ranges=None, signal_mask=None,
-                              force_accept=False, noise_spike_mask=None):
+def _check_for_blended_feature(vel, data, errors, best_fit_list, dct,
+                               signal_ranges=None, signal_mask=None,
+                               force_accept=False, noise_spike_mask=None):
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard deviation interval (mean - std, mean + std) of another fit component.
@@ -1074,7 +1091,7 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
         return best_fit_list
 
     for exclude_idx in exclude_indices:
-        best_fit_list = try_fit_with_new_components(
+        best_fit_list = _try_fit_with_new_components(
             vel, data, errors, best_fit_list, dct, exclude_idx,
             signal_ranges=signal_ranges, signal_mask=signal_mask,
             force_accept=force_accept, noise_spike_mask=noise_spike_mask)
@@ -1084,9 +1101,9 @@ def check_for_blended_feature(vel, data, errors, best_fit_list, dct,
     return best_fit_list
 
 
-def quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
-                  signal_ranges=None, signal_mask=None,
-                  params_min=None, params_max=None, noise_spike_mask=None):
+def _quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
+                   signal_ranges=None, signal_mask=None,
+                   params_min=None, params_max=None, noise_spike_mask=None):
     """Quality check for GaussPy best fit results.
 
     All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
@@ -1193,7 +1210,7 @@ def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
     residual = best_fit_list[4]
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
-    amp_guesses, fwhm_guesses, offset_guesses = get_initial_guesses(
+    amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual, errors[0], dct['snr'], dct['significance'],
         peak='positive')
 
@@ -1222,7 +1239,7 @@ def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
     return best_fit_list, fitted_residual_peaks
 
 
-def log_new_fit(new_fit, log_gplus, mode='residual'):
+def _log_new_fit(new_fit, log_gplus, mode='residual'):
     """Log the successful refits of a spectrum.
 
     Parameters
@@ -1297,7 +1314,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         noise_spike_mask = None
 
     #  Check the quality of the final fit from GaussPy
-    best_fit_list = quality_check(
+    best_fit_list = _quality_check(
         vel, data, errors, params_fit, ncomps_fit, dct,
         signal_ranges=signal_ranges, signal_mask=signal_mask,
         noise_spike_mask=noise_spike_mask)
@@ -1323,7 +1340,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
                 signal_ranges=signal_ranges, signal_mask=signal_mask,
                 noise_spike_mask=noise_spike_mask)
             new_fit = best_fit_list[7]
-            log_gplus = log_new_fit(new_fit, log_gplus,
+            log_gplus = _log_new_fit(new_fit, log_gplus,
                                     mode='positive_residual_peak')
         count_new = len(fitted_residual_peaks)
 
@@ -1341,7 +1358,7 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
                 signal_ranges=signal_ranges, signal_mask=signal_mask,
                 noise_spike_mask=noise_spike_mask)
             new_fit = best_fit_list[7]
-            log_gplus = log_new_fit(new_fit, log_gplus,
+            log_gplus = _log_new_fit(new_fit, log_gplus,
                                     mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
@@ -1349,23 +1366,23 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             new_fit = True
             while new_fit:
                 best_fit_list[7] = False
-                best_fit_list = check_for_broad_feature(
+                best_fit_list = _check_for_broad_feature(
                     vel, data, errors, best_fit_list, dct, signal_ranges=signal_ranges, signal_mask=signal_mask,
                     noise_spike_mask=noise_spike_mask)
                 new_fit = best_fit_list[7]
-                log_gplus = log_new_fit(new_fit, log_gplus, mode='broad')
+                log_gplus = _log_new_fit(new_fit, log_gplus, mode='broad')
 
         #  try to refit blended Gaussian components
         if dct['blended']:
             new_fit = True
             while new_fit:
                 best_fit_list[7] = False
-                best_fit_list = check_for_blended_feature(
+                best_fit_list = _check_for_blended_feature(
                     vel, data, errors, best_fit_list, dct,
                     signal_ranges=signal_ranges, signal_mask=signal_mask,
                     noise_spike_mask=noise_spike_mask)
                 new_fit = best_fit_list[7]
-                log_gplus = log_new_fit(new_fit, log_gplus, mode='blended')
+                log_gplus = _log_new_fit(new_fit, log_gplus, mode='blended')
 
         if not first_run:
             break
