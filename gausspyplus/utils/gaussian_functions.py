@@ -100,23 +100,25 @@ def multi_component_gaussian_model(x, *args):
 # TODO: Identical function in AGD_decomposer -> remove redundancy
 def vals_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter values from LMFIT Parameters object."""
-    if (sys.version_info >= (3, 0)):
-        vals = [value.value for value in list(lmfit_params.values())]
-    else:
-        vals = [value.value for value in lmfit_params.values()]
-    return vals
+    # if (sys.version_info >= (3, 0)):
+    #     vals = [value.value for value in list(lmfit_params.values())]
+    # else:
+    #     vals = [value.value for value in lmfit_params.values()]
+    # return vals
+    return [value.value for value in lmfit_params.values()]
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
 def errs_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter uncertainties from LMFIT Parameters object."""
-    if (sys.version_info >= (3, 0)):
-        errs = [value.stderr for value in list(lmfit_params.values())]
-    else:
-        errs = [value.stderr for value in lmfit_params.values()]
-    # TODO: estimate errors via bootstrapping instead of setting them to zero
-    errs = [0 if err is None else err for err in errs]
-    return errs
+    # if (sys.version_info >= (3, 0)):
+    #     errs = [value.stderr for value in list(lmfit_params.values())]
+    # else:
+    #     errs = [value.stderr for value in lmfit_params.values()]
+    # # TODO: estimate errors via bootstrapping instead of setting them to zero
+    # errs = [0 if err is None else err for err in errs]
+    # return errs
+    return [0 if value.stderr is None else value.stderr for value in lmfit_params.values()]
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
@@ -152,7 +154,7 @@ def paramvec_to_lmfit(paramvec: List,
         params_max = len(paramvec)*[None]
 
         if max_amp is not None:
-            params_max[0:ncomps] = ncomps*[max_amp]
+            params_max[:ncomps] = ncomps*[max_amp]
         if max_fwhm is not None:
             params_max[ncomps:2*ncomps] = ncomps*[max_fwhm]
 

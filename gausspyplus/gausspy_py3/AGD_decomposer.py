@@ -18,39 +18,13 @@ from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
 from .gp_plus import try_to_improve_fitting, goodness_of_fit
-
-
-def vals_vec_from_lmfit(lmfit_params):
-    """Return Python list of parameter values from LMFIT Parameters object."""
-    vals = [value.value for value in lmfit_params.values()]
-    return vals
-
-
-def errs_vec_from_lmfit(lmfit_params):
-    """Return Python list of parameter uncertainties from LMFIT Parameters object."""
-    errs = [value.stderr for value in lmfit_params.values()]
-    return errs
-
-
-def paramvec_to_lmfit(paramvec, max_amp, max_fwhm=None):
-    """Transform a Python iterable of parameters into a LMFIT Parameters object."""
-    ncomps = int(len(paramvec) / 3)
-    params = Parameters()
-    for i in range(len(paramvec)):
-        if 0 <= i < ncomps:
-            if max_amp is not None:
-                params.add('p'+str(i+1),   value=paramvec[i], min=0.0, max=max_amp)
-            else:
-                params.add('p'+str(i+1),   value=paramvec[i], min=0.0)
-        elif ncomps <= i < 2*ncomps:
-            if max_fwhm is not None:
-                params.add('p'+str(i+1),   value=paramvec[i], min=0.0, max=max_fwhm)
-            else:
-                params.add('p'+str(i+1),   value=paramvec[i], min=0.0)
-        else:
-            params.add('p'+str(i+1),   value=paramvec[i], min=0.0)
-
-    return params
+from gausspyplus.utils.gaussian_functions import (
+    errs_vec_from_lmfit,
+    paramvec_to_lmfit,
+    multi_component_gaussian_model,
+    single_component_gaussian_model,
+    vals_vec_from_lmfit
+)
 
 
 def create_fitmask(size, offsets_i, di):
@@ -70,33 +44,6 @@ def say(message, verbose=False):
     """Diagnostic messages."""
     if verbose is True:
         print(message)
-
-
-def split_params(params, ncomps):
-    """Split params into amps, fwhms, offsets."""
-    amps = params[0:ncomps]
-    fwhms = params[ncomps:2*ncomps]
-    offsets = params[2*ncomps:3*ncomps]
-    return amps, fwhms, offsets
-
-
-def gaussian(peak, FWHM, mean):
-    """Return a Gaussian function."""
-    sigma = FWHM / 2.354820045  # (2 * sqrt( 2 * ln(2)))
-    return lambda x: peak * np.exp(-(x - mean)**2 / 2. / sigma**2)
-
-
-def func(x, *args):
-    """Return multi-component Gaussian model F(x).
-
-    Parameter vector kargs = [amp1, ..., ampN, width1, ..., widthN, mean1, ..., meanN],
-    and therefore has len(args) = 3 x N_components.
-    """
-    ncomps = int(len(args) / 3)
-    yout = x * 0.
-    for i in range(ncomps):
-        yout = yout + gaussian(args[i], args[i+ncomps], args[i+2*ncomps])(x)
-    return yout
 
 
 def initialGuess(vel, data, errors=None, alpha=None, plot=False,
@@ -293,7 +240,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             # Error function for intermediate optimization
             def objectiveD2_leastsq(paramslm):
                 params = vals_vec_from_lmfit(paramslm)
-                model0 = func(vel, *params)
+                model0 = multi_component_gaussian_model(vel, *params)
                 model2 = np.diff(np.diff(model0.ravel()))/dv/dv
                 resids1 = fitmask[1:-1] * (model2 - u2[1:-1]) / errors[1:-1]
                 resids2 = notfitmask * (model0 - data) / errors / 10.
@@ -314,7 +261,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             if result.success:
                 # Compute intermediate residuals
                 # Median filter on 2x effective scale to remove poor subtractions of strong components
-                intermediate_model = func(vel, *params_f1).ravel()  # Explicit final (narrow) model
+                intermediate_model = multi_component_gaussian_model(vel, *params_f1).ravel()  # Explicit final (narrow) model
                 median_window = 2. * 10**((np.log10(alpha1) + 2.187) / 3.859)
                 residuals = median_filter(data - intermediate_model, np.int(median_window))
             else:
@@ -364,7 +311,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         # Objective functions for final fit
         def objective_leastsq(paramslm):
             params = vals_vec_from_lmfit(paramslm)
-            resids = (func(vel, *params).ravel() - data.ravel()) / errors
+            resids = (multi_component_gaussian_model(vel, *params).ravel() - data.ravel()) / errors
             return resids
 
         # Final fit using unconstrained parameters
@@ -379,7 +326,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
 
         ncomps_fit = int(len(params_fit)/3)
 
-        best_fit_final = func(vel, *params_fit).ravel()
+        best_fit_final = multi_component_gaussian_model(vel, *params_fit).ravel()
 
     # Try to improve the fit
     # ----------------------
@@ -448,7 +395,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         ax1.plot(vel, np.ones(len(vel)) * agd1['thresh2'] * u2_scale, '--r')
 
         for i in range(ncomps_g1):
-            one_component = gaussian(params_g1[i], params_g1[i+ncomps_g1], params_g1[i+2*ncomps_g1])(vel)
+            one_component = single_component_gaussian_model(params_g1[i], params_g1[i+ncomps_g1], params_g1[i+2*ncomps_g1])(vel)
             ax1.plot(vel, one_component, '-g')
 
         # Plot intermediate fit components (Panel 2)
@@ -458,7 +405,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         ax2.plot(vel, data, '-k')
         ax2.yaxis.tick_right()
         for i in range(ncomps_f1):
-            one_component = gaussian(params_f1[i], params_f1[i+ncomps_f1], params_f1[i+2*ncomps_f1])(vel)
+            one_component = single_component_gaussian_model(params_f1[i], params_f1[i+ncomps_f1], params_f1[i+2*ncomps_f1])(vel)
             ax2.plot(vel, one_component, '-', color='blue')
 
         # Residual spectrum (Panel 3)
@@ -471,7 +418,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             ax3.plot(vel, np.ones(len(vel)) * agd2['thresh2'] * u22_scale, '--r')
             ax3.plot(vel, u22 * u22_scale, '-r')
             for i in range(ncomps_g2):
-                one_component = gaussian(params_g2[i], params_g2[i+ncomps_g2], params_g2[i+2*ncomps_g2])(vel)
+                one_component = single_component_gaussian_model(params_g2[i], params_g2[i+ncomps_g2], params_g2[i+2*ncomps_g2])(vel)
                 ax3.plot(vel, one_component, '-g')
 
         # Plot best-fit model (Panel 4)
@@ -481,7 +428,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             ax4.axhline(color='black', linewidth=0.5)
             ax4.plot(vel, data, label='data', color='black')
             for i in range(ncomps_fit):
-                one_component = gaussian(params_fit[i], params_fit[i+ncomps_fit], params_fit[i+2*ncomps_fit])(vel)
+                one_component = single_component_gaussian_model(params_fit[i], params_fit[i+ncomps_fit], params_fit[i+2*ncomps_fit])(vel)
                 ax4.plot(vel, one_component, '--', color='orange')
             ax4.plot(vel, best_fit_final, '-', color='orange', linewidth=2)
 
