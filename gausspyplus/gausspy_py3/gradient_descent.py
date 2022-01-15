@@ -27,19 +27,17 @@ def count_ones_in_row(data):
             output[i] = 0
         else:
             total = 1
-            current = 1
             counter = 1
             while data[i-counter] == 1:
                 total += 1
                 if i - counter < 0:
                     break
-                current = data[i - counter]
                 counter += 1
             output[i] = total
     return output
 
 
-def compare_parameters(guess_params, true_params, verbose=False):
+def compare_parameters(guess_params, true_params):
     """Figure of merit for comparing guesses to true components.
     guess_params = list of 3xN parameters for the N guessed Gaussians
     = [amp1, amp2, amp3 ..., width1, width2, width3, ... offset1, offset2, offset3]
@@ -83,7 +81,6 @@ def single_training_example(kwargs):
     true_params = np.append(kwargs['amps'][j], np.append(kwargs['FWHMs'][j], kwargs['means'][j]))
 
     # Produce initial guesses
-    #  status, result = AGD_decomposer.AGD(kwargs['vel'][j], kwargs['data'][j],
     status, result = AGD_decomposer.AGD(
         vel=kwargs['vel'],
         data=kwargs['data'][j],
@@ -105,7 +102,7 @@ def single_training_example(kwargs):
 
     guess_params = result['initial_parameters']
 
-    return compare_parameters(guess_params, true_params, verbose=kwargs['verbose'])
+    return compare_parameters(guess_params, true_params)
 
 
 def objective_function(alpha1,
@@ -227,14 +224,12 @@ def train(objective_function=objective_function,
 
     # Unpack the training data
     data = training_data['data_list']
-    # errors = training_data['errors']
     length = len(training_data['data_list'][0])
     errors = [np.ones(length)*error for error in training_data['error']]
     means = training_data['means']
     vel = training_data['x_values']
     FWHMs = training_data['fwhms']
     amps = training_data['amplitudes']
-    true_params = np.append(amps, np.append(FWHMs, means))
 
     # Initialize book-keeping object
     gd = gradient_descent(iterations)
