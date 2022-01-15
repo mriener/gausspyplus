@@ -52,7 +52,6 @@ def initialGuess(vel,
                  plot=False,
                  verbose=False,
                  SNR_thresh=5.0,
-                 BLFrac=0.1,
                  SNR2_thresh=5.0,
                  deblend=True):
     """Find initial parameter guesses (AGD algorithm).
@@ -63,7 +62,6 @@ def initialGuess(vel,
     plot = False,     Show diagnostic plots?
     verbose = True    Diagnostic messages
     SNR_thresh = 5.0  Initial Spectrum S/N threshold
-    BLFrac =          Edge fraction of data used for S/N threshold computation
     SNR2_thresh =   S/N threshold for Second derivative
     """
     say('\n\n  --> initialGuess() \n', verbose)
@@ -71,7 +69,6 @@ def initialGuess(vel,
     say(f'alpha = {alpha}', verbose)
     say(f'SNR_thesh = {SNR_thresh}', verbose)
     say(f'SNR2_thesh = {SNR2_thresh}', verbose)
-    say(f'BLFrac = {BLFrac}', verbose)
 
     if not alpha:
         print('Must choose value for alpha, no default.')
@@ -185,7 +182,6 @@ def AGD(vel,
         plot=False,
         verbose=False,
         SNR_thresh=5.0,
-        BLFrac=0.1,
         SNR2_thresh=5.0,
         deblend=True,
         perform_final_fit=True,
@@ -225,7 +221,6 @@ def AGD(vel,
         plot=plot,
         verbose=verbose,
         SNR_thresh=SNR_thresh[0],
-        BLFrac=BLFrac,
         SNR2_thresh=SNR2_thresh[0],
         deblend=deblend
     )
@@ -296,7 +291,6 @@ def AGD(vel,
             alpha=alpha2,
             verbose=verbose,
             SNR_thresh=SNR_thresh[1],
-            BLFrac=BLFrac,
             SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
             deblend=deblend,
             plot=plot

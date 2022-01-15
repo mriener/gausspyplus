@@ -27,7 +27,6 @@ class GaussianDecomposer(object):
                 'SNR2_thresh': 5.,
                 'SNR_thresh': 5.,
                 'deblend': True,
-                'BLFrac': 0.1,
                 'verbose': False,
                 'plot': False,
                 'perform_final_fit': True
@@ -99,7 +98,6 @@ class GaussianDecomposer(object):
             phase=self.p['phase'],
             verbose=self.p['verbose'],
             SNR_thresh=self.p['SNR_thresh'],
-            BLFrac=self.p['BLFrac'],
             SNR2_thresh=self.p['SNR2_thresh'],
             deblend=self.p['deblend'],
             plot=self.p['plot'],
