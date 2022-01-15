@@ -86,7 +86,6 @@ def initialGuess(vel,
     data = np.array(data)
     dv = np.abs(vel[1]-vel[0])
     fvel = interp1d(np.arange(len(vel)), vel)  # Converts from index -> x domain
-    data_size = len(data)
 
     # Take regularized derivatives
     t0 = time.time()
@@ -108,7 +107,7 @@ def initialGuess(vel,
     gauss2 = np.diff(gauss2) / dv
     gauss4 = np.diff(np.diff(gauss2)) / dv**2
 
-    u = convolve(data, gauss1, mode='wrap')
+    # u = convolve(data, gauss1, mode='wrap')
     u2 = convolve(data, gauss2, mode='wrap')
     u3 = convolve(data, gauss3, mode='wrap')
     u4 = convolve(data, gauss4, mode='wrap')
@@ -151,9 +150,6 @@ def initialGuess(vel,
                  'thresh': thresh, 'N_components': N_components}
 
         return odict
-
-    # Find points of inflection
-    inflection = np.abs(np.diff(np.sign(u2)))
 
     # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
     widths = np.sqrt(np.abs(data/u2)[offsets_data_i])
@@ -199,7 +195,6 @@ def AGD(vel,
     if improve_fitting_dict is not None:
         dct = improve_fitting_dict
         dct['max_amp'] = dct['max_amp_factor']*np.max(data)
-        nChannels = len(data)
     else:
         dct['improve_fitting'] = False
         dct['max_amp'] = None
@@ -261,7 +256,6 @@ def AGD(vel,
             # The "fitmask" is a collection of windows around the a list of phase-one components
             fitmask, fitmaskw = create_fitmask(len(vel), v_to_i(offsets_g1), widths_g1 / dv / 2.355 * 0.9)
             notfitmask = 1 - fitmask
-            notfitmaskw = np.logical_not(fitmaskw)
 
             # Error function for intermediate optimization
             def objectiveD2_leastsq(paramslm):

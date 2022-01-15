@@ -12,7 +12,7 @@ from . import gradient_descent
 
 
 class GaussianDecomposer(object):
-    def __init__(self, filename=None, phase='one'):
+    def __init__(self, filename=None):
         if filename:
             temp = pickle.load(open(filename, 'rb'), encoding='latin1')
             self.p = temp.p
