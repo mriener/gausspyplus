@@ -171,7 +171,7 @@ def train(objective_function=objective_function,
           MAD=None,
           eps=None,
           learning_rate=None,
-          p=None,
+          momentum_value=None,
           window_size=10,
           iterations_for_convergence=10,
           plot=False,
@@ -193,20 +193,20 @@ def train(objective_function=objective_function,
                                  achieve convergence
     """
 
-    # Default settings for hyper parameters
+    # Default settings for hyperparameters
     if not learning_rate:
         learning_rate = 10.
     if not eps:
         eps = 1.0
     if not MAD:
         MAD = 0.3
-    if not p:
-        p = .8
+    if not momentum_value:
+        momentum_value = .8
 
     thresh = MAD / np.sqrt(window_size)
 
     if phase == 'one':
-        p /= 3.
+        momentum_value /= 3.
 
     if alpha2_initial is None and phase == 'two':
         say('alpha2_initial is required for two-phase decomposition.', logger=logger)
@@ -256,8 +256,8 @@ def train(objective_function=objective_function,
         if i == 0:
             momentum1, momentum2 = 0., 0.
         else:
-            momentum1 = p * (gd.alpha1_trace[i] - gd.alpha1_trace[i-1])
-            momentum2 = p * (gd.alpha2_trace[i] - gd.alpha2_trace[i-1])
+            momentum1 = momentum_value * (gd.alpha1_trace[i] - gd.alpha1_trace[i-1])
+            momentum2 = momentum_value * (gd.alpha2_trace[i] - gd.alpha2_trace[i-1])
 
         gd.alpha1_trace[i+1] = gd.alpha1_trace[i] - learning_rate * gd.D_alpha1_trace[i] + momentum1
         gd.alpha2_trace[i+1] = gd.alpha2_trace[i] - learning_rate * gd.D_alpha2_trace[i] + momentum2
@@ -270,7 +270,7 @@ def train(objective_function=objective_function,
 
         say('', logger=logger)
         say(f'{gd.alpha1_trace[i]}, {learning_rate}, {gd.D_alpha1_trace[i]}, {momentum1}', logger=logger)
-        say('iter {0}: F1={1:4.1f}%, alpha=[{2}, {3}], p=[{4:4.2f}, {5:4.2f}]'.format(i, 100 * np.exp(-gd.accuracy_trace[i]), np.round(gd.alpha1_trace[i], 2), np.round(gd.alpha2_trace[i], 2), np.round(momentum1, 2), np.round(momentum2, 2)), logger=logger, end=' ')
+        say('iter {0}: F1={1:4.1f}%, alpha=[{2}, {3}], momentum_value=[{4:4.2f}, {5:4.2f}]'.format(i, 100 * np.exp(-gd.accuracy_trace[i]), np.round(gd.alpha1_trace[i], 2), np.round(gd.alpha2_trace[i], 2), np.round(momentum1, 2), np.round(momentum2, 2)), logger=logger, end=' ')
 
     #    if False: (use this to avoid convergence testing)
         if i <= 2 * window_size:
