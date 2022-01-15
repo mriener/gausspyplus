@@ -6,12 +6,14 @@
 """Parallelization routines."""
 
 import multiprocessing
+import pickle
 import signal
 import sys
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
+from gausspyplus.gausspy_py3.gp import GaussianDecomposer
 from gausspyplus.utils.noise_estimation import determine_noise
 from gausspyplus.prepare import GaussPyPrepare
 from gausspyplus.spatial_fitting import SpatialFitting
@@ -33,6 +35,18 @@ def init_worker_ts():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
+def init_gausspy(*args):
+    global agd_object, science_data_path, ilist, agd_data
+    if args:
+        [agd_object, agd_data, ilist] = args[0]
+    else:
+        [agd_object, science_data_path, ilist] = pickle.load(
+            open('batchdecomp_temp.pickle', 'rb'), encoding='latin1')
+        agd_data = pickle.load(open(science_data_path, 'rb'), encoding='latin1')
+    if ilist == None:
+        ilist = np.arange(len(agd_data['data_list']))
+
+
 def init(mp_info):
     global mp_ilist, mp_data, mp_params
     mp_data, mp_params = mp_info
@@ -43,33 +57,55 @@ def calculate_noise(i):
     xpos = mp_data[i][1]
     ypos = mp_data[i][0]
     spectrum = mp_params[0][:, ypos, xpos]
-    result = determine_noise(spectrum, max_consecutive_channels=mp_params[1], pad_channels=mp_params[2], idx=i, average_rms=mp_params[3])
-    return result
+    return determine_noise(
+        spectrum=spectrum,
+        max_consecutive_channels=mp_params[1],
+        pad_channels=mp_params[2],
+        idx=i,
+        average_rms=mp_params[3]
+    )
+
+
+def decompose_one(i):
+    if agd_data['data_list'][i] is not None:
+        if 'signal_ranges' in list(agd_data.keys()):
+            signal_ranges = agd_data['signal_ranges'][i]
+            noise_spike_ranges = agd_data['noise_spike_ranges'][i]
+        else:
+            signal_ranges, noise_spike_ranges = (None for _ in range(2))
+
+        # TODO: what if idx keyword is missing or None?
+        result = GaussianDecomposer.decompose(
+            agd_object,
+            agd_data['x_values'],
+            agd_data['data_list'][i],
+            agd_data['error'][i] * np.ones(len(agd_data['x_values'])),
+            idx=agd_data['index'][i],
+            signal_ranges=signal_ranges,
+            noise_spike_ranges=noise_spike_ranges)
+        return result
+    else:
+        return None
 
 
 def refit_spectrum_1(i):
-    result = SpatialFitting.refit_spectrum_phase_1(mp_params[0], mp_data[i], i)
-    return result
+    return SpatialFitting.refit_spectrum_phase_1(mp_params[0], mp_data[i], i)
 
 
 def refit_spectrum_2(i):
-    result = SpatialFitting.refit_spectrum_phase_2(mp_params[0], mp_data[i], i)
-    return result
+    return SpatialFitting.refit_spectrum_phase_2(mp_params[0], mp_data[i], i)
 
 
 def calculate_noise_gpy(i):
-    result = GaussPyPrepare.calculate_rms_noise(mp_params[0], i)
-    return result
+    return GaussPyPrepare.calculate_rms_noise(mp_params[0], i)
 
 
 def decompose_spectrum_ts(i):
-    result = GaussPyTrainingSet.decompose(mp_params[0], mp_data[i], i)
-    return result
+    return GaussPyTrainingSet.decompose(mp_params[0], mp_data[i], i)
 
 
 def make_table(i):
-    result = Finalize.get_table_rows(mp_params[0], mp_data[i], i)
-    return result
+    return Finalize.get_table_rows(mp_params[0], mp_data[i], i)
 
 
 def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
@@ -123,13 +159,14 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
 def func(use_ncpus=None, function='noise'):
     # Multiprocessing code
     ncpus = multiprocessing.cpu_count()
-    # p = multiprocessing.Pool(ncpus, init_worker)
     if use_ncpus is None:
         use_ncpus = int(ncpus*0.75)
     print(f'Using {use_ncpus} of {ncpus} cpus')
     try:
         if function == 'noise':
             results_list = parallel_process(mp_ilist, calculate_noise, n_jobs=use_ncpus)
+        elif function == 'gausspy_decompose':
+            results_list = parallel_process(ilist, decompose_one, n_jobs=use_ncpus)
         elif function == 'gpy_noise':
             results_list = parallel_process(mp_ilist, calculate_noise_gpy, n_jobs=use_ncpus)
         elif function == 'refit_phase_1':
@@ -138,11 +175,39 @@ def func(use_ncpus=None, function='noise'):
             results_list = parallel_process(mp_ilist, refit_spectrum_2, n_jobs=use_ncpus)
         elif function == 'make_table':
             results_list = parallel_process(mp_ilist, make_table, n_jobs=use_ncpus)
-        # results_list = p.map(determine_distance, tqdm(ilist))
     except KeyboardInterrupt:
         print("KeyboardInterrupt... quitting.")
         quit()
     return results_list
+
+
+# TODO: alternative way for mulitprocessing used for gausspy decomposition -> can be deleted
+# def func(use_ncpus=None):
+#     # Multiprocessing code
+#     ncpus = multiprocessing.cpu_count()
+#     if use_ncpus is None:
+#         use_ncpus = int(0.75 * ncpus)
+#     # p = multiprocessing.Pool(ncpus, init_worker)
+#     print(('using {} out of {} cpus'.format(use_ncpus, ncpus)))
+#     p = multiprocessing.Pool(use_ncpus, init_worker)
+#     kwargs = {
+#         'total': len(ilist),
+#         'unit': 'it',
+#         'unit_scale': True,
+#         'leave': True
+#     }
+#     try:
+#         # results_list = p.map(decompose_one, tqdm(ilist))
+#         # results_list = tqdm(p.map(decompose_one, ilist), total=len(ilist))
+#         results_list = tqdm(p.imap(decompose_one, ilist), **kwargs)
+#
+#     except KeyboardInterrupt:
+#         print("KeyboardInterrupt... quitting.")
+#         p.terminate()
+#         quit()
+#     p.close()
+#     del p
+#     return results_list
 
 
 def func_ts(total, use_ncpus=None):
@@ -157,8 +222,7 @@ def func_ts(total, use_ncpus=None):
         results_list = []
         counter = 0
         pbar = tqdm(total=total)
-        for i, result in enumerate(
-                p.imap_unordered(decompose_spectrum_ts, mp_ilist)):
+        for i, result in enumerate(p.imap_unordered(decompose_spectrum_ts, mp_ilist)):
             if result is not None:
                 counter += 1
                 pbar.update(1)
