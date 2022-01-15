@@ -113,6 +113,7 @@ class Finalize(object):
                 except ValueError:
                     raise Exception(f'Could not parse parameter {key} from dct_params')
 
+        # TODO: remove log_output or implement logger?
         sp.log_output = False
         sp.path_to_pickle_file = self.path_to_pickle_file
         sp.path_to_decomp_file = self.path_to_decomp_file
@@ -380,7 +381,7 @@ class Finalize(object):
             save_fits(array, header, path_to_file,
                       verbose=False)
             say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-                filename, os.path.dirname(path_to_file)), logger=self.logger)
+                filename, os.path.dirname(path_to_file)))
 
         return fits.PrimaryHDU(array, header)
 
