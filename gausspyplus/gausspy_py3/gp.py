@@ -144,12 +144,29 @@ class GaussianDecomposer(object):
             parallel_processing.init_gausspy([self, dct, ilist])
             result_list = [parallel_processing.decompose_one(0)]
 
-        new_keys = ['index_fit', 'amplitudes_fit', 'fwhms_fit', 'means_fit',
-                    'index_initial', 'amplitudes_initial', 'fwhms_initial', 'means_initial',
-                    'amplitudes_fit_err', 'fwhms_fit_err', 'means_fit_err', 'best_fit_rchi2',
-                    'best_fit_aicc', 'N_components', 'N_neg_res_peak', 'N_blended', 'log_gplus', 'pvalue', 'quality_control']
+        new_keys = [
+            'index_fit',
+            'amplitudes_fit',
+            'fwhms_fit',
+            'means_fit',
+            'N_components_initial',
+            'amplitudes_initial',
+            'fwhms_initial',
+            'means_initial',
+            'amplitudes_fit_err',
+            'fwhms_fit_err',
+            'means_fit_err',
+            'best_fit_rchi2',
+            'best_fit_aicc',
+            'N_components',
+            'N_neg_res_peak',
+            'N_blended',
+            'log_gplus',
+            'pvalue',
+            'quality_control'
+        ]
 
-        output_data = dict((key, []) for key in new_keys)
+        output_data = {key: [] for key in new_keys}
 
         failed_decompositions = []
 
@@ -178,7 +195,7 @@ class GaussianDecomposer(object):
                 output_data['means_initial'].append(offsets_initial)
                 output_data['fwhms_initial'].append(fwhms_initial)
                 output_data['amplitudes_initial'].append(amps_initial)
-                output_data['index_initial'].append([i for j in range(ncomps_initial)])
+                output_data['N_components_initial'].append(ncomps_initial)
 
                 # Final fit errors
                 amps_err = result['best_fit_errors'][0:ncomps] if ncomps > 0 else []
