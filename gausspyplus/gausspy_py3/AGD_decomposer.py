@@ -49,7 +49,6 @@ def initialGuess(vel,
                  data,
                  errors=None,
                  alpha=None,
-                 plot=False,
                  verbose=False,
                  SNR_thresh=5.0,
                  SNR2_thresh=5.0,
@@ -59,7 +58,6 @@ def initialGuess(vel,
     data,             Input data
     dv,             x-spacing absolute units
     alpha = No Default,     regularization parameter
-    plot = False,     Show diagnostic plots?
     verbose = True    Diagnostic messages
     SNR_thresh = 5.0  Initial Spectrum S/N threshold
     SNR2_thresh =   S/N threshold for Second derivative
@@ -218,7 +216,6 @@ def AGD(vel,
         data,
         errors=errors[0],
         alpha=alpha1,
-        plot=plot,
         verbose=verbose,
         SNR_thresh=SNR_thresh[0],
         SNR2_thresh=SNR2_thresh[0],
@@ -293,7 +290,6 @@ def AGD(vel,
             SNR_thresh=SNR_thresh[1],
             SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
             deblend=deblend,
-            plot=plot
         )
         ncomps_g2 = agd2['N_components']
         if ncomps_g2 > 0:
