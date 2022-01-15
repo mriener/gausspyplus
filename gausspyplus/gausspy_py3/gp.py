@@ -25,14 +25,14 @@ class GaussianDecomposer(object):
             self.p = {'alpha1': None, 'alpha2': None, 'training_results': None,
                       'improve_fitting_dict': None, 'use_ncpus': None,
                       'phase': 'one', 'SNR2_thresh': 5., 'SNR_thresh': 5.,
-                      'deblend': True, 'mode': 'conv', 'BLFrac': 0.1, 'verbose': False, 'plot': False,
+                      'deblend': True, 'BLFrac': 0.1, 'verbose': False, 'plot': False,
                       'perform_final_fit': True}
 
     def load_training_data(self, filename):
         self.p['training_data'] = pickle.load(open(filename, 'rb'), encoding='latin1')
 
     def train(self, alpha1_initial=None, alpha2_initial=None, plot=False,
-              verbose=False, mode='conv', learning_rate=0.9, eps=0.25, MAD=0.1,
+              verbose=False, learning_rate=0.9, eps=0.25, MAD=0.1,
               logger=False):
         """Solve for optimal values of alpha1 (and alpha2) using training data."""
         if (((self.p['phase'] == 'one') and (not alpha1_initial)) or
@@ -54,7 +54,7 @@ class GaussianDecomposer(object):
                                    SNR_thresh=self.p['SNR_thresh'],
                                    SNR2_thresh=self.p['SNR2_thresh'],
                                    plot=plot, eps=eps,
-                                   verbose=verbose, mode=mode,
+                                   verbose=verbose,
                                    learning_rate=learning_rate, MAD=MAD,
                                    logger=logger)
 
@@ -69,18 +69,14 @@ class GaussianDecomposer(object):
             print('phase = two, and either alpha1 or alpha2 is unset')
             return
 
-        if self.p['mode'] != 'conv':
-            a1 = 10**self.p['alpha1']
-            a2 = 10**self.p['alpha2'] if self.p['phase'] == 'two' else None
-        else:
-            a1 = self.p['alpha1']
-            a2 = self.p['alpha2'] if self.p['phase'] == 'two' else None
+        a1 = self.p['alpha1']
+        a2 = self.p['alpha2'] if self.p['phase'] == 'two' else None
 
         status, results = AGD_decomposer.AGD(
             xdata, ydata, edata, idx=idx, signal_ranges=signal_ranges,
             noise_spike_ranges=noise_spike_ranges, alpha1=a1, alpha2=a2,
             improve_fitting_dict=self.p['improve_fitting_dict'],
-            phase=self.p['phase'], mode=self.p['mode'],
+            phase=self.p['phase'],
             verbose=self.p['verbose'], SNR_thresh=self.p['SNR_thresh'],
             BLFrac=self.p['BLFrac'], SNR2_thresh=self.p['SNR2_thresh'],
             deblend=self.p['deblend'], plot=self.p['plot'], perform_final_fit=self.p['perform_final_fit'])

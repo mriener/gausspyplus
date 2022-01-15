@@ -87,11 +87,17 @@ def single_training_example(kwargs):
     # Produce initial guesses
     #  status, result = AGD_decomposer.AGD(kwargs['vel'][j], kwargs['data'][j],
     status, result = AGD_decomposer.AGD(
-        kwargs['vel'], kwargs['data'][j], kwargs['errors'][j],
-        alpha1=kwargs['alpha1'], alpha2=kwargs['alpha2'], mode=kwargs['mode'],
-        plot=kwargs['plot'], verbose=kwargs['verbose'],
-        SNR_thresh=kwargs['SNR_thresh'], deblend=kwargs['deblend'],
-        perform_final_fit=False, phase=kwargs['phase'],
+        vel=kwargs['vel'],
+        data=kwargs['data'][j],
+        errors=kwargs['errors'][j],
+        alpha1=kwargs['alpha1'],
+        alpha2=kwargs['alpha2'],
+        plot=kwargs['plot'],
+        verbose=kwargs['verbose'],
+        SNR_thresh=kwargs['SNR_thresh'],
+        deblend=kwargs['deblend'],
+        perform_final_fit=False,
+        phase=kwargs['phase'],
         SNR2_thresh=kwargs['SNR2_thresh'])
 
     # If nothing was found, skip to next iteration
@@ -107,7 +113,7 @@ def single_training_example(kwargs):
 def objective_function(alpha1, alpha2, training_data, SNR_thresh=5.,
                        SNR2_thresh=0., deblend=True, phase=None, data=None,
                        errors=None, means=None, vel=None, FWHMs=None,
-                       amps=None,  verbose=False, plot=False, mode='conv'):
+                       amps=None,  verbose=False, plot=False):
 
     # Obtain dictionary of current-scope keywords/arguments
     frame = inspect.currentframe()
@@ -157,12 +163,23 @@ class gradient_descent(object):
         self.iter_of_convergence = np.nan
 
 
-def train(objective_function=objective_function, training_data=None,
-          alpha1_initial=None, alpha2_initial=None, iterations=500,
-          MAD=None, eps=None, learning_rate=None, p=None, window_size=10,
-          iterations_for_convergence=10, plot=False, phase=None, SNR2_thresh=0.,
-          SNR_thresh=5., verbose=False, mode='conv',
-          improve_fitting_dict=None, logger=False):
+def train(objective_function=objective_function,
+          training_data=None,
+          alpha1_initial=None,
+          alpha2_initial=None,
+          iterations=500,
+          MAD=None,
+          eps=None,
+          learning_rate=None,
+          p=None,
+          window_size=10,
+          iterations_for_convergence=10,
+          plot=False,
+          phase=None,
+          SNR2_thresh=0.,
+          SNR_thresh=5.,
+          verbose=False,
+          logger=False):
     """
     alpha1_initial =
     alpha2_initial =
@@ -177,24 +194,14 @@ def train(objective_function=objective_function, training_data=None,
     """
 
     # Default settings for hyper parameters
-    if mode == 'conv':
-        if not learning_rate:
-            learning_rate = 10.
-        if not eps:
-            eps = 1.0
-        if not MAD:
-            MAD = 0.3
-        if not p:
-            p = .8
-    elif (mode == 'c') or (mode == 'python'):
-        if not learning_rate:
-            learning_rate = 0.9
-        if not eps:
-            eps = 0.25
-        if not MAD:
-            MAD = 0.20
-        if not p:
-            p = .8
+    if not learning_rate:
+        learning_rate = 10.
+    if not eps:
+        eps = 1.0
+    if not MAD:
+        MAD = 0.3
+    if not p:
+        p = .8
 
     thresh = MAD / np.sqrt(window_size)
 
@@ -226,27 +233,23 @@ def train(objective_function=objective_function, training_data=None,
     gd.alpha2_trace[0] = alpha2_initial
 
     for i in range(iterations):
-        if mode != 'conv':
-            alpha1_r, alpha1_c, alpha1_l = 10.**(gd.alpha1_trace[i] + eps), 10.**gd.alpha1_trace[i], 10.**(gd.alpha1_trace[i] - eps)
-            alpha2_r, alpha2_c, alpha2_l = 10.**(gd.alpha2_trace[i] + eps), 10.**gd.alpha2_trace[i], 10.**(gd.alpha2_trace[i] - eps)
-        else:
-            alpha1_r, alpha1_c, alpha1_l = gd.alpha1_trace[i] + eps, gd.alpha1_trace[i], gd.alpha1_trace[i] - eps
-            alpha2_r, alpha2_c, alpha2_l = gd.alpha2_trace[i] + eps, gd.alpha2_trace[i], gd.alpha2_trace[i] - eps
+        alpha1_r, alpha1_c, alpha1_l = gd.alpha1_trace[i] + eps, gd.alpha1_trace[i], gd.alpha1_trace[i] - eps
+        alpha2_r, alpha2_c, alpha2_l = gd.alpha2_trace[i] + eps, gd.alpha2_trace[i], gd.alpha2_trace[i] - eps
 
         # Calls to objective function
-        obj_1r = objective_function(alpha1_r, alpha2_c, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh, mode=mode)
+        obj_1r = objective_function(alpha1_r, alpha2_c, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
         if eps == 0.:
             print('Mean Accuracy: ', np.exp(-obj_1r))  # (Just sampling one position)
             quit()
-        obj_1l = objective_function(alpha1_l, alpha2_c, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh, mode=mode)
+        obj_1l = objective_function(alpha1_l, alpha2_c, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
 
         gd.D_alpha1_trace[i] = (obj_1r - obj_1l) / 2. / eps
         gd.accuracy_trace[i] = (obj_1r + obj_1l) / 2.
 
         if phase == 'two':
             # Calls to objective function
-            obj_2r = objective_function(alpha1_c, alpha2_r, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh, mode=mode)
-            obj_2l = objective_function(alpha1_c, alpha2_l, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh, mode=mode)
+            obj_2r = objective_function(alpha1_c, alpha2_r, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
+            obj_2l = objective_function(alpha1_c, alpha2_l, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
             gd.D_alpha2_trace[i] = (obj_2r - obj_2l) / 2. / eps
             gd.accuracy_trace[i] = (obj_1r + obj_1l + obj_2r + obj_2l) / 4.
 
@@ -260,11 +263,10 @@ def train(objective_function=objective_function, training_data=None,
         gd.alpha2_trace[i+1] = gd.alpha2_trace[i] - learning_rate * gd.D_alpha2_trace[i] + momentum2
 
         # Sigma_alpha cannot be negative
-        if mode == 'conv':
-            if gd.alpha1_trace[i+1] < 0.:
-                gd.alpha1_trace[i+1] = 0.
-            if gd.alpha2_trace[i+1] < 0.:
-                gd.alpha2_trace[i+1] = 0.
+        if gd.alpha1_trace[i+1] < 0.:
+            gd.alpha1_trace[i+1] = 0.
+        if gd.alpha2_trace[i+1] < 0.:
+            gd.alpha2_trace[i+1] = 0.
 
         say('', logger=logger)
         say(f'{gd.alpha1_trace[i]}, {learning_rate}, {gd.D_alpha1_trace[i]}, {momentum1}', logger=logger)

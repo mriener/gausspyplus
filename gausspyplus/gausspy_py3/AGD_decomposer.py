@@ -99,7 +99,7 @@ def func(x, *args):
     return yout
 
 
-def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
+def initialGuess(vel, data, errors=None, alpha=None, plot=False,
                  verbose=False, SNR_thresh=5.0, BLFrac=0.1, SNR2_thresh=5.0,
                  deblend=True):
     """Find initial parameter guesses (AGD algorithm).
@@ -112,7 +112,6 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
     SNR_thresh = 5.0  Initial Spectrum S/N threshold
     BLFrac =          Edge fraction of data used for S/N threshold computation
     SNR2_thresh =   S/N threshold for Second derivative
-    mode = Method for taking derivatives
     """
     say('\n\n  --> initialGuess() \n', verbose)
     say('Algorithm parameters: ', verbose)
@@ -138,29 +137,28 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
 
     # Take regularized derivatives
     t0 = time.time()
-    if mode == 'conv':
-        say(f'Convolution sigma [pixels]: {alpha}', verbose)
-        gauss_sigma = alpha
-        gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
-        gauss_dn = gauss_sigma_int * 6
+    say(f'Convolution sigma [pixels]: {alpha}', verbose)
+    gauss_sigma = alpha
+    gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
+    gauss_dn = gauss_sigma_int * 6
 
-        xx = np.arange(2*gauss_dn+2)-(gauss_dn) - 0.5
-        gauss = np.exp(-xx**2/2./gauss_sigma**2)
-        gauss = gauss / np.sum(gauss)
-        gauss1 = np.diff(gauss) / dv
-        gauss3 = np.diff(np.diff(gauss1)) / dv**2
+    xx = np.arange(2*gauss_dn+2)-(gauss_dn) - 0.5
+    gauss = np.exp(-xx**2/2./gauss_sigma**2)
+    gauss = gauss / np.sum(gauss)
+    gauss1 = np.diff(gauss) / dv
+    gauss3 = np.diff(np.diff(gauss1)) / dv**2
 
-        xx2 = np.arange(2*gauss_dn+1)-(gauss_dn)
-        gauss2 = np.exp(-xx2**2/2./gauss_sigma**2)
-        gauss2 = gauss2 / np.sum(gauss2)
-        gauss2 = np.diff(gauss2) / dv
-        gauss2 = np.diff(gauss2) / dv
-        gauss4 = np.diff(np.diff(gauss2)) / dv**2
+    xx2 = np.arange(2*gauss_dn+1)-(gauss_dn)
+    gauss2 = np.exp(-xx2**2/2./gauss_sigma**2)
+    gauss2 = gauss2 / np.sum(gauss2)
+    gauss2 = np.diff(gauss2) / dv
+    gauss2 = np.diff(gauss2) / dv
+    gauss4 = np.diff(np.diff(gauss2)) / dv**2
 
-        u = convolve(data, gauss1, mode='wrap')
-        u2 = convolve(data, gauss2, mode='wrap')
-        u3 = convolve(data, gauss3, mode='wrap')
-        u4 = convolve(data, gauss4, mode='wrap')
+    u = convolve(data, gauss1, mode='wrap')
+    u2 = convolve(data, gauss2, mode='wrap')
+    u3 = convolve(data, gauss3, mode='wrap')
+    u4 = convolve(data, gauss4, mode='wrap')
 
     say('...took {0:4.2f} seconds per derivative.'.format(
         (time.time()-t0)/4.), verbose)
@@ -230,7 +228,7 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False, mode='conv',
 
 def AGD(vel, data, errors, idx=None, signal_ranges=None,
         noise_spike_ranges=None, improve_fitting_dict=None,
-        alpha1=None, alpha2=None, plot=False, mode='conv', verbose=False,
+        alpha1=None, alpha2=None, plot=False, verbose=False,
         SNR_thresh=5.0, BLFrac=0.1, SNR2_thresh=5.0, deblend=True,
         perform_final_fit=True, phase='one'):
     """ Autonomous Gaussian Decomposition."""
@@ -261,8 +259,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     # -------------------------------------- #
     # Find phase-one guesses                 #
     # -------------------------------------- #
-    agd1 = initialGuess(vel, data, errors=errors[0], alpha=alpha1, plot=plot,
-                        mode=mode, verbose=verbose, SNR_thresh=SNR_thresh[0],
+    agd1 = initialGuess(vel, data, errors=errors[0], alpha=alpha1, plot=plot, verbose=verbose, SNR_thresh=SNR_thresh[0],
                         BLFrac=BLFrac, SNR2_thresh=SNR2_thresh[0], deblend=deblend)
 
     amps_g1, widths_g1, offsets_g1, u2 = agd1['amps'], agd1['FWHMs'], agd1['means'], agd1['u2']
@@ -325,8 +322,7 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             # Finished producing residual signal # ---------------------------
 
         # Search for phase-two guesses
-        agd2 = initialGuess(vel, residuals, errors=errors[0], alpha=alpha2,
-                            mode=mode, verbose=verbose,
+        agd2 = initialGuess(vel, residuals, errors=errors[0], alpha=alpha2, verbose=verbose,
                             SNR_thresh=SNR_thresh[1], BLFrac=BLFrac,
                             SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
                             deblend=deblend, plot=plot)
