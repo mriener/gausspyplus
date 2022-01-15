@@ -51,8 +51,7 @@ def initialGuess(vel,
                  alpha=None,
                  verbose=False,
                  SNR_thresh=5.0,
-                 SNR2_thresh=5.0,
-                 deblend=True):
+                 SNR2_thresh=5.0):
     """Find initial parameter guesses (AGD algorithm).
 
     data,             Input data
@@ -150,16 +149,16 @@ def initialGuess(vel,
     widths = np.sqrt(np.abs(data/u2)[offsets_data_i])
     FWHMs = widths * 2.355
 
-    # Attempt deblending. If Deblending results in all non-negative answers, keep.
     amps = np.array(data[offsets_data_i])
-    if deblend:
-        FF_matrix = np.zeros([len(amps), len(amps)])
-        for i in range(FF_matrix.shape[0]):
-            for j in range(FF_matrix.shape[1]):
-                FF_matrix[i, j] = np.exp(-(offsets[i]-offsets[j])**2/2./(FWHMs[j] / 2.355)**2)
-        amps_new = lstsq(FF_matrix, amps, rcond=None)[0]
-        if np.all(amps_new > 0):
-            amps = amps_new
+
+    # Attempt deblending. If Deblending results in all non-negative answers, keep.
+    FF_matrix = np.zeros([len(amps), len(amps)])
+    for i in range(FF_matrix.shape[0]):
+        for j in range(FF_matrix.shape[1]):
+            FF_matrix[i, j] = np.exp(-(offsets[i]-offsets[j])**2/2./(FWHMs[j] / 2.355)**2)
+    amps_new = lstsq(FF_matrix, amps, rcond=None)[0]
+    if np.all(amps_new > 0):
+        amps = amps_new
 
     odict = {'means': offsets, 'FWHMs': FWHMs, 'amps': amps,
              'u2': u2, 'errors': errors, 'thresh2': thresh2,
@@ -181,7 +180,6 @@ def AGD(vel,
         verbose=False,
         SNR_thresh=5.0,
         SNR2_thresh=5.0,
-        deblend=True,
         perform_final_fit=True,
         phase='one'):
     """ Autonomous Gaussian Decomposition."""
@@ -219,7 +217,6 @@ def AGD(vel,
         verbose=verbose,
         SNR_thresh=SNR_thresh[0],
         SNR2_thresh=SNR2_thresh[0],
-        deblend=deblend
     )
 
     amps_g1, widths_g1, offsets_g1, u2 = agd1['amps'], agd1['FWHMs'], agd1['means'], agd1['u2']
@@ -289,7 +286,6 @@ def AGD(vel,
             verbose=verbose,
             SNR_thresh=SNR_thresh[1],
             SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
-            deblend=deblend,
         )
         ncomps_g2 = agd2['N_components']
         if ncomps_g2 > 0:

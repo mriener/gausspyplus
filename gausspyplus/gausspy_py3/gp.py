@@ -26,7 +26,6 @@ class GaussianDecomposer(object):
                 'phase': 'one',
                 'SNR2_thresh': 5.,
                 'SNR_thresh': 5.,
-                'deblend': True,
                 'verbose': False,
                 'plot': False,
                 'perform_final_fit': True
@@ -99,7 +98,6 @@ class GaussianDecomposer(object):
             verbose=self.p['verbose'],
             SNR_thresh=self.p['SNR_thresh'],
             SNR2_thresh=self.p['SNR2_thresh'],
-            deblend=self.p['deblend'],
             plot=self.p['plot'],
             perform_final_fit=self.p['perform_final_fit'])
         return results
