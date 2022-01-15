@@ -2225,13 +2225,6 @@ class SpatialFitting(object):
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             self.fin_filename, self.decomp_dirname), logger=self.logger)
 
-    # def say(self, message):
-    #     """Print diagnostic messages to terminal."""
-    #     if self.log_output:
-    #         self.logger.info(message)
-    #     if self.verbose:
-    #         print(message)
-
     #
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
     #

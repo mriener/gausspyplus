@@ -24,6 +24,7 @@ from gausspyplus.utils.gaussian_functions import (
     single_component_gaussian_model,
     vals_vec_from_lmfit
 )
+from gausspyplus.utils.output import say
 
 
 def create_fitmask(size, offsets_i, di):
@@ -37,12 +38,6 @@ def create_fitmask(size, offsets_i, di):
         fitmask[int(offsets_i[i]-di[i]):int(offsets_i[i]+di[i])] = 1.0
     fitmaskw = fitmask == 1.0
     return fitmask, fitmaskw
-
-
-def say(message, verbose=False):
-    """Diagnostic messages."""
-    if verbose is True:
-        print(message)
 
 
 def initialGuess(vel,
