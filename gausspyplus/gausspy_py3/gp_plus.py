@@ -1,22 +1,22 @@
-# @Author: riener
-# @Date:   2018-12-19T17:30:53+01:00
-# @Filename: gp_plus.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:20:37+02:00
-
 import itertools
-import sys
-from typing import Callable, Optional, List, Union, Any, Tuple, Literal, Dict
+from typing import Optional, List, Union, Any, Tuple, Literal, Dict
 
 import numpy as np
 
-import lmfit
 from lmfit import minimize as lmfit_minimize
-from lmfit import Parameters
 
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
 from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, check_residual_for_normality
-from gausspyplus.utils.gaussian_functions import combined_gaussian, area_of_gaussian
+from gausspyplus.utils.gaussian_functions import (
+    combined_gaussian, 
+    area_of_gaussian, 
+    split_params,
+    number_of_gaussian_components, 
+    multi_component_gaussian_model,
+    vals_vec_from_lmfit,
+    errs_vec_from_lmfit,
+    paramvec_to_lmfit
+)
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
 
@@ -24,106 +24,6 @@ def say(message: str, verbose: bool = False) -> None:
     """Diagnostic messages."""
     if verbose:
         print(message)
-
-
-def split_params(params: List, ncomps: int) -> Tuple[List, List, List]:
-    """Split params into amps, fwhms, offsets."""
-    # amps = params[0:ncomps]
-    # fwhms = params[ncomps:2*ncomps]
-    # offsets = params[2*ncomps:3*ncomps]
-    # return amps, fwhms, offsets
-    return params[:ncomps], params[ncomps:2*ncomps], params[2*ncomps:3*ncomps]  # amps, fwhms, offsets
-
-
-def _number_of_components(params: List) -> int:
-    """Compute number of Gaussian components."""
-    return len(params) // 3
-
-
-# TODO: shift function to utils.gaussian_functions (combine with similar function there)
-def _gaussian_function(peak: float, fwhm: float, mean: float) -> Callable:
-    """Return a Gaussian function."""
-    sigma = fwhm / 2.354820045  # (2 * sqrt( 2 * ln(2)))
-    return lambda x: peak * np.exp(-(x - mean)**2 / 2. / sigma**2)
-
-
-# TODO: shift function to utils.gaussian_functions
-def _func(x, *args):
-    """Return multi-component Gaussian model F(x).
-
-    Parameter vector kargs = [amp1, ..., ampN, width1, ..., widthN, mean1, ..., meanN],
-    and therefore has len(args) = 3 x N_components.
-    """
-    ncomps = _number_of_components(params=args)
-    yout = x * 0.
-    for i in range(ncomps):
-        yout = yout + _gaussian_function(peak=args[i], fwhm=args[i+ncomps], mean=args[i+2*ncomps])(x)
-    return yout
-
-
-# TODO: Identical function in AGD_decomposer -> remove redundancy
-def _vals_vec_from_lmfit(lmfit_params):
-    """Return Python list of parameter values from LMFIT Parameters object."""
-    if (sys.version_info >= (3, 0)):
-        vals = [value.value for value in list(lmfit_params.values())]
-    else:
-        vals = [value.value for value in lmfit_params.values()]
-    return vals
-
-
-# TODO: Identical function in AGD_decomposer -> remove redundancy
-def _errs_vec_from_lmfit(lmfit_params):
-    """Return Python list of parameter uncertainties from LMFIT Parameters object."""
-    if (sys.version_info >= (3, 0)):
-        errs = [value.stderr for value in list(lmfit_params.values())]
-    else:
-        errs = [value.stderr for value in lmfit_params.values()]
-    # TODO: estimate errors via bootstrapping instead of setting them to zero
-    errs = [0 if err is None else err for err in errs]
-    return errs
-
-
-# TODO: Identical function in AGD_decomposer -> remove redundancy
-def _paramvec_to_lmfit(paramvec: List,
-                       max_amp: Optional[float] = None,
-                       max_fwhm: Optional[float] = None,
-                       params_min: Optional[List] = None,
-                       params_max: Optional[List] = None):
-    """Transform a Python iterable of parameters into a LMFIT Parameters object.
-
-    Parameters
-    ----------
-    paramvec : Parameter vector = [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    max_amp : Enforced maximum value for amplitude parameter.
-    max_fwhm : Enforced maximum value for FWHM parameter. Use with caution! Can lead to artifacts in the fitting.
-    params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
-        min_mean1, ..., min_meanN]
-    params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
-        max_mean1, ..., max_meanN]
-
-    Returns
-    -------
-    params: lmfit.parameter.Parameters
-
-    """
-    ncomps = _number_of_components(params=paramvec)
-    params = Parameters()
-
-    if params_min is None:
-        params_min = len(paramvec)*[0.]
-
-    if params_max is None:
-        params_max = len(paramvec)*[None]
-
-        if max_amp is not None:
-            params_max[0:ncomps] = ncomps*[max_amp]
-        if max_fwhm is not None:
-            params_max[ncomps:2*ncomps] = ncomps*[max_fwhm]
-
-    for i in range(len(paramvec)):
-        params.add(name=f'p{i + 1}', value=paramvec[i], min=params_min[i], max=params_max[i])
-
-    return params
 
 
 def _perform_least_squares_fit(vel: np.ndarray,
@@ -135,12 +35,12 @@ def _perform_least_squares_fit(vel: np.ndarray,
                                params_max: Optional[List] = None) -> Tuple[List, List, int]:
     # Objective functions for final fit
     def objective_leastsq(paramslm):
-        params = _vals_vec_from_lmfit(paramslm)
-        resids = (_func(vel, *params).ravel() - data.ravel()) / errors
+        params = vals_vec_from_lmfit(paramslm)
+        resids = (multi_component_gaussian_model(vel, *params).ravel() - data.ravel()) / errors
         return resids
 
     #  get new best fit
-    lmfit_params = _paramvec_to_lmfit(
+    lmfit_params = paramvec_to_lmfit(
         paramvec=params_fit,
         max_amp=dct['max_amp'],
         max_fwhm=None,
@@ -150,8 +50,8 @@ def _perform_least_squares_fit(vel: np.ndarray,
     try:
         result = lmfit_minimize(
             objective_leastsq, lmfit_params, method='leastsq')
-        params_fit = _vals_vec_from_lmfit(lmfit_params=result.params)
-        params_errs = _errs_vec_from_lmfit(lmfit_params=result.params)
+        params_fit = vals_vec_from_lmfit(lmfit_params=result.params)
+        params_errs = errs_vec_from_lmfit(lmfit_params=result.params)
         # TODO: implement bootstrapping method to estimate error in case
         #  error is None (when parameters are close to given bounds)
         # if (len(params_errs) != 0) and (sum(params_errs) == 0):
@@ -169,7 +69,7 @@ def _perform_least_squares_fit(vel: np.ndarray,
         #         params_errs.append(std)
         #     print('params_errs', params_errs)
 
-        ncomps_fit = _number_of_components(params=params_fit)
+        ncomps_fit = number_of_gaussian_components(params=params_fit)
 
         return params_fit, params_errs, ncomps_fit
     except (ValueError, TypeError):
@@ -190,8 +90,7 @@ def remove_components_from_sublists(lst: List, remove_indices: List[int]) -> Lis
 
     """
     for idx, sublst in enumerate(lst):
-        lst[idx] = [val for i, val in enumerate(sublst)
-                    if i not in remove_indices]
+        lst[idx] = [val for i, val in enumerate(sublst) if i not in remove_indices]
     return lst
 
 
@@ -286,7 +185,7 @@ def _check_params_fit(vel: np.ndarray,
         quality control parameters.
 
     """
-    ncomps_fit = _number_of_components(params=params_fit)
+    ncomps_fit = number_of_gaussian_components(params=params_fit)
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
     amps_errs, fwhms_errs, offsets_errs = split_params(params=params_errs, ncomps=ncomps_fit)
@@ -471,7 +370,7 @@ def _replace_gaussian_with_two_new_ones(data: np.ndarray,
         parameters of the two narrower components were added.
 
     """
-    ncomps_fit = _number_of_components(params=params_fit)
+    ncomps_fit = number_of_gaussian_components(params=params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     # TODO: check if this is still necessary?
@@ -611,7 +510,7 @@ def get_fully_blended_gaussians(params_fit: List,
         Indices of fitted Gaussian components that satisfy the criterion for blendedness, sorted from lowest to highest amplitude values.
 
     """
-    ncomps_fit = _number_of_components(params_fit)
+    ncomps_fit = number_of_gaussian_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
     # stddevs_fit = list(np.array(fwhms_fit) / 2.354820045)
     indices_blended = np.array([])
@@ -667,7 +566,7 @@ def remove_components(params_fit: List,
         Updated list from which the parameters of the selected Gaussian fit components were removed.
 
     """
-    ncomps_fit = _number_of_components(params_fit)
+    ncomps_fit = number_of_gaussian_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     # if isinstance(remove_indices, np.ndarray):
@@ -747,7 +646,7 @@ def get_best_fit(vel: np.ndarray,
     else:
         quality_control = []
 
-    # ncomps_fit = _number_of_components(params_fit)
+    # ncomps_fit = number_of_gaussian_components(params_fit)
 
     params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
         vel=vel,
@@ -774,7 +673,7 @@ def get_best_fit(vel: np.ndarray,
                 signal_ranges=signal_ranges
             )
 
-        best_fit = _func(vel, *params_fit).ravel()
+        best_fit = multi_component_gaussian_model(vel, *params_fit).ravel()
     else:
         best_fit = data * 0
 
