@@ -1,10 +1,3 @@
-# @Author: Robert Lindner
-# @Date:   2018-12-19T17:30:53+01:00
-# @Filename: gp.py
-# @Last modified by:   riener
-# @Last modified time: 2019-03-29T15:52:07+01:00
-
-import os
 import pickle
 
 from . import AGD_decomposer
@@ -102,32 +95,11 @@ class GaussianDecomposer(object):
             perform_final_fit=self.p['perform_final_fit'])
         return results
 
-    def status(self):
-        """Return current values of parameters."""
-        print('Current Parameters:')
-        print('---' * 10)
-        for key in self.p:
-            if key in ['data_list', 'errors', 'x_values', 'amplitudes', 'fwhms',
-                       'means', 'amplitudes_fit', 'fwhms_fit', 'means_fit']:
-                print(f'len({key}) = {len(self.p[key])}')
-            else:
-                print(key, ' = ', self.p[key])
-
     def set(self, key, value):
         if key in self.p:
             self.p[key] = value
         else:
             print('Given key does not exist.')
-
-    def save_state(self, filename, clobber=False):
-        """Save the current decomposer object, and all associated parameters to a python pickle file."""
-        if os.path.isfile(filename):
-            if clobber:
-                os.remove(filename)
-            else:
-                print('File exists: ', filename)
-                return
-        pickle.dump(self, open(filename, 'wb'), protocol=2)
 
     def batch_decomposition(self, *args, ilist=None, dct=None):
         """Science data should be AGD format ilist is either None or an integer list."""
