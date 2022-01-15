@@ -247,7 +247,7 @@ class GaussPyDecompose:
 
         dct_initial_guesses = {}
 
-        for key in ["index_initial", "amplitudes_initial",
+        for key in ["N_components_initial", "amplitudes_initial",
                     "fwhms_initial", "means_initial"]:
             dct_initial_guesses[key] = self.decomposition[key]
 
