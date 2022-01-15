@@ -115,20 +115,18 @@ class GaussianDecomposer(object):
 
     def batch_decomposition(self, *args, ilist=None, dct=None):
         """Science data should be AGD format ilist is either None or an integer list."""
-        from . import batch_decomposition
+        from gausspyplus import parallel_processing
 
         if args:
             science_data_path = args[0]
             # Dump information to hard drive to allow multiprocessing
-            pickle.dump([self, science_data_path, ilist],
-                        open('batchdecomp_temp.pickle', 'wb'), protocol=2)
-            batch_decomposition.init()
-            result_list = batch_decomposition.func(
-                use_ncpus=self.p['use_ncpus'])
+            pickle.dump([self, science_data_path, ilist], open('batchdecomp_temp.pickle', 'wb'), protocol=2)
+            parallel_processing.init_gausspy()
+            result_list = parallel_processing.func(use_ncpus=self.p['use_ncpus'], function='gausspy_decompose')
         else:
             #  if only a single spectrum is decomposed
-            batch_decomposition.init([self, dct, ilist])
-            result_list = [batch_decomposition.decompose_one(0)]
+            parallel_processing.init_gausspy([self, dct, ilist])
+            result_list = [parallel_processing.decompose_one(0)]
 
         new_keys = ['index_fit', 'amplitudes_fit', 'fwhms_fit', 'means_fit',
                     'index_initial', 'amplitudes_initial', 'fwhms_initial', 'means_initial',
