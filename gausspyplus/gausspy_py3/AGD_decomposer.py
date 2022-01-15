@@ -11,7 +11,6 @@ import time
 import numpy as np
 from scipy.interpolate import interp1d
 from lmfit import minimize as lmfit_minimize
-from lmfit import Parameters
 
 import matplotlib.pyplot as plt
 from numpy.linalg import lstsq
@@ -46,8 +45,15 @@ def say(message, verbose=False):
         print(message)
 
 
-def initialGuess(vel, data, errors=None, alpha=None, plot=False,
-                 verbose=False, SNR_thresh=5.0, BLFrac=0.1, SNR2_thresh=5.0,
+def initialGuess(vel,
+                 data,
+                 errors=None,
+                 alpha=None,
+                 plot=False,
+                 verbose=False,
+                 SNR_thresh=5.0,
+                 BLFrac=0.1,
+                 SNR2_thresh=5.0,
                  deblend=True):
     """Find initial parameter guesses (AGD algorithm).
 
@@ -149,13 +155,11 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False,
     # Find points of inflection
     inflection = np.abs(np.diff(np.sign(u2)))
 
-    # Find Relative widths, then measure
-    # peak-to-inflection distance for sharpest peak
+    # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
     widths = np.sqrt(np.abs(data/u2)[offsets_data_i])
     FWHMs = widths * 2.355
 
-    # Attempt deblending.
-    # If Deblending results in all non-negative answers, keep.
+    # Attempt deblending. If Deblending results in all non-negative answers, keep.
     amps = np.array(data[offsets_data_i])
     if deblend:
         FF_matrix = np.zeros([len(amps), len(amps)])
@@ -173,11 +177,23 @@ def initialGuess(vel, data, errors=None, alpha=None, plot=False,
     return odict
 
 
-def AGD(vel, data, errors, idx=None, signal_ranges=None,
-        noise_spike_ranges=None, improve_fitting_dict=None,
-        alpha1=None, alpha2=None, plot=False, verbose=False,
-        SNR_thresh=5.0, BLFrac=0.1, SNR2_thresh=5.0, deblend=True,
-        perform_final_fit=True, phase='one'):
+def AGD(vel,
+        data,
+        errors,
+        idx=None,
+        signal_ranges=None,
+        noise_spike_ranges=None,
+        improve_fitting_dict=None,
+        alpha1=None,
+        alpha2=None,
+        plot=False,
+        verbose=False,
+        SNR_thresh=5.0,
+        BLFrac=0.1,
+        SNR2_thresh=5.0,
+        deblend=True,
+        perform_final_fit=True,
+        phase='one'):
     """ Autonomous Gaussian Decomposition."""
     dct = {}
     if improve_fitting_dict is not None:
@@ -206,8 +222,18 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     # -------------------------------------- #
     # Find phase-one guesses                 #
     # -------------------------------------- #
-    agd1 = initialGuess(vel, data, errors=errors[0], alpha=alpha1, plot=plot, verbose=verbose, SNR_thresh=SNR_thresh[0],
-                        BLFrac=BLFrac, SNR2_thresh=SNR2_thresh[0], deblend=deblend)
+    agd1 = initialGuess(
+        vel,
+        data,
+        errors=errors[0],
+        alpha=alpha1,
+        plot=plot,
+        verbose=verbose,
+        SNR_thresh=SNR_thresh[0],
+        BLFrac=BLFrac,
+        SNR2_thresh=SNR2_thresh[0],
+        deblend=deblend
+    )
 
     amps_g1, widths_g1, offsets_g1, u2 = agd1['amps'], agd1['FWHMs'], agd1['means'], agd1['u2']
     params_g1 = np.append(np.append(amps_g1, widths_g1), offsets_g1)
@@ -269,10 +295,18 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
             # Finished producing residual signal # ---------------------------
 
         # Search for phase-two guesses
-        agd2 = initialGuess(vel, residuals, errors=errors[0], alpha=alpha2, verbose=verbose,
-                            SNR_thresh=SNR_thresh[1], BLFrac=BLFrac,
-                            SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
-                            deblend=deblend, plot=plot)
+        agd2 = initialGuess(
+            vel,
+            residuals,
+            errors=errors[0],
+            alpha=alpha2,
+            verbose=verbose,
+            SNR_thresh=SNR_thresh[1],
+            BLFrac=BLFrac,
+            SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
+            deblend=deblend,
+            plot=plot
+        )
         ncomps_g2 = agd2['N_components']
         if ncomps_g2 > 0:
             params_g2 = np.concatenate(
@@ -298,12 +332,11 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
     # Sort final guess list by amplitude
     # ----------------------------------
     say('N final parameter guesses: ' + str(ncomps_gf))
-    amps_temp = params_gf[0:ncomps_gf]
+    amps_temp = params_gf[:ncomps_gf]
     widths_temp = params_gf[ncomps_gf:2*ncomps_gf]
     offsets_temp = params_gf[2*ncomps_gf:3*ncomps_gf]
     w_sort_amp = np.argsort(amps_temp)[::-1]
-    params_gf = np.concatenate([amps_temp[w_sort_amp], widths_temp[w_sort_amp],
-                                offsets_temp[w_sort_amp]])
+    params_gf = np.concatenate([amps_temp[w_sort_amp], widths_temp[w_sort_amp], offsets_temp[w_sort_amp]])
 
     if (perform_final_fit is True) and (ncomps_gf > 0):
         say('\n\n  --> Final Fitting... \n', verbose)
@@ -337,8 +370,15 @@ def AGD(vel, data, errors, idx=None, signal_ranges=None,
         #  TODO: check if ncomps_fit should be ncomps_gf
         best_fit_list, N_neg_res_peak, N_blended, log_gplus =\
             try_to_improve_fitting(
-                vel, data, errors, params_fit, ncomps_fit, dct,
-                signal_ranges=signal_ranges, noise_spike_ranges=noise_spike_ranges)
+                vel,
+                data,
+                errors,
+                params_fit,
+                ncomps_fit,
+                dct,
+                signal_ranges=signal_ranges,
+                noise_spike_ranges=noise_spike_ranges
+            )
 
         params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
             rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
