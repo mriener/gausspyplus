@@ -6,6 +6,8 @@
 
 import itertools
 import sys
+from typing import Callable, Optional, List, Union, Any, Tuple, Literal, Dict
+
 import numpy as np
 
 import lmfit
@@ -18,21 +20,22 @@ from gausspyplus.utils.gaussian_functions import combined_gaussian, area_of_gaus
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
 
-def say(message, verbose=False):
+def say(message: str, verbose: bool = False) -> None:
     """Diagnostic messages."""
-    if verbose is True:
+    if verbose:
         print(message)
 
 
-def split_params(params, ncomps):
+def split_params(params: List, ncomps: int) -> Tuple[List, List, List]:
     """Split params into amps, fwhms, offsets."""
-    amps = params[0:ncomps]
-    fwhms = params[ncomps:2*ncomps]
-    offsets = params[2*ncomps:3*ncomps]
-    return amps, fwhms, offsets
+    # amps = params[0:ncomps]
+    # fwhms = params[ncomps:2*ncomps]
+    # offsets = params[2*ncomps:3*ncomps]
+    # return amps, fwhms, offsets
+    return params[:ncomps], params[ncomps:2*ncomps], params[2*ncomps:3*ncomps]  # amps, fwhms, offsets
 
 
-def _number_of_components(params):
+def _number_of_components(params: List) -> int:
     """Compute number of Gaussian components."""
     return len(params) // 3
 
@@ -51,11 +54,10 @@ def _func(x, *args):
     Parameter vector kargs = [amp1, ..., ampN, width1, ..., widthN, mean1, ..., meanN],
     and therefore has len(args) = 3 x N_components.
     """
-    ncomps = _number_of_components(args)
+    ncomps = _number_of_components(params=args)
     yout = x * 0.
     for i in range(ncomps):
-        yout = yout + _gaussian_function(
-            args[i], args[i+ncomps], args[i+2*ncomps])(x)
+        yout = yout + _gaussian_function(peak=args[i], fwhm=args[i+ncomps], mean=args[i+2*ncomps])(x)
     return yout
 
 
@@ -82,29 +84,29 @@ def _errs_vec_from_lmfit(lmfit_params):
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
-def _paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
-                       params_min=None, params_max=None):
+def _paramvec_to_lmfit(paramvec: List,
+                       max_amp: Optional[float] = None,
+                       max_fwhm: Optional[float] = None,
+                       params_min: Optional[List] = None,
+                       params_max: Optional[List] = None):
     """Transform a Python iterable of parameters into a LMFIT Parameters object.
 
     Parameters
     ----------
-    paramvec : list
-        Parameter vector = [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    max_amp : float
-        Enforced maximum value for amplitude parameter.
-    max_fwhm : float
-        Enforced maximum value for FWHM parameter. Use with caution! Can lead to artifacts in the fitting.
-    params_min : list
-        List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
-    params_max : list
-        List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
+    paramvec : Parameter vector = [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
+    max_amp : Enforced maximum value for amplitude parameter.
+    max_fwhm : Enforced maximum value for FWHM parameter. Use with caution! Can lead to artifacts in the fitting.
+    params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
+        min_mean1, ..., min_meanN]
+    params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
+        max_mean1, ..., max_meanN]
 
     Returns
     -------
     params: lmfit.parameter.Parameters
 
     """
-    ncomps = _number_of_components(paramvec)
+    ncomps = _number_of_components(params=paramvec)
     params = Parameters()
 
     if params_min is None:
@@ -124,8 +126,13 @@ def _paramvec_to_lmfit(paramvec, max_amp=None, max_fwhm=None,
     return params
 
 
-def _perform_least_squares_fit(vel, data, errors, params_fit, dct,
-                               params_min=None, params_max=None):
+def _perform_least_squares_fit(vel: np.ndarray,
+                               data: np.ndarray,
+                               errors: np.ndarray,
+                               params_fit: List,
+                               dct: Dict,
+                               params_min: Optional[List] = None,
+                               params_max: Optional[List] = None) -> Tuple[List, List, int]:
     # Objective functions for final fit
     def objective_leastsq(paramslm):
         params = _vals_vec_from_lmfit(paramslm)
@@ -134,13 +141,17 @@ def _perform_least_squares_fit(vel, data, errors, params_fit, dct,
 
     #  get new best fit
     lmfit_params = _paramvec_to_lmfit(
-        params_fit, max_amp=dct['max_amp'], max_fwhm=None,
-        params_min=params_min, params_max=params_max)
+        paramvec=params_fit,
+        max_amp=dct['max_amp'],
+        max_fwhm=None,
+        params_min=params_min,
+        params_max=params_max
+    )
     try:
         result = lmfit_minimize(
             objective_leastsq, lmfit_params, method='leastsq')
-        params_fit = _vals_vec_from_lmfit(result.params)
-        params_errs = _errs_vec_from_lmfit(result.params)
+        params_fit = _vals_vec_from_lmfit(lmfit_params=result.params)
+        params_errs = _errs_vec_from_lmfit(lmfit_params=result.params)
         # TODO: implement bootstrapping method to estimate error in case
         #  error is None (when parameters are close to given bounds)
         # if (len(params_errs) != 0) and (sum(params_errs) == 0):
@@ -158,22 +169,20 @@ def _perform_least_squares_fit(vel, data, errors, params_fit, dct,
         #         params_errs.append(std)
         #     print('params_errs', params_errs)
 
-        ncomps_fit = _number_of_components(params_fit)
+        ncomps_fit = _number_of_components(params=params_fit)
 
         return params_fit, params_errs, ncomps_fit
     except (ValueError, TypeError):
         return [], [], 0
 
 
-def remove_components_from_sublists(lst, remove_indices):
+def remove_components_from_sublists(lst: List, remove_indices: List[int]) -> List:
     """Remove items with indices idx1, ..., idxN from all sublists of a nested list.
 
     Parameters
     ----------
-    lst : list
-        Nested list [sublist1, ..., sublistN].
-    remove_indices : list
-        List of indices [idx1, ..., idxN] indicating the items that should be removed from the sublists.
+    lst : Nested list [sublist1, ..., sublistN].
+    remove_indices : List of indices [idx1, ..., idxN] indicating the items that should be removed from the sublists.
 
     Returns
     -------
@@ -186,36 +195,33 @@ def remove_components_from_sublists(lst, remove_indices):
     return lst
 
 
-def _remove_components_above_max_ncomps(amps_fit, fwhms_fit, ncomps_max,
-                                        remove_indices, quality_control):
+def _remove_components_above_max_ncomps(amps_fit: List,
+                                        fwhms_fit: List,
+                                        ncomps_max: int,
+                                        remove_indices: List[int],
+                                        quality_control: List[int]) -> Tuple[List[int], List[int]]:
     """Remove all fit components above specified limit.
 
     Parameters
     ----------
-    amps_fit : list
-        List containing amplitude values of all N fitted Gaussian components in the form [amp1, ..., ampN].
-    fwhms_fit : list
-        List containing FWHM values of all N fitted Gaussian components in the form [fwhm1, ..., fwhmN].
-    ncomps_max : int
-        Specified maximum number of fit components.
-    remove_indices : list
-        Indices of Gaussian components that should be removed from the fit solution.
-    quality_control : list
-        Log containing information about which in-built quality control parameters were not fulfilled (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range')
+    amps_fit : List containing amplitude values of all N fitted Gaussian components in the form [amp1, ..., ampN].
+    fwhms_fit : List containing FWHM values of all N fitted Gaussian components in the form [fwhm1, ..., fwhmN].
+    ncomps_max : Specified maximum number of fit components.
+    remove_indices : Indices of Gaussian components that should be removed from the fit solution.
+    quality_control : Log containing information about which in-built quality control parameters were not fulfilled
+        (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range')
 
     Returns
     -------
-    remove_indices : list
-        Updated list with indices of Gaussian components that should be removed from the fit solution.
-    quality_control : list
-        Updated log containing information about which in-built quality control parameters were not fulfilled.
+    remove_indices : Updated list with indices of Gaussian components that should be removed from the fit solution.
+    quality_control : Updated log containing information about which in-built quality control parameters were not
+        fulfilled.
 
     """
     ncomps_fit = len(amps_fit)
     if ncomps_fit <= ncomps_max:
         return remove_indices, quality_control
-    integrated_intensities = area_of_gaussian(
-        np.array(amps_fit), np.array(fwhms_fit))
+    integrated_intensities = area_of_gaussian(amp=np.array(amps_fit), fwhm=np.array(fwhms_fit))
     indices = np.array(range(len(integrated_intensities)))
     sort_indices = np.argsort(integrated_intensities)
 
@@ -231,64 +237,63 @@ def _remove_components_above_max_ncomps(amps_fit, fwhms_fit, ncomps_max,
     return remove_indices, quality_control
 
 
-def _check_params_fit(vel, data, errors, params_fit, params_errs, dct,
-                      quality_control, signal_ranges=None,
-                      params_min=None, params_max=None):
+def _check_params_fit(vel: np.ndarray,
+                      data: np.ndarray,
+                      errors: np.ndarray,
+                      params_fit: List,
+                      params_errs: List,
+                      dct: Dict,
+                      quality_control: List[int],
+                      signal_ranges: Optional[List] = None,
+                      params_min: Optional[List] = None,
+                      params_max: Optional[List] = None) -> Tuple[List, List, int, List, List, List, bool]:
     """Perform quality checks for the fitted Gaussians components.
 
     All Gaussian components that are not satisfying the criteria are discarded from the fit.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    params_fit : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    params_errs : list
-        Parameter error vector in the form of [e_amp1, ..., e_ampN, e_fwhm1, ..., e_fwhmN, e_mean1, ..., e_meanN].
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    rms : float
-        Root-mean-square noise of the spectrum.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    params_min : list
-        List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
-    params_max : list
-        List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
-    quality_control : list
-        Log containing information about which in-built quality control parameters were not fulfilled (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range')
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    params_fit : Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
+    params_errs : Parameter error vector in the form of [e_amp1, ..., e_ampN, e_fwhm1, ..., e_fwhmN,
+        e_mean1, ..., e_meanN].
+    dct : Dictionary containing parameter settings for the improved fitting.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
+        The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
+        min_mean1, ..., min_meanN]
+    params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
+        max_mean1, ..., max_meanN]
+    quality_control : Log containing information about which in-built quality control parameters were not fulfilled
+        (0: 'max_fwhm', 1: 'min_fwhm', 2: 'snr', 3: 'significance', 4: 'channel_range', 5: 'signal_range')
 
     Returns
     -------
-    params_fit : list
-        Corrected version from which all Gaussian components that did not satisfy the quality criteria are removed.
-    params_err : list
-        Corrected version from which all Gaussian components that did not satisfy the quality criteria are removed.
-    ncomps_fit : int
-        Number of remaining fitted Gaussian components.
-    params_min : list
-        Corrected version from which all Gaussian components that did not satisfy the quality criteria are removed.
-    params_max : list
-        Corrected version from which all Gaussian components that did not satisfy the quality criteria are removed.
-    quality_control : list
-        Updated log containing information about which in-built quality control parameters were not fulfilled.
-    refit : bool
-        If 'True', the spectrum was refit because one or more of the Gaussian fit parameters did not satisfy the quality control parameters.
+    params_fit : Corrected version from which all Gaussian components that did not satisfy the quality criteria are
+        removed.
+    params_err : Corrected version from which all Gaussian components that did not satisfy the quality criteria are
+        removed.
+    ncomps_fit : Number of remaining fitted Gaussian components.
+    params_min : Corrected version from which all Gaussian components that did not satisfy the quality criteria are
+        removed.
+    params_max : Corrected version from which all Gaussian components that did not satisfy the quality criteria are
+        removed.
+    quality_control : Updated log containing information about which in-built quality control parameters were not
+        fulfilled.
+    refit : If 'True', the spectrum was refit because one or more of the Gaussian fit parameters did not satisfy the
+        quality control parameters.
 
     """
-    ncomps_fit = _number_of_components(params_fit)
+    ncomps_fit = _number_of_components(params=params_fit)
 
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
-    amps_errs, fwhms_errs, offsets_errs = split_params(params_errs, ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
+    amps_errs, fwhms_errs, offsets_errs = split_params(params=params_errs, ncomps=ncomps_fit)
     if params_min is not None:
-        amps_min, fwhms_min, offsets_min = split_params(params_min, ncomps_fit)
+        amps_min, fwhms_min, offsets_min = split_params(params=params_min, ncomps=ncomps_fit)
     if params_max is not None:
-        amps_max, fwhms_max, offsets_max = split_params(params_max, ncomps_fit)
+        amps_max, fwhms_max, offsets_max = split_params(params=params_max, ncomps=ncomps_fit)
 
     rms = errors[0]
 
@@ -338,7 +343,10 @@ def _check_params_fit(vel, data, errors, params_fit, params_errs, dct,
                 upp = int(offset + fwhm) + 2
 
                 if not check_if_intervals_contain_signal(
-                        data, rms, [(low, upp)], snr=dct['snr'],
+                        spectrum=data,
+                        rms=rms,
+                        ranges=[(low, upp)],
+                        snr=dct['snr'],
                         significance=dct['significance']):
                     remove_indices.append(i)
                     quality_control.append(5)
@@ -346,7 +354,12 @@ def _check_params_fit(vel, data, errors, params_fit, params_errs, dct,
 
     if dct['max_ncomps'] is not None:
         remove_indices, quality_control = _remove_components_above_max_ncomps(
-            amps_fit, fwhms_fit, dct['max_ncomps'], remove_indices, quality_control)
+            amps_fit=amps_fit,
+            fwhms_fit=fwhms_fit,
+            ncomps_max=dct['max_ncomps'],
+            remove_indices=remove_indices,
+            quality_control=quality_control
+        )
 
     remove_indices = list(set(remove_indices))
 
@@ -354,55 +367,68 @@ def _check_params_fit(vel, data, errors, params_fit, params_errs, dct,
 
     if len(remove_indices) > 0:
         amps_fit, fwhms_fit, offsets_fit = remove_components_from_sublists(
-            [amps_fit, fwhms_fit, offsets_fit], remove_indices)
+            lst=[amps_fit, fwhms_fit, offsets_fit],
+            remove_indices=remove_indices)
         params_fit = amps_fit + fwhms_fit + offsets_fit
 
         amps_errs, fwhms_errs, offsets_errs = remove_components_from_sublists(
-            [amps_errs, fwhms_errs, offsets_errs], remove_indices)
+            lst=[amps_errs, fwhms_errs, offsets_errs],
+            remove_indices=remove_indices)
         params_errs = amps_errs + fwhms_errs + offsets_errs
 
         if params_min is not None:
             amps_min, fwhms_min, offsets_min = remove_components_from_sublists(
-                [amps_min, fwhms_min, offsets_min], remove_indices)
+                lst=[amps_min, fwhms_min, offsets_min],
+                remove_indices=remove_indices)
             params_min = amps_min + fwhms_min + offsets_min
 
         if params_max is not None:
             amps_max, fwhms_max, offsets_max = remove_components_from_sublists(
-                [amps_max, fwhms_max, offsets_max], remove_indices)
+                lst=[amps_max, fwhms_max, offsets_max],
+                remove_indices=remove_indices
+            )
             params_max = amps_max + fwhms_max + offsets_max
 
         params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
-            vel, data, errors, params_fit, dct, params_min=params_min, params_max=params_max)
+            vel=vel,
+            data=data,
+            errors=errors,
+            params_fit=params_fit,
+            dct=dct,
+            params_min=params_min,
+            params_max=params_max
+        )
 
         refit = True
 
     return params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit
 
 
-def _check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit, offsets_fit):
+def _check_which_gaussian_contains_feature(idx_low: int,
+                                           idx_upp: int,
+                                           fwhms_fit: List,
+                                           offsets_fit: List) -> Optional[int]:
     """Return index of Gaussian component contained within a range in the spectrum.
 
-    The FWHM interval (mean - FWHM, mean + FWHM ) of the Gaussian component has to be fully contained in the range of the spectrum. If no Gaussians satisfy this criterion 'None' is returned. In case multiple Gaussians satisfy this criterion, the Gaussian with the highest FWHM parameter is selected.
+    The FWHM interval (mean - FWHM, mean + FWHM ) of the Gaussian component has to be fully contained in the range of
+    the spectrum. If no Gaussians satisfy this criterion 'None' is returned. In case multiple Gaussians satisfy this
+    criterion, the Gaussian with the highest FWHM parameter is selected.
 
     Parameters
     ----------
-    idx_low : int
-        Index of the first channel of the range in the spectrum.
-    idx_upp : int
-        Index of the last channel of the range in the spectrum.
-    fwhms_fit : list
-        List containing FWHM values of all N fitted Gaussian components in the form [fwhm1, ..., fwhmN].
-    offsets_fit : list
-        List containing mean position values of all N fitted Gaussian components in the form [mean1, ..., meanN].
+    idx_low : Index of the first channel of the range in the spectrum.
+    idx_upp : Index of the last channel of the range in the spectrum.
+    fwhms_fit : List containing FWHM values of all N fitted Gaussian components in the form [fwhm1, ..., fwhmN].
+    offsets_fit : List containing mean position values of all N fitted Gaussian components in the form
+        [mean1, ..., meanN].
 
     Returns
     -------
-    index : int or None
-        Index of Gaussian component contained within the spectral range.
+    index : Index of Gaussian component contained within the spectral range.
 
     """
     lower = [int(offset - fwhm) for fwhm, offset in zip(fwhms_fit, offsets_fit)]
-    lower = np.array([0 if x < 0 else x for x in lower])
+    lower = np.array([max(x, 0) for x in lower])
     upper = np.array([int(offset + fwhm) + 2 for fwhm, offset in zip(fwhms_fit, offsets_fit)])
 
     indices = np.arange(len(fwhms_fit))
@@ -418,36 +444,35 @@ def _check_which_gaussian_contains_feature(idx_low, idx_upp, fwhms_fit, offsets_
         return int(remaining_indices[select])
 
 
-def _replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance, params_fit, exclude_idx, offset):
+def _replace_gaussian_with_two_new_ones(data: np.ndarray,
+                                        vel: np.ndarray,
+                                        rms: float,
+                                        snr: float,
+                                        significance: float,
+                                        params_fit: List,
+                                        exclude_idx: int,
+                                        offset: float) -> List:
     """Replace broad Gaussian fit component with initial guesses for two narrower components.
 
     Parameters
     ----------
-    data : numpy.ndarray
-        Original data of spectrum.
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    rms : float
-        Root-mean-square noise of the spectrum.
-    snr : float
-        Required minimum signal-to-noise ratio for data peak.
-    significance : float
-        Required minimum value for significance criterion.
-    params_fit : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    exclude_idx : int
-        Index of the broad Gaussian fit component that will be removed from params_fit.
-    offset : type
-        Mean position of the broad Gaussian fit component that will be removed.
+    data : Original data of spectrum.
+    vel : Velocity channels (unitless).
+    rms : Root-mean-square noise of the spectrum.
+    snr : Required minimum signal-to-noise ratio for data peak.
+    significance : Required minimum value for significance criterion.
+    params_fit : Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
+    exclude_idx : Index of the broad Gaussian fit component that will be removed from params_fit.
+    offset : Mean position of the broad Gaussian fit component that will be removed.
 
     Returns
     -------
-    params_fit : list
-        Updated list from which the parameters of the broad Gaussian fit components were removed and the parameters of the two narrower components were added.
+    params_fit : Updated list from which the parameters of the broad Gaussian fit components were removed and the
+        parameters of the two narrower components were added.
 
     """
-    ncomps_fit = _number_of_components(params_fit)
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
+    ncomps_fit = _number_of_components(params=params_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     # TODO: check if this is still necessary?
     if exclude_idx is None:
@@ -465,14 +490,20 @@ def _replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance, param
     fwhms_fit = np.array(fwhms_fit)[~mask]
     offsets_fit = np.array(offsets_fit)[~mask]
 
-    residual = data - combined_gaussian(amps_fit, fwhms_fit, offsets_fit, vel)
+    residual = data - combined_gaussian(amps=amps_fit, fwhms=fwhms_fit, means=offsets_fit, x=vel)
 
     #  search for residual peaks in new residual
 
     for low, upp in zip([idx_low_residual, int(offset)],
                         [int(offset), idx_upp_residual]):
         amp_guess, fwhm_guess, offset_guess = _get_initial_guesses(
-            residual[low:upp], rms, snr, significance, peak='positive', maximum=True)
+            residual=residual[low:upp],
+            rms=rms,
+            snr=snr,
+            significance=significance,
+            peak='positive',
+            maximum=True
+        )
 
         if amp_guess.size == 0:
             continue
@@ -488,37 +519,32 @@ def _replace_gaussian_with_two_new_ones(data, vel, rms, snr, significance, param
     return params_fit
 
 
-def _get_initial_guesses(residual, rms, snr, significance, peak='positive', maximum=False):
+def _get_initial_guesses(residual: np.ndarray,
+                         rms: float,
+                         snr: float,
+                         significance: float,
+                         peak: Literal['positive', 'negative'] = 'positive',
+                         maximum: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Get initial guesses of Gaussian fit parameters for residual peaks.
 
     Parameters
     ----------
-    residual : numpy.ndarray
-        Residual of the spectrum in which we search for unfit peaks.
-    rms : float
-        Root-mean-square noise of the spectrum.
-    snr : float
-        Required minimum signal-to-noise ratio for data peak.
-    significance : float
-        Required minimum value for significance criterion.
-    peak : str ('positive', 'negative')
-        Whether to search for positive (default) or negative peaks in the residual.
-    maximum : bool
-        Default is 'False'. If set to 'True', only the input parameter guesses for a single Gaussian fit component -- the one with the highest guessed amplitude value -- are returned.
+    residual : Residual of the spectrum in which we search for unfit peaks.
+    rms : Root-mean-square noise of the spectrum.
+    snr : Required minimum signal-to-noise ratio for data peak.
+    significance : Required minimum value for significance criterion.
+    peak : Whether to search for positive (default) or negative peaks in the residual.
+    maximum : Default is 'False'. If set to 'True', only the input parameter guesses for a single Gaussian fit
+        component -- the one with the highest guessed amplitude value -- are returned.
 
     Returns
     -------
-    amp_guesses : numpy.array or None
-        Initial guesses for amplitude values of Gaussian fit parameters for residual peaks.
-    fwhm_guesses : numpy.array or None
-        Initial guesses for FWHM values of Gaussian fit parameters for residual peaks.
-    offset_guesses : numpy.array or None
-        Initial guesses for mean positions of Gaussian fit parameters for residual peaks.
+    amp_guesses : Initial guesses for amplitude values of Gaussian fit parameters for residual peaks.
+    fwhm_guesses : Initial guesses for FWHM values of Gaussian fit parameters for residual peaks.
+    offset_guesses : Initial guesses for mean positions of Gaussian fit parameters for residual peaks.
 
     """
-    amp_guesses, ranges = determine_peaks(
-        residual, peak=peak,
-        amp_threshold=snr*rms)
+    amp_guesses, ranges = determine_peaks(spectrum=residual, peak=peak, amp_threshold=snr*rms)
 
     if amp_guesses.size == 0:
         return np.array([]), np.array([]), np.array([])
@@ -541,7 +567,6 @@ def _get_initial_guesses(residual, rms, snr, significance, peak='positive', maxi
 
     keep_indices = keep_indices.astype('int')
     amp_guesses = amp_guesses[keep_indices]
-    ranges = ranges[keep_indices]
     significance_vals = significance_vals[keep_indices]
 
     if amp_guesses.size == 0:
@@ -551,8 +576,7 @@ def _get_initial_guesses(residual, rms, snr, significance, peak='positive', maxi
     offset_guesses = np.where(amp_guesses_position_mask == True)[0]
 
     #  we use the determined significance values to get input guesses for the FWHM values
-    fwhm_guesses = (significance_vals*rms
-                    / (amp_guesses * 0.75269184778925247))**2
+    fwhm_guesses = (significance_vals*rms / (amp_guesses * 0.75269184778925247))**2
 
     if maximum:
         idx_max = np.argmax(amp_guesses)
@@ -563,8 +587,9 @@ def _get_initial_guesses(residual, rms, snr, significance, peak='positive', maxi
     return amp_guesses, fwhm_guesses, offset_guesses
 
 
-def get_fully_blended_gaussians(params_fit, get_count=False,
-                                separation_factor=0.8493218002991817):
+def get_fully_blended_gaussians(params_fit: List,
+                                get_count: bool = False,
+                                separation_factor: float = 0.8493218002991817) -> Union[int, np.ndarray]:
     """Return information about blended Gaussian fit components.
 
     A Gaussian fit component i is blended with another component if the separation of their mean positions is less than the FWHM value of the narrower component multiplied by the 'separation_factor'.
@@ -615,7 +640,7 @@ def get_fully_blended_gaussians(params_fit, get_count=False,
     return indices_blended[sort]
 
 
-def _return_as_list(var):
+def _return_as_list(var: Any) -> List:
     if isinstance(var, np.ndarray):
         var = list(var)
     elif not isinstance(var, list):
@@ -625,7 +650,8 @@ def _return_as_list(var):
 
 # TODO: Identical function in utils.grouping_functions -> remove redundancy; this function is imported also by
 #  spatial_fitting.py
-def remove_components(params_fit, remove_indices):
+def remove_components(params_fit: List,
+                      remove_indices: Union[int, List, np.ndarray]) -> List:
     """Remove parameters of Gaussian fit components.
 
     Parameters
@@ -642,7 +668,7 @@ def remove_components(params_fit, remove_indices):
 
     """
     ncomps_fit = _number_of_components(params_fit)
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     # if isinstance(remove_indices, np.ndarray):
     #     remove_indices = list(remove_indices)
@@ -663,10 +689,19 @@ def remove_components(params_fit, remove_indices):
     # return params_fit
 
 
-def get_best_fit(vel, data, errors, params_fit, dct, first=False,
-                 best_fit_list=None, signal_ranges=None, signal_mask=None,
-                 force_accept=False, params_min=None, params_max=None,
-                 noise_spike_mask=None):
+def get_best_fit(vel: np.ndarray,
+                 data: np.ndarray,
+                 errors: np.ndarray,
+                 params_fit: List,
+                 dct: Dict,
+                 first: bool = False,
+                 best_fit_list: Optional[List] = None,
+                 signal_ranges: Optional[List] = None,
+                 signal_mask: Optional[np.ndarray] = None,
+                 force_accept: bool = False,
+                 params_min: Optional[List] = None,
+                 params_max: Optional[List] = None,
+                 noise_spike_mask: Optional[np.ndarray] = None) -> List:
     """Determine new best fit for spectrum.
 
     If this is the first fit iteration for the spectrum a new best fit is assigned and its parameters are returned in best_fit_list.
@@ -715,27 +750,51 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     # ncomps_fit = _number_of_components(params_fit)
 
     params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
-        vel, data, errors, params_fit, dct, params_min=params_min, params_max=params_max)
+        vel=vel,
+        data=data,
+        errors=errors,
+        params_fit=params_fit,
+        dct=dct,
+        params_min=params_min,
+        params_max=params_max
+    )
 
     #  check if fit components satisfy mandatory criteria
     if ncomps_fit > 0:
         refit = True
         while refit:
             params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = _check_params_fit(
-                vel, data, errors, params_fit, params_errs, dct,
-                quality_control, signal_ranges=signal_ranges)
+                vel=vel,
+                data=data,
+                errors=errors,
+                params_fit=params_fit,
+                params_errs=params_errs,
+                dct=dct,
+                quality_control=quality_control,
+                signal_ranges=signal_ranges
+            )
 
         best_fit = _func(vel, *params_fit).ravel()
     else:
         best_fit = data * 0
 
     rchi2, aicc = goodness_of_fit(
-        data, best_fit, errors, ncomps_fit, mask=signal_mask, get_aicc=True)
+        data=data,
+        best_fit_final=best_fit,
+        errors=errors,
+        ncomps_fit=ncomps_fit,
+        mask=signal_mask,
+        get_aicc=True
+    )
 
     residual = data - best_fit
 
-    pvalue = check_residual_for_normality(residual, errors, mask=signal_mask,
-                                          noise_spike_mask=noise_spike_mask)
+    pvalue = check_residual_for_normality(
+        data=residual,
+        errors=errors,
+        mask=signal_mask,
+        noise_spike_mask=noise_spike_mask
+    )
 
     #  return the list of best fit results if there was no old list of best fit results for comparison
     if first:
@@ -755,43 +814,51 @@ def get_best_fit(vel, data, errors, params_fit, dct, first=False,
     return best_fit_list
 
 
-def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
-                                signal_ranges=None, signal_mask=None,
-                                force_accept=False, get_count=False,
-                                get_idx=False, noise_spike_mask=None):
+def check_for_negative_residual(vel: np.ndarray,
+                                data: np.ndarray,
+                                errors: np.ndarray,
+                                best_fit_list: List,
+                                dct: Dict,
+                                signal_ranges: Optional[List] = None,
+                                signal_mask: Optional[List] = None,
+                                force_accept: bool = False,
+                                get_count: bool = False,
+                                get_idx: bool = False,
+                                noise_spike_mask: Optional[List] = None) -> Union[int, List]:
     """Check for negative residual features and try to refit them.
 
-    We define negative residual features as negative peaks in the residual that were introduced by the fit. These negative peaks have to have a minimum negative signal-to-noise ratio of dct['snr_negative'].
+    We define negative residual features as negative peaks in the residual that were introduced by the fit. These
+    negative peaks have to have a minimum negative signal-to-noise ratio of dct['snr_negative'].
 
-    In case of a negative residual feature, we try to replace the Gaussian fit component that is causing the feature with two narrower components. We only accept this solution if it yields a better fit as determined by the AICc value.
+    In case of a negative residual feature, we try to replace the Gaussian fit component that is causing the feature
+    with two narrower components. We only accept this solution if it yields a better fit as determined by the AICc
+    value.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    signal_mask : numpy.ndarray
-        Boolean array containing the information of signal_ranges.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
-    get_count : bool
-        Default is 'False'. If set to 'True', only the number of occurring negative residual features will be returned.
-    get_idx : bool
-        Default is 'False'. If set to 'True', the index of the Gaussian fit component causing the negative residual feature is returned. In case of multiple negative residual features, only the index of one of them is returned.
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    best_fit_list : List containing parameters of the current best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    dct : Dictionary containing parameter settings for the improved fitting.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    signal_mask : Boolean array containing the information of signal_ranges.
+    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
+        best fit.
+    get_count : Default is 'False'. If set to 'True', only the number of occurring negative residual features will be
+        returned.
+    get_idx : Default is 'False'. If set to 'True', the index of the Gaussian fit component causing the negative
+        residual feature is returned. In case of multiple negative residual features, only the index of one of them is
+        returned.
 
     Returns
     -------
-    best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
+    best_fit_list : List containing parameters of the chosen best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
 
     """
     params_fit = best_fit_list[0]
@@ -802,30 +869,31 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
         errors = np.ones(len(data)) * errors
 
     if ncomps_fit == 0:
-        if get_count:
-            return 0
-        return best_fit_list
+        return 0 if get_count else best_fit_list
 
     residual = best_fit_list[4]
 
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
-        residual, errors[0], dct['snr_negative'], dct['significance'],
-        peak='negative')
+        residual=residual,
+        rms=errors[0],
+        snr=dct['snr_negative'],
+        significance=dct['significance'],
+        peak='negative',
+        maximum=False
+    )
 
     #  check if negative residual feature was already present in the data
-    remove_indices = []
-    for i, offset in enumerate(offset_guesses):
-        if residual[offset] > (data[offset] - dct['snr']*errors[0]):
-            remove_indices.append(i)
+    remove_indices = [i for i, offset in enumerate(offset_guesses)
+                      if residual[offset] > (data[offset] - dct['snr'] * errors[0])]
 
-    if len(remove_indices) > 0:
+    if remove_indices:
         amp_guesses, fwhm_guesses, offset_guesses = remove_components_from_sublists(
             [amp_guesses, fwhm_guesses, offset_guesses], remove_indices)
 
     if get_count:
-        return (len(amp_guesses))
+        return len(amp_guesses)
 
     if len(amp_guesses) == 0:
         return best_fit_list
@@ -840,21 +908,39 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
         idx_low = max(0, int(offset - fwhm))
         idx_upp = int(offset + fwhm) + 2
         exclude_idx = _check_which_gaussian_contains_feature(
-            idx_low, idx_upp, fwhms_fit, offsets_fit)
+            idx_low=idx_low,
+            idx_upp=idx_upp,
+            fwhms_fit=fwhms_fit,
+            offsets_fit=offsets_fit)
         if get_idx:
             return exclude_idx
         if exclude_idx is None:
             continue
 
         params_fit = _replace_gaussian_with_two_new_ones(
-            data, vel, errors[0], dct['snr'], dct['significance'],
-            params_fit, exclude_idx, offset)
+            data=data,
+            vel=vel,
+            rms=errors[0],
+            snr=dct['snr'],
+            significance=dct['significance'],
+            params_fit=params_fit,
+            exclude_idx=exclude_idx,
+            offset=offset
+        )
 
         best_fit_list = get_best_fit(
-            vel, data, errors, params_fit, dct, first=False,
-            best_fit_list=best_fit_list, signal_ranges=signal_ranges,
-            signal_mask=signal_mask, force_accept=force_accept,
-            noise_spike_mask=noise_spike_mask)
+            vel=vel,
+            data=data,
+            errors=errors,
+            params_fit=params_fit,
+            dct=dct,
+            first=False,
+            best_fit_list=best_fit_list,
+            signal_ranges=signal_ranges,
+            signal_mask=signal_mask,
+            force_accept=force_accept,
+            noise_spike_mask=noise_spike_mask
+        )
 
         params_fit = best_fit_list[0]
         ncomps_fit = best_fit_list[2]
@@ -862,39 +948,44 @@ def check_for_negative_residual(vel, data, errors, best_fit_list, dct,
     return best_fit_list
 
 
-def _try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
-                                 exclude_idx, signal_ranges=None,
-                                 signal_mask=None, force_accept=False,
-                                 noise_spike_mask=None):
+def _try_fit_with_new_components(vel: np.ndarray,
+                                 data: np.ndarray,
+                                 errors: np.ndarray,
+                                 best_fit_list: List,
+                                 dct: Dict,
+                                 exclude_idx: int,
+                                 signal_ranges: Optional[List] = None,
+                                 signal_mask: Optional[List] = None,
+                                 force_accept: bool = False,
+                                 noise_spike_mask: Optional[List] = None) -> List:
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
-    First we try a new refit by just removing the component (i) and adding no new components. If this does not work we determine guesses for additional fit components from the residual that is produced if the component (i) is discarded and try a new fit. We only accept the new fit solution if it yields a better fit as determined by the AICc value.
+    First we try a new refit by just removing the component (i) and adding no new components. If this does not work we
+    determine guesses for additional fit components from the residual that is produced if the component (i) is
+    discarded and try a new fit. We only accept the new fit solution if it yields a better fit as determined by the
+    AICc value.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    exclude_idx : int
-        Index of Gaussian fit component that will be removed.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    signal_mask : numpy.ndarray
-        Boolean array containing the information of signal_ranges.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    best_fit_list : List containing parameters of the current best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    dct : Dictionary containing parameter settings for the improved fitting.
+    exclude_idx : Index of Gaussian fit component that will be removed.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    signal_mask : Boolean array containing the information of signal_ranges.
+    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the b
+        est fit.
 
     Returns
     -------
-    best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
+    best_fit_list : List containing parameters of the chosen best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
 
     """
     params_fit = best_fit_list[0]
@@ -912,10 +1003,18 @@ def _try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
 
     #  produce new best fit with excluded components
     best_fit_list_new = get_best_fit(
-        vel, data, errors, params_fit_new, dct, first=True,
-        best_fit_list=None, signal_ranges=signal_ranges,
-        signal_mask=signal_mask, force_accept=force_accept,
-        noise_spike_mask=noise_spike_mask)
+        vel=vel,
+        data=data,
+        errors=errors,
+        params_fit=params_fit_new,
+        dct=dct,
+        first=True,
+        best_fit_list=None,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        force_accept=force_accept,
+        noise_spike_mask=noise_spike_mask
+    )
 
     #  return new best fit with excluded component if its AICc value is lower
     aicc = best_fit_list_new[6]
@@ -945,10 +1044,18 @@ def _try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     params_fit_new = amps_fit + fwhms_fit + offsets_fit
 
     best_fit_list_new = get_best_fit(
-        vel, data, errors, params_fit_new, dct, first=False,
-        best_fit_list=best_fit_list_new, signal_ranges=signal_ranges,
-        signal_mask=signal_mask, force_accept=force_accept,
-        noise_spike_mask=noise_spike_mask)
+        vel=vel,
+        data=data,
+        errors=errors,
+        params_fit=params_fit_new,
+        dct=dct,
+        first=False,
+        best_fit_list=best_fit_list_new,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        force_accept=force_accept,
+        noise_spike_mask=noise_spike_mask
+    )
 
     #  return new best fit if its AICc value is lower
     aicc = best_fit_list_new[6]
@@ -958,14 +1065,23 @@ def _try_fit_with_new_components(vel, data, errors, best_fit_list, dct,
     return best_fit_list
 
 
-def _check_for_broad_feature(vel, data, errors, best_fit_list, dct,
-                             signal_ranges=None, signal_mask=None,
-                             force_accept=False, noise_spike_mask=None):
+def _check_for_broad_feature(vel: np.ndarray,
+                             data: np.ndarray,
+                             errors: np.ndarray,
+                             best_fit_list: List,
+                             dct: Dict,
+                             signal_ranges: Optional[List] = None,
+                             signal_mask: Optional[np.ndarray] = None,
+                             force_accept: bool = False,
+                             noise_spike_mask: Optional[np.ndarray] = None) -> List:
     """Check for broad features and try to refit them.
 
-    We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the second broadest component in the spectrum.
+    We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the
+    second broadest component in the spectrum.
 
-    In case of a broad fit component, we first try to replace it with two narrower components. If this does not work we determine guesses for additional fit components from the residual that is produced if the component (i) is discarded and try a new fit.
+    In case of a broad fit component, we first try to replace it with two narrower components. If this does not work,
+    we determine guesses for additional fit components from the residual that is produced if the component (i) is
+    discarded and try a new fit.
 
     We only accept a new fit solution if it yields a better fit as determined by the AICc value.
 
@@ -973,27 +1089,24 @@ def _check_for_broad_feature(vel, data, errors, best_fit_list, dct,
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    signal_mask : numpy.ndarray
-        Boolean array containing the information of signal_ranges.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    best_fit_list : List containing parameters of the current best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    dct : Dictionary containing parameter settings for the improved fitting.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    signal_mask : Boolean array containing the information of signal_ranges.
+    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
+        best fit.
 
     Returns
     -------
-    best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
+    best_fit_list : List containing parameters of the chosen best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
 
     """
     best_fit_list[7] = False
@@ -1003,7 +1116,7 @@ def _check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     if ncomps_fit < 2 and dct['fwhm_factor'] > 0:
         return best_fit_list
 
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     fwhms_sorted = sorted(fwhms_fit)
     if (fwhms_sorted[-1] < dct['fwhm_factor'] * fwhms_sorted[-2]):
@@ -1012,15 +1125,30 @@ def _check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
     params_fit = _replace_gaussian_with_two_new_ones(
-        data, vel, errors[0], dct['snr'], dct['significance'],
-        params_fit, exclude_idx, offsets_fit[exclude_idx])
+        data=data,
+        vel=vel,
+        rms=errors[0],
+        snr=dct['snr'],
+        significance=dct['significance'],
+        params_fit=params_fit,
+        exclude_idx=exclude_idx,
+        offset=offsets_fit[exclude_idx]
+    )
 
     if len(params_fit) > 0:
         best_fit_list = get_best_fit(
-            vel, data, errors, params_fit, dct, first=False,
-            best_fit_list=best_fit_list, signal_ranges=signal_ranges,
-            signal_mask=signal_mask, force_accept=force_accept,
-            noise_spike_mask=noise_spike_mask)
+            vel=vel,
+            data=data,
+            errors=errors,
+            params_fit=params_fit,
+            dct=dct,
+            first=False,
+            best_fit_list=best_fit_list,
+            signal_ranges=signal_ranges,
+            signal_mask=signal_mask,
+            force_accept=force_accept,
+            noise_spike_mask=noise_spike_mask
+        )
 
     if best_fit_list[7]:
         return best_fit_list
@@ -1035,47 +1163,61 @@ def _check_for_broad_feature(vel, data, errors, best_fit_list, dct,
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
     best_fit_list = _try_fit_with_new_components(
-        vel, data, errors, best_fit_list, dct, exclude_idx,
-        signal_ranges=signal_ranges, signal_mask=signal_mask,
-        force_accept=force_accept, noise_spike_mask=noise_spike_mask)
+        vel=vel,
+        data=data,
+        errors=errors,
+        best_fit_list=best_fit_list,
+        dct=dct,
+        exclude_idx=exclude_idx,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        force_accept=force_accept,
+        noise_spike_mask=noise_spike_mask
+    )
 
     return best_fit_list
 
 
-def _check_for_blended_feature(vel, data, errors, best_fit_list, dct,
-                               signal_ranges=None, signal_mask=None,
-                               force_accept=False, noise_spike_mask=None):
+def _check_for_blended_feature(vel: np.ndarray,
+                               data: np.ndarray,
+                               errors: np.ndarray,
+                               best_fit_list: List,
+                               dct: Dict,
+                               signal_ranges: Optional[List] = None,
+                               signal_mask: Optional[np.ndarray] = None,
+                               force_accept: bool = False,
+                               noise_spike_mask: Optional[np.ndarray] = None) -> List:
     """Check for blended features and try to refit them.
 
-    We define two fit components as blended if the mean position of one fit component is contained within the standard deviation interval (mean - std, mean + std) of another fit component.
+    We define two fit components as blended if the mean position of one fit component is contained within the standard
+    deviation interval (mean - std, mean + std) of another fit component.
 
-    In case of blended fit components, we try to determine guesses for new fit components from the residual that is produced if one of the components is discarded and try a new fit. We start by excluding the fit component with the lowest amplitude value.
+    In case of blended fit components, we try to determine guesses for new fit components from the residual that is
+    produced if one of the components is discarded and try a new fit. We start by excluding the fit component with the
+    lowest amplitude value.
 
     We only accept a new fit solution if it yields a better fit as determined by the AICc value.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    signal_mask : numpy.ndarray
-        Boolean array containing the information of signal_ranges.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    best_fit_list : List containing parameters of the current best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    dct : Dictionary containing parameter settings for the improved fitting.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    signal_mask : Boolean array containing the information of signal_ranges.
+    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
+        best fit.
 
     Returns
     -------
-    best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
+    best_fit_list : List containing parameters of the chosen best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
 
     """
     params_fit = best_fit_list[0]
@@ -1084,7 +1226,10 @@ def _check_for_blended_feature(vel, data, errors, best_fit_list, dct,
         return best_fit_list
 
     exclude_indices = get_fully_blended_gaussians(
-        params_fit, separation_factor=dct['separation_factor'])
+        params_fit=params_fit,
+        get_count=False,
+        separation_factor=dct['separation_factor']
+    )
 
     #  skip if there are no blended features
     if exclude_indices.size == 0:
@@ -1092,49 +1237,60 @@ def _check_for_blended_feature(vel, data, errors, best_fit_list, dct,
 
     for exclude_idx in exclude_indices:
         best_fit_list = _try_fit_with_new_components(
-            vel, data, errors, best_fit_list, dct, exclude_idx,
-            signal_ranges=signal_ranges, signal_mask=signal_mask,
-            force_accept=force_accept, noise_spike_mask=noise_spike_mask)
+            vel=vel,
+            data=data,
+            errors=errors,
+            best_fit_list=best_fit_list,
+            dct=dct,
+            exclude_idx=exclude_idx,
+            signal_ranges=signal_ranges,
+            signal_mask=signal_mask,
+            force_accept=force_accept,
+            noise_spike_mask=noise_spike_mask
+        )
         if best_fit_list[7]:
             break
 
     return best_fit_list
 
 
-def _quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
-                   signal_ranges=None, signal_mask=None,
-                   params_min=None, params_max=None, noise_spike_mask=None):
+def _quality_check(vel: np.ndarray,
+                   data: np.ndarray,
+                   errors: np.ndarray,
+                   params_fit: List,
+                   ncomps_fit: int,
+                   dct: Dict,
+                   signal_ranges: Optional[List] = None,
+                   signal_mask: Optional[np.ndarray] = None,
+                   params_min: Optional[List] = None,
+                   params_max: Optional[List] = None,
+                   noise_spike_mask: Optional[np.ndarray] = None) -> List:
     """Quality check for GaussPy best fit results.
 
     All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    params_fit : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    ncomps_fit : int
-        Number of fitted Gaussian components.
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    signal_mask : numpy.ndarray
-        Boolean array containing the information of signal_ranges.
-    params_min : list
-        List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
-    params_max : list
-        List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    params_fit :  Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
+    ncomps_fit : Number of fitted Gaussian components.
+    dct : Dictionary containing parameter settings for the improved fitting.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    signal_mask : Boolean array containing the information of signal_ranges.
+    params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
+        min_mean1, ..., min_meanN]
+    params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
+        max_mean1, ..., max_meanN]
 
     Returns
     -------
     best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
+        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit,
+            {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+            {8} params_min, {9} params_max, {10} pvalue]
 
     """
     if ncomps_fit == 0:
@@ -1144,10 +1300,20 @@ def _quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
         params_fit, params_errs = [], []
 
         rchi2, aicc = goodness_of_fit(
-            data, best_fit_final, errors, ncomps_fit, mask=signal_mask, get_aicc=True)
+            data=data,
+            best_fit_final=best_fit_final,
+            errors=errors,
+            ncomps_fit=ncomps_fit,
+            mask=signal_mask,
+            get_aicc=True
+        )
 
         pvalue = check_residual_for_normality(
-            data, errors, mask=signal_mask, noise_spike_mask=noise_spike_mask)
+            data=data,
+            errors=errors,
+            mask=signal_mask,
+            noise_spike_mask=noise_spike_mask
+        )
 
         quality_control = []
 
@@ -1158,50 +1324,63 @@ def _quality_check(vel, data, errors, params_fit, ncomps_fit, dct,
         return best_fit_list
 
     best_fit_list = get_best_fit(
-        vel, data, errors, params_fit, dct, first=True,
-        best_fit_list=None, signal_ranges=signal_ranges,
-        signal_mask=signal_mask, noise_spike_mask=noise_spike_mask)
+        vel=vel,
+        data=data,
+        errors=errors,
+        params_fit=params_fit,
+        dct=dct,
+        first=True,
+        best_fit_list=None,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        noise_spike_mask=noise_spike_mask
+    )
 
     return best_fit_list
 
 
-def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
-                                fitted_residual_peaks, signal_ranges=None,
-                                signal_mask=None, force_accept=False,
-                                params_min=None, params_max=None, noise_spike_mask=None):
+def check_for_peaks_in_residual(vel: np.ndarray,
+                                data: np.ndarray,
+                                errors: np.ndarray,
+                                best_fit_list: List,
+                                dct: Dict,
+                                fitted_residual_peaks: List,
+                                signal_ranges: Optional[List] = None,
+                                signal_mask: Optional[np.ndarray] = None,
+                                force_accept: bool = False,
+                                params_min: Optional[List] = None,
+                                params_max: Optional[List] = None,
+                                noise_spike_mask: Optional[np.ndarray] = None) -> Tuple[List, List]:
     """Try fit by adding new components, whose initial parameters were determined from residual peaks.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    best_fit_list : list
-        List containing parameters of the current best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    fitted_residual_peaks : list
-        List of initial mean position guesses for new fit components determined from residual peaks that were already tried in previous iterations.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    signal_mask : numpy.ndarray
-        Boolean array containing the information of signal_ranges.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
-    params_min : list
-        List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
-    params_max : list
-        List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    best_fit_list : List containing parameters of the current best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    dct : Dictionary containing parameter settings for the improved fitting.
+    fitted_residual_peaks : List of initial mean position guesses for new fit components determined from residual peaks
+        that were already tried in previous iterations.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    signal_mask : Boolean array containing the information of signal_ranges.
+    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
+        best fit.
+    params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
+        min_mean1, ..., min_meanN]
+    params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
+        max_mean1, ..., max_meanN]
 
     Returns
     -------
-    best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    fitted_residual_peaks : list
-        Updated list of initial mean position guesses for new fit components determined from residual peaks.
+    best_fit_list : List containing parameters of the chosen best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    fitted_residual_peaks : Updated list of initial mean position guesses for new fit components determined from
+        residual peaks.
 
     """
     #  TODO: remove params_min and params_max keywords
@@ -1230,31 +1409,39 @@ def check_for_peaks_in_residual(vel, data, errors, best_fit_list, dct,
     params_fit = amps_fit + fwhms_fit + offsets_fit
 
     best_fit_list = get_best_fit(
-        vel, data, errors, params_fit, dct, first=False,
-        best_fit_list=best_fit_list, signal_ranges=signal_ranges,
-        signal_mask=signal_mask, force_accept=force_accept,
-        params_min=params_min, params_max=params_max,
-        noise_spike_mask=noise_spike_mask)
+        vel=vel,
+        data=data,
+        errors=errors,
+        params_fit=params_fit,
+        dct=dct,
+        first=False,
+        best_fit_list=best_fit_list,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        force_accept=force_accept,
+        params_min=params_min,
+        params_max=params_max,
+        noise_spike_mask=noise_spike_mask
+    )
 
     return best_fit_list, fitted_residual_peaks
 
 
-def _log_new_fit(new_fit, log_gplus, mode='residual'):
+def _log_new_fit(new_fit: bool,
+                 log_gplus: List,
+                 mode: Literal['positive_residual_peak', 'negative_residual_peak', 'broad', 'blended'] = 'residual'
+                 ) -> List:
     """Log the successful refits of a spectrum.
 
     Parameters
     ----------
-    new_fit : bool
-        If 'True', the spectrum was successfully refit.
-    log_gplus : list
-        Log of all previous successful refits of the spectrum.
-    mode : str ('positive_residual_peak', 'negative_residual_peak', 'broad', 'blended')
-        Specifies the feature that was refit or used for a new successful refit.
+    new_fit : If 'True', the spectrum was successfully refit.
+    log_gplus : Log of all previous successful refits of the spectrum.
+    mode : Specifies the feature that was refit or used for a new successful refit.
 
     Returns
     -------
-    log_gplus : list
-        Updated log of successful refits of the spectrum.
+    log_gplus : Updated log of successful refits of the spectrum.
 
     """
     if not new_fit:
@@ -1265,59 +1452,73 @@ def _log_new_fit(new_fit, log_gplus, mode='residual'):
     return log_gplus
 
 
-def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
-                           signal_ranges=None, noise_spike_ranges=None):
+def try_to_improve_fitting(vel: np.ndarray,
+                           data: np.ndarray,
+                           errors: np.ndarray,
+                           params_fit: List,
+                           ncomps_fit: int,
+                           dct: Dict,
+                           signal_ranges: Optional[List] = None,
+                           noise_spike_ranges: Optional[List] = None) -> Tuple[List, int, int, List]:
     """Short summary.
 
     Parameters
     ----------
-    vel : numpy.ndarray
-        Velocity channels (unitless).
-    data : numpy.ndarray
-        Original data of spectrum.
-    errors : numpy.ndarray
-        Root-mean-square noise values.
-    params_fit : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN]. Corresponds to the final best fit results of the GaussPy decomposition.
-    ncomps_fit : int
-        Number of fitted Gaussian components.
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    signal_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    noise_spike_ranges : list
-        Nested list containing info about ranges of the spectrum that were estimated to contain noise spike features. These will get masked out from goodness-of-fit calculations.
+    vel : Velocity channels (unitless).
+    data : Original data of spectrum.
+    errors : Root-mean-square noise values.
+    params_fit : Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN]. Corresponds
+        to the final best fit results of the GaussPy decomposition.
+    ncomps_fit : Number of fitted Gaussian components.
+    dct : Dictionary containing parameter settings for the improved fitting.
+    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
+        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+    noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain noise
+        spike features. These will get masked out from goodness-of-fit calculations.
 
     Returns
     -------
-    best_fit_list : list
-        List containing parameters of the chosen best fit for the spectrum. It is of the form [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit, {8} params_min, {9} params_max, {10} pvalue]
-    N_neg_res_peak : int
-        Number of negative residual features that occur in the best fit of the spectrum.
-    N_blended : int
-        Number of blended Gaussian components that occur in the best fit of the spectrum.
-    log_gplus : list
-        Log of all successful refits of the spectrum.
+    best_fit_list : List containing parameters of the chosen best fit for the spectrum. It is of the form
+        [{0} params_fit, {1} params_errs, {2} ncomps_fit, {3} best_fit, {4} residual, {5} rchi2, {6} aicc, {7} new_fit,
+        {8} params_min, {9} params_max, {10} pvalue]
+    N_neg_res_peak : Number of negative residual features that occur in the best fit of the spectrum.
+    N_blended : Number of blended Gaussian components that occur in the best fit of the spectrum.
+    log_gplus : Log of all successful refits of the spectrum.
 
     """
     n_channels = len(data)
     if signal_ranges:
-        signal_mask = mask_channels(n_channels, signal_ranges,
-                                    remove_intervals=noise_spike_ranges)
+        signal_mask = mask_channels(
+            n_channels=n_channels,
+            ranges=signal_ranges,
+            pad_channels=None,
+            remove_intervals=noise_spike_ranges
+        )
     else:
         signal_mask = None
 
     if noise_spike_ranges:
-        noise_spike_mask = mask_channels(n_channels, [[0, n_channels]],
-                                         remove_intervals=noise_spike_ranges)
+        noise_spike_mask = mask_channels(
+            n_channels=n_channels,
+            ranges=[[0, n_channels]],
+            pad_channels=None,
+            remove_intervals=noise_spike_ranges
+        )
     else:
         noise_spike_mask = None
 
     #  Check the quality of the final fit from GaussPy
     best_fit_list = _quality_check(
-        vel, data, errors, params_fit, ncomps_fit, dct,
-        signal_ranges=signal_ranges, signal_mask=signal_mask,
-        noise_spike_mask=noise_spike_mask)
+        vel=vel,
+        data=data,
+        errors=errors,
+        params_fit=params_fit,
+        ncomps_fit=ncomps_fit,
+        dct=dct,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        noise_spike_mask=noise_spike_mask
+    )
 
     params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
         rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
@@ -1336,12 +1537,18 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         while new_fit:
             best_fit_list[7] = False
             best_fit_list, fitted_residual_peaks = check_for_peaks_in_residual(
-                vel, data, errors, best_fit_list, dct, fitted_residual_peaks,
-                signal_ranges=signal_ranges, signal_mask=signal_mask,
-                noise_spike_mask=noise_spike_mask)
+                vel=vel,
+                data=data,
+                errors=errors,
+                best_fit_list=best_fit_list,
+                dct=dct,
+                fitted_residual_peaks=fitted_residual_peaks,
+                signal_ranges=signal_ranges,
+                signal_mask=signal_mask,
+                noise_spike_mask=noise_spike_mask
+            )
             new_fit = best_fit_list[7]
-            log_gplus = _log_new_fit(new_fit, log_gplus,
-                                    mode='positive_residual_peak')
+            log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
         count_new = len(fitted_residual_peaks)
 
         if count_old != count_new:
@@ -1354,12 +1561,17 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
         #  try to refit negative residual feature
         if dct['neg_res_peak']:
             best_fit_list = check_for_negative_residual(
-                vel, data, errors, best_fit_list, dct,
-                signal_ranges=signal_ranges, signal_mask=signal_mask,
-                noise_spike_mask=noise_spike_mask)
+                vel=vel,
+                data=data,
+                errors=errors,
+                best_fit_list=best_fit_list,
+                dct=dct,
+                signal_ranges=signal_ranges,
+                signal_mask=signal_mask,
+                noise_spike_mask=noise_spike_mask
+            )
             new_fit = best_fit_list[7]
-            log_gplus = _log_new_fit(new_fit, log_gplus,
-                                    mode='negative_residual_peak')
+            log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
         if dct['broad']:
@@ -1367,10 +1579,17 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             while new_fit:
                 best_fit_list[7] = False
                 best_fit_list = _check_for_broad_feature(
-                    vel, data, errors, best_fit_list, dct, signal_ranges=signal_ranges, signal_mask=signal_mask,
-                    noise_spike_mask=noise_spike_mask)
+                    vel=vel,
+                    data=data,
+                    errors=errors,
+                    best_fit_list=best_fit_list,
+                    dct=dct,
+                    signal_ranges=signal_ranges,
+                    signal_mask=signal_mask,
+                    noise_spike_mask=noise_spike_mask
+                )
                 new_fit = best_fit_list[7]
-                log_gplus = _log_new_fit(new_fit, log_gplus, mode='broad')
+                log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='broad')
 
         #  try to refit blended Gaussian components
         if dct['blended']:
@@ -1378,23 +1597,38 @@ def try_to_improve_fitting(vel, data, errors, params_fit, ncomps_fit, dct,
             while new_fit:
                 best_fit_list[7] = False
                 best_fit_list = _check_for_blended_feature(
-                    vel, data, errors, best_fit_list, dct,
-                    signal_ranges=signal_ranges, signal_mask=signal_mask,
-                    noise_spike_mask=noise_spike_mask)
+                    vel=vel,
+                    data=data,
+                    errors=errors,
+                    best_fit_list=best_fit_list,
+                    dct=dct,
+                    signal_ranges=signal_ranges,
+                    signal_mask=signal_mask,
+                    noise_spike_mask=noise_spike_mask
+                )
                 new_fit = best_fit_list[7]
-                log_gplus = _log_new_fit(new_fit, log_gplus, mode='blended')
+                log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='blended')
 
         if not first_run:
             break
         first_run = False
 
     N_neg_res_peak = check_for_negative_residual(
-        vel, data, errors, best_fit_list, dct,
-        signal_ranges=signal_ranges, signal_mask=signal_mask,
-        get_count=True)
+        vel=vel,
+        data=data,
+        errors=errors,
+        best_fit_list=best_fit_list,
+        dct=dct,
+        signal_ranges=signal_ranges,
+        signal_mask=signal_mask,
+        get_count=True
+    )
 
     params_fit = best_fit_list[0]
     N_blended = get_fully_blended_gaussians(
-        params_fit, get_count=True, separation_factor=dct['separation_factor'])
+        params_fit=params_fit,
+        get_count=True,
+        separation_factor=dct['separation_factor']
+    )
 
     return best_fit_list, N_neg_res_peak, N_blended, log_gplus
