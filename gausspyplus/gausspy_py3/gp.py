@@ -6,11 +6,6 @@
 
 import os
 import pickle
-import multiprocessing
-import signal
-
-from matplotlib import pyplot as plt
-import numpy as np
 
 from . import AGD_decomposer
 from . import gradient_descent
@@ -22,11 +17,21 @@ class GaussianDecomposer(object):
             temp = pickle.load(open(filename, 'rb'), encoding='latin1')
             self.p = temp.p
         else:
-            self.p = {'alpha1': None, 'alpha2': None, 'training_results': None,
-                      'improve_fitting_dict': None, 'use_ncpus': None,
-                      'phase': 'one', 'SNR2_thresh': 5., 'SNR_thresh': 5.,
-                      'deblend': True, 'BLFrac': 0.1, 'verbose': False, 'plot': False,
-                      'perform_final_fit': True}
+            self.p = {
+                'alpha1': None,
+                'alpha2': None,
+                'training_results': None,
+                'improve_fitting_dict': None,
+                'use_ncpus': None,
+                'phase': 'one',
+                'SNR2_thresh': 5.,
+                'SNR_thresh': 5.,
+                'deblend': True,
+                'BLFrac': 0.1,
+                'verbose': False,
+                'plot': False,
+                'perform_final_fit': True
+            }
 
     def load_training_data(self, filename):
         self.p['training_data'] = pickle.load(open(filename, 'rb'), encoding='latin1')
@@ -47,18 +52,27 @@ class GaussianDecomposer(object):
         print('Training...')
 
         self.p['alpha1'], self.p['alpha2'], self.p['training_results'] =\
-            gradient_descent.train(alpha1_initial=alpha1_initial,
-                                   alpha2_initial=alpha2_initial,
-                                   training_data=self.p['training_data'],
-                                   phase=self.p['phase'],
-                                   SNR_thresh=self.p['SNR_thresh'],
-                                   SNR2_thresh=self.p['SNR2_thresh'],
-                                   plot=plot, eps=eps,
-                                   verbose=verbose,
-                                   learning_rate=learning_rate, MAD=MAD,
-                                   logger=logger)
+            gradient_descent.train(
+                alpha1_initial=alpha1_initial,
+                alpha2_initial=alpha2_initial,
+                training_data=self.p['training_data'],
+                phase=self.p['phase'],
+                SNR_thresh=self.p['SNR_thresh'],
+                SNR2_thresh=self.p['SNR2_thresh'],
+                plot=plot,
+                eps=eps,
+                verbose=verbose,
+                learning_rate=learning_rate,
+                MAD=MAD,
+                logger=logger
+            )
 
-    def decompose(self, xdata, ydata, edata, idx=None, signal_ranges=None,
+    def decompose(self,
+                  xdata,
+                  ydata,
+                  edata,
+                  idx=None,
+                  signal_ranges=None,
                   noise_spike_ranges=None):
         """Decompose a single spectrum using current parameters."""
         if ((self.p['phase'] == 'one') and (not self.p['alpha1'])):
@@ -73,20 +87,30 @@ class GaussianDecomposer(object):
         a2 = self.p['alpha2'] if self.p['phase'] == 'two' else None
 
         status, results = AGD_decomposer.AGD(
-            xdata, ydata, edata, idx=idx, signal_ranges=signal_ranges,
-            noise_spike_ranges=noise_spike_ranges, alpha1=a1, alpha2=a2,
+            xdata,
+            ydata,
+            edata,
+            idx=idx,
+            signal_ranges=signal_ranges,
+            noise_spike_ranges=noise_spike_ranges,
+            alpha1=a1,
+            alpha2=a2,
             improve_fitting_dict=self.p['improve_fitting_dict'],
             phase=self.p['phase'],
-            verbose=self.p['verbose'], SNR_thresh=self.p['SNR_thresh'],
-            BLFrac=self.p['BLFrac'], SNR2_thresh=self.p['SNR2_thresh'],
-            deblend=self.p['deblend'], plot=self.p['plot'], perform_final_fit=self.p['perform_final_fit'])
+            verbose=self.p['verbose'],
+            SNR_thresh=self.p['SNR_thresh'],
+            BLFrac=self.p['BLFrac'],
+            SNR2_thresh=self.p['SNR2_thresh'],
+            deblend=self.p['deblend'],
+            plot=self.p['plot'],
+            perform_final_fit=self.p['perform_final_fit'])
         return results
 
     def status(self):
         """Return current values of parameters."""
         print('Current Parameters:')
         print('---' * 10)
-        for index, key in enumerate(self.p):
+        for key in self.p:
             if key in ['data_list', 'errors', 'x_values', 'amplitudes', 'fwhms',
                        'means', 'amplitudes_fit', 'fwhms_fit', 'means_fit']:
                 print(f'len({key}) = {len(self.p[key])}')

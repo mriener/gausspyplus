@@ -20,9 +20,7 @@ def init_worker():
 
 
 def count_ones_in_row(data):
-    """ Counts number of continuous trailing '1's
-         Used in the convergence criteria
-    """
+    """ Counts number of continuous trailing '1's Used in the convergence criteria"""
     output = np.zeros(len(data))
     for i in range(len(output)):
         if data[i] == 0:
@@ -110,10 +108,21 @@ def single_training_example(kwargs):
     return compare_parameters(guess_params, true_params, verbose=kwargs['verbose'])
 
 
-def objective_function(alpha1, alpha2, training_data, SNR_thresh=5.,
-                       SNR2_thresh=0., deblend=True, phase=None, data=None,
-                       errors=None, means=None, vel=None, FWHMs=None,
-                       amps=None,  verbose=False, plot=False):
+def objective_function(alpha1,
+                       alpha2,
+                       training_data,
+                       SNR_thresh=5.,
+                       SNR2_thresh=0.,
+                       deblend=True,
+                       phase=None,
+                       data=None,
+                       errors=None,
+                       means=None,
+                       vel=None,
+                       FWHMs=None,
+                       amps=None,
+                       verbose=False,
+                       plot=False):
 
     # Obtain dictionary of current-scope keywords/arguments
     frame = inspect.currentframe()
@@ -237,19 +246,79 @@ def train(objective_function=objective_function,
         alpha2_r, alpha2_c, alpha2_l = gd.alpha2_trace[i] + eps, gd.alpha2_trace[i], gd.alpha2_trace[i] - eps
 
         # Calls to objective function
-        obj_1r = objective_function(alpha1_r, alpha2_c, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
+        obj_1r = objective_function(
+            alpha1_r,
+            alpha2_c,
+            training_data,
+            phase=phase,
+            data=data,
+            errors=errors,
+            means=means,
+            vel=vel,
+            FWHMs=FWHMs,
+            amps=amps,
+            verbose=verbose,
+            plot=plot,
+            SNR_thresh=SNR_thresh,
+            SNR2_thresh=SNR2_thresh
+        )
         if eps == 0.:
             print('Mean Accuracy: ', np.exp(-obj_1r))  # (Just sampling one position)
             quit()
-        obj_1l = objective_function(alpha1_l, alpha2_c, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
+        obj_1l = objective_function(
+            alpha1_l,
+            alpha2_c,
+            training_data,
+            phase=phase,
+            data=data,
+            errors=errors,
+            means=means,
+            vel=vel,
+            FWHMs=FWHMs,
+            amps=amps,
+            verbose=verbose,
+            plot=plot,
+            SNR_thresh=SNR_thresh,
+            SNR2_thresh=SNR2_thresh
+        )
 
         gd.D_alpha1_trace[i] = (obj_1r - obj_1l) / 2. / eps
         gd.accuracy_trace[i] = (obj_1r + obj_1l) / 2.
 
         if phase == 'two':
             # Calls to objective function
-            obj_2r = objective_function(alpha1_c, alpha2_r, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
-            obj_2l = objective_function(alpha1_c, alpha2_l, training_data, phase=phase, data=data, errors=errors, means=means, vel=vel, FWHMs=FWHMs, amps=amps, verbose=verbose, plot=plot, SNR_thresh=SNR_thresh, SNR2_thresh=SNR2_thresh)
+            obj_2r = objective_function(
+                alpha1_c,
+                alpha2_r,
+                training_data,
+                phase=phase,
+                data=data,
+                errors=errors,
+                means=means,
+                vel=vel,
+                FWHMs=FWHMs,
+                amps=amps,
+                verbose=verbose,
+                plot=plot,
+                SNR_thresh=SNR_thresh,
+                SNR2_thresh=SNR2_thresh
+            )
+            obj_2l = objective_function(
+                alpha1_c,
+                alpha2_l,
+                training_data,
+                phase=phase,
+                data=data,
+                errors=errors,
+                means=means,
+                vel=vel,
+                FWHMs=FWHMs,
+                amps=amps,
+                verbose=verbose,
+                plot=plot,
+                SNR_thresh=SNR_thresh,
+                SNR2_thresh=SNR2_thresh
+            )
             gd.D_alpha2_trace[i] = (obj_2r - obj_2l) / 2. / eps
             gd.accuracy_trace[i] = (obj_1r + obj_1l + obj_2r + obj_2l) / 4.
 
