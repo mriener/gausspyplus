@@ -20,12 +20,7 @@ from tqdm import tqdm
 from .noise_estimation import determine_maximum_consecutive_channels, calculate_average_rms_noise
 from .spectral_cube_functions import remove_additional_axes, spatial_smoothing, spectral_smoothing, open_fits_file, moment_map, pv_map, correct_header
 from .grouping_functions import get_neighbors
-
-
-def say(message, verbose=False):
-    """Diagnostic messages."""
-    if verbose is True:
-        print(message)
+from gausspyplus.utils.output import say
 
 
 class MomentMask(object):

@@ -20,12 +20,6 @@ from gausspyplus.utils.gaussian_functions import (
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
 
 
-def say(message: str, verbose: bool = False) -> None:
-    """Diagnostic messages."""
-    if verbose:
-        print(message)
-
-
 def _perform_least_squares_fit(vel: np.ndarray,
                                data: np.ndarray,
                                errors: np.ndarray,
