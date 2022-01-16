@@ -18,6 +18,7 @@ from scipy.ndimage.filters import median_filter, convolve
 
 from .gp_plus import try_to_improve_fitting, goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
+    CONVERSION_STD_TO_FWHM,
     errs_vec_from_lmfit,
     paramvec_to_lmfit,
     multi_component_gaussian_model,
@@ -136,7 +137,7 @@ def initialGuess(vel,
 
     # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
     widths = np.sqrt(np.abs(data/u2)[offsets_data_i])
-    FWHMs = widths * 2.355
+    FWHMs = widths * CONVERSION_STD_TO_FWHM
 
     amps = np.array(data[offsets_data_i])
 
@@ -144,7 +145,7 @@ def initialGuess(vel,
     FF_matrix = np.zeros([len(amps), len(amps)])
     for i in range(FF_matrix.shape[0]):
         for j in range(FF_matrix.shape[1]):
-            FF_matrix[i, j] = np.exp(-(offsets[i]-offsets[j])**2/2./(FWHMs[j] / 2.355)**2)
+            FF_matrix[i, j] = np.exp(-(offsets[i]-offsets[j])**2/2./(FWHMs[j] / CONVERSION_STD_TO_FWHM)**2)
     amps_new = lstsq(FF_matrix, amps, rcond=None)[0]
     if np.all(amps_new > 0):
         amps = amps_new
@@ -223,7 +224,7 @@ def AGD(vel,
             # "Else" Narrow components were found, and Phase == 2, so perform intermediate subtraction...
 
             # The "fitmask" is a collection of windows around the a list of phase-one components
-            fitmask = create_fitmask(len(vel), v_to_i(offsets_g1), widths_g1 / dv / 2.355 * 0.9)
+            fitmask = create_fitmask(len(vel), v_to_i(offsets_g1), widths_g1 / dv / CONVERSION_STD_TO_FWHM * 0.9)
             notfitmask = 1 - fitmask
 
             # Error function for intermediate optimization

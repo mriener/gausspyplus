@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
-from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params
+from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
 from gausspyplus.utils.noise_estimation import mask_channels
 from gausspyplus.utils.output import set_up_logger, say
@@ -1450,7 +1450,7 @@ class SpatialFitting(object):
             Updated dictionary of fit components.
 
         """
-        stddev = fwhm / 2.354820045
+        stddev = fwhm / CONVERSION_STD_TO_FWHM
 
         #  determine upper limit for amplitude value
         idx_low = max(0, int(mean - stddev))
@@ -1983,7 +1983,7 @@ class SpatialFitting(object):
             mean = self.decomposition['means_fit'][i][key]
             mean_err = self.decomposition['means_fit_err'][i][key]
             fwhm = self.decomposition['fwhms_fit'][i][key]
-            stddev = fwhm / 2.354820045
+            stddev = fwhm / CONVERSION_STD_TO_FWHM
 
             idx_low = max(0, int(mean - stddev))
             idx_upp = int(mean + stddev) + 2
@@ -2043,7 +2043,7 @@ class SpatialFitting(object):
             amp_ini = np.mean(amps)
             mean_ini = np.mean(means)
             fwhm_ini = np.mean(fwhms)
-            stddev_ini = fwhm_ini / 2.354820045
+            stddev_ini = fwhm_ini / CONVERSION_STD_TO_FWHM
 
             # TODO: change stddev_ini to fwhm_ini?
             idx_low = max(0, int(mean_ini - stddev_ini))

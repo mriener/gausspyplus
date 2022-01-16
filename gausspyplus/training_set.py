@@ -15,7 +15,7 @@ from scipy.signal import argrelextrema
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
-from gausspyplus.utils.gaussian_functions import combined_gaussian
+from gausspyplus.utils.gaussian_functions import combined_gaussian, CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
 from gausspyplus.definitions import FitResults
@@ -62,11 +62,11 @@ class GaussPyTrainingSet(object):
 
     @functools.cached_property
     def min_stddev(self):
-        return None if self.min_fwhm is None else self.min_fwhm / 2.355
+        return None if self.min_fwhm is None else self.min_fwhm / CONVERSION_STD_TO_FWHM
 
     @functools.cached_property
     def max_stddev(self):
-        return None if self.max_fwhm is None else self.max_fwhm / 2.355
+        return None if self.max_fwhm is None else self.max_fwhm / CONVERSION_STD_TO_FWHM
 
     @functools.cached_property
     def noise_map(self):
@@ -226,7 +226,7 @@ class GaussPyTrainingSet(object):
 
         n_comps = len(fit_values)
         amplitude_values = [fit_params[0] for fit_params in fit_values]
-        fwhm_values = [fit_params[2] * 2.355 for fit_params in fit_values]
+        fwhm_values = [fit_params[2] * CONVERSION_STD_TO_FWHM for fit_params in fit_values]
         mean_values = [fit_params[1] for fit_params in fit_values]
         modelled_spectrum = combined_gaussian(amps=amplitude_values,
                                               fwhms=fwhm_values,
@@ -288,7 +288,7 @@ class GaussPyTrainingSet(object):
                 revised_gaussians.remove(initial_guess)
                 improve = True
                 break
-            significance = determine_significance(amp=amp, fwhm=stddev * 2.35482, rms=rms)
+            significance = determine_significance(amp=amp, fwhm=stddev * CONVERSION_STD_TO_FWHM, rms=rms)
             if significance < self.significance:
                 revised_gaussians.remove(initial_guess)
                 improve = True
@@ -358,8 +358,8 @@ if __name__ == '__main__':
     training_set = GaussPyTrainingSet()
     rms = 0.10634302494716603
     training_set.n_channels = spectrum.size
-    # training_set.maxStddev = training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
-    # training_set.minStddev = training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
+    # training_set.maxStddev = training_set.max_fwhm / CONVERSION_STD_TO_FWHM if training_set.max_fwhm is not None else None
+    # training_set.minStddev = training_set.min_fwhm / CONVERSION_STD_TO_FWHM if training_set.min_fwhm is not None else None
     maxima = training_set._get_maxima(spectrum, rms)
     fit_values = training_set.gaussian_fitting(spectrum, rms)
     print(fit_values)
