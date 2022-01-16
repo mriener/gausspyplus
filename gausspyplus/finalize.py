@@ -1,6 +1,9 @@
 import os
 import pickle
+from pathlib import Path
+from typing import List, Optional, Tuple, Literal, Union
 
+import astropy
 import numpy as np
 
 from astropy.io import fits
@@ -17,21 +20,19 @@ from gausspyplus.spatial_fitting import SpatialFitting
 
 
 class Finalize(object):
-    def __init__(self, path_to_pickle_file=None,
-                 path_to_decomp_file=None, fin_filename=None,
-                 config_file=''):
+    def __init__(self,
+                 path_to_pickle_file: Optional[Union[str, Path]] = None,
+                 path_to_decomp_file: Optional[Union[str, Path]] = None,
+                 fin_filename: Optional[str] = None,
+                 config_file: Optional[Union[str, Path]] = ''):
         """Class containing methods to finalize the GaussPy+ results.
 
         Parameters
         ----------
-        path_to_pickle_file : type
-            Description of parameter `path_to_pickle_file`.
-        path_to_decomp_file : type
-            Description of parameter `path_to_decomp_file`.
-        fin_filename : type
-            Description of parameter `fin_filename`.
-        config_file : type
-            Description of parameter `config_file`.
+        path_to_pickle_file : Description of parameter `path_to_pickle_file`.
+        path_to_decomp_file : Description of parameter `path_to_decomp_file`.
+        fin_filename : Description of parameter `fin_filename`.
+        config_file : Description of parameter `config_file`.
 
         """
         self.path_to_pickle_file = path_to_pickle_file
@@ -189,7 +190,7 @@ class Finalize(object):
         error = self.pickled_data['error'][idx][0]
 
         residual = spectrum - combined_gaussian(
-            fit_amps, fit_fwhms, fit_means, self.pickled_data['x_values'])
+            amps=fit_amps, fwhms=fit_fwhms, means=fit_means, x=self.pickled_data['x_values'])
 
         aicc = self.decomposition['best_fit_aicc'][idx]
         rchi2 = self.decomposition['best_fit_rchi2'][idx]
@@ -205,14 +206,17 @@ class Finalize(object):
 
         flags_blended = self.get_flag_blended(fit_amps, fit_fwhms, fit_means)
         flags_neg_res_peak = negative_residuals(
-            spectrum, residual, error, get_flags=True,
-            fwhms=fit_fwhms, means=fit_means)
+            spectrum=spectrum,
+            residual=residual,
+            rms=error,
+            get_flags=True,
+            fwhms=fit_fwhms,
+            means=fit_means
+        )
         flags_broad = self.get_flag_broad(fit_fwhms, broad)
-        flag_centroid = self.get_flag_centroid(
-            np.array(fit_means), means_interval, n_centroids)
+        flag_centroid = self.get_flag_centroid(np.array(fit_means), means_interval, n_centroids)
 
-        x_wcs, y_wcs, z_wcs = self.wcs.wcs_pix2world(
-            xi, yi, np.array(fit_means), 0)
+        x_wcs, y_wcs, z_wcs = self.wcs.wcs_pix2world(xi, yi, np.array(fit_means), 0)
 
         velocities = z_wcs * self.to_unit
         e_velocities = np.array(fit_e_means) * self.velocity_increment
@@ -227,26 +231,39 @@ class Finalize(object):
             e_amplitudes /= self.main_beam_efficiency
             error /= self.main_beam_efficiency
 
-        integrated_intensity = area_of_gaussian(
-            amplitudes, np.array(fit_fwhms) * self.velocity_increment)
+        integrated_intensity = area_of_gaussian(amp=amplitudes, fwhm=np.array(fit_fwhms) * self.velocity_increment)
         fit_fwhms_plus_error = np.array(fit_fwhms) + np.array(fit_e_fwhms)
         e_integrated_intensity = area_of_gaussian(
-            amplitudes + e_amplitudes,
-            fit_fwhms_plus_error * self.velocity_increment) -\
-            integrated_intensity
+            amp=amplitudes + e_amplitudes,
+            fwhm=fit_fwhms_plus_error * self.velocity_increment) -\
+                                 integrated_intensity
 
         for i in range(ncomps):
             row = [
-                xi + self.xpos_offset, yi + self.ypos_offset,
-                x_wcs[0], y_wcs[0],
-                amplitudes[i], e_amplitudes[i],
-                velocities[i], e_velocities[i],
-                vel_disps[i], e_vel_disps[i],
-                integrated_intensity[i], e_integrated_intensity[i],
-                error, pvalue, aicc, rchi2,
-                ncomps, ncomp_wmedian, ncomp_jumps,
-                flags_blended[i], flags_neg_res_peak[i],
-                flags_broad[i], flag_centroid]
+                xi + self.xpos_offset,
+                yi + self.ypos_offset,
+                x_wcs[0],
+                y_wcs[0],
+                amplitudes[i],
+                e_amplitudes[i],
+                velocities[i],
+                e_velocities[i],
+                vel_disps[i],
+                e_vel_disps[i],
+                integrated_intensity[i],
+                e_integrated_intensity[i],
+                error,
+                pvalue,
+                aicc,
+                rchi2,
+                ncomps,
+                ncomp_wmedian,
+                ncomp_jumps,
+                flags_blended[i],
+                flags_neg_res_peak[i],
+                flags_broad[i],
+                flag_centroid
+            ]
 
             if self.subcube_nr is not None:
                 row.append(self.subcube_nr)
@@ -255,18 +272,16 @@ class Finalize(object):
 
         return rows
 
-    def make_table(self, save=True):
+    def make_table(self, save=True) -> astropy.table.table.Table:
         """Create table of the decomposition results.
 
         Parameters
         ----------
-        save : bool
-            Set to `True` if the table should be saved.
+        save : Set to `True` if the table should be saved.
 
         Returns
         -------
-        table_results : astropy.table.table.Table
-            Table of the decomposition results.
+        table_results : Table of the decomposition results.
 
         """
         import gausspyplus.parallel_processing
@@ -281,8 +296,7 @@ class Finalize(object):
                 continue
 
         # results_list = [item for item in results_list if len(item) > 0]
-        results_list = np.array([item for sublist in results_list
-                                 for item in sublist])
+        results_list = np.array([item for sublist in results_list for item in sublist])
 
         names = [
             'x_pos', 'y_pos', self.wcs.wcs.lngtyp, self.wcs.wcs.lattyp,
@@ -319,27 +333,25 @@ class Finalize(object):
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
             filename, self.decomp_dirname))
 
-    def produce_map(self, keyword='error', comments=[], suffix='', save=True,
-                    dtype='float32'):
+    def produce_map(self,
+                    keyword: Literal['error', 'best_fit_rchi2', 'N_components'] = 'error',
+                    comments: List = [],
+                    suffix: str = '',
+                    save: bool = True,
+                    dtype: str = 'float32') -> astropy.io.fits.HDUList:
         """Generate an array/FITS map of a GaussPy+ quantity.
 
         Parameters
         ----------
-        keyword : str ['error', 'best_fit_rchi2', 'N_components']
-            Keyword contained in GaussPy+ dictionary whose values should be made into an array.
-        comments : list
-            List of strings that are added to the FITS header of the map.
-        suffix : str
-            Suffix that is added to the filename.
-        save : bool
-            Set to `True` if the map should be saved.
-        dtype : str
-            Valid dtype for the resulting map.
+        keyword : Keyword contained in GaussPy+ dictionary whose values should be made into an array.
+        comments : List of strings that are added to the FITS header of the map.
+        suffix : Suffix that is added to the filename.
+        save : Set to `True` if the map should be saved.
+        dtype : Valid dtype for the resulting map.
 
         Returns
         -------
-        astropy.io.fits.HDUList
-            FITS HDU object of the map.
+        FITS HDU object of the map.
 
         """
         #  TODO: routine in case pickled_data is missing the header key
@@ -360,162 +372,152 @@ class Finalize(object):
             except ValueError:
                 array[y, x] = value[0]
 
-        header = change_header(self.header.copy(), format='pp',
-                               comments=comments)
+        header = change_header(header=self.header.copy(), format='pp', comments=comments)
 
         array = array.astype(dtype)
 
         if save:
             if keyword == 'error':
-                filename, _ = os.path.splitext(
-                    os.path.basename(self.path_to_pickle_file))
+                filename, _ = os.path.splitext(os.path.basename(self.path_to_pickle_file))
             else:
                 filename = self.filename
 
             filename = f"{filename}{suffix}.fits"
-            path_to_file = os.path.join(
-                self.dirpath_gpy, 'gpy_maps', filename)
+            path_to_file = Path(self.dirpath_gpy, 'gpy_maps', filename)
 
-            save_fits(array, header, path_to_file,
-                      verbose=False)
-            say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-                filename, os.path.dirname(path_to_file)))
+            save_fits(data=array, header=header, path_to_file=path_to_file, verbose=False)
+            say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, os.path.dirname(path_to_file)))
 
         return fits.PrimaryHDU(array, header)
 
-    def produce_noise_map(self, comments=['Rms noise values.'],
-                          suffix='_noise_map', save=True, dtype='float32',
-                          get_hdu=False, get_data=False, get_header=False):
+    def produce_noise_map(self,
+                          comments: List = ['Rms noise values.'],
+                          suffix: str = '_noise_map',
+                          save: bool = True,
+                          dtype: str = 'float32',
+                          get_hdu: bool = False,
+                          get_data: bool = False,
+                          get_header: bool = False) -> Optional[Tuple]:
         """Produce a map of the rms noise values.
 
         Parameters
         ----------
-        comments : list
-            List of strings that are added to the FITS header of the map.
-        suffix : str
-            Suffix that is added to the filename.
-        save : bool
-            Set to `True` if the map should be saved.
-        dtype : str
-            Valid dtype for the resulting map.
-        get_hdu : bool
-            Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
-        get_data : bool
-            Default is `False`. Returns a numpy.ndarray of the FITS array.
-        get_header : bool
-            Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
+        comments : List of strings that are added to the FITS header of the map.
+        suffix : Suffix that is added to the filename.
+        save : Set to `True` if the map should be saved.
+        dtype : Valid dtype for the resulting map.
+        get_hdu : Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data'
+            and 'get_header'.
+        get_data : Default is `False`. Returns a numpy.ndarray of the FITS array.
+        get_header : Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
 
         Returns
         -------
-        tuple or None
-            Result from `return_hdu_options`.
+        Result from `return_hdu_options`.
 
         """
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.produce_map(keyword='error', comments=comments,
-                               suffix=suffix, save=save, dtype=dtype)
+        hdu = self.produce_map(keyword='error', comments=comments, suffix=suffix, save=save, dtype=dtype)
+        return return_hdu_options(hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
-        return return_hdu_options(
-            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
-
-    def produce_rchi2_map(self, suffix='_rchi2_map', save=True, dtype='float32',
-                          get_hdu=False, get_data=False, get_header=False,
-                          comments=['Reduced chi-square values.']):
+    def produce_rchi2_map(self,
+                          suffix: str = '_rchi2_map',
+                          save: bool = True,
+                          dtype: str = 'float32',
+                          get_hdu: bool = False,
+                          get_data: bool = False,
+                          get_header: bool = False,
+                          comments: List = ['Reduced chi-square values.']) -> Optional[Tuple]:
         """Produce a map of the reduced chi-square values.
 
         Parameters
         ----------
-        comments : list
-            List of strings that are added to the FITS header of the map.
-        suffix : str
-            Suffix that is added to the filename.
-        save : bool
-            Set to `True` if the map should be saved.
-        dtype : str
-            Valid dtype for the resulting map.
-        get_hdu : bool
-            Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
-        get_data : bool
-            Default is `False`. Returns a numpy.ndarray of the FITS array.
-        get_header : bool
-            Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
+        comments : List of strings that are added to the FITS header of the map.
+        suffix : Suffix that is added to the filename.
+        save : Set to `True` if the map should be saved.
+        dtype : Valid dtype for the resulting map.
+        get_hdu : Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data'
+            and 'get_header'.
+        get_data : Default is `False`. Returns a numpy.ndarray of the FITS array.
+        get_header : Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
 
         Returns
         -------
-        tuple or None
-            Result from `return_hdu_options`.
+        Result from `return_hdu_options`.
 
         """
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.produce_map(keyword='best_fit_rchi2', comments=comments,
-                               suffix=suffix, save=save, dtype=dtype)
+        hdu = self.produce_map(keyword='best_fit_rchi2', comments=comments, suffix=suffix, save=save, dtype=dtype)
+        return return_hdu_options(hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
-        return return_hdu_options(
-            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
-
-    def produce_component_map(self, suffix='_component_map', save=True,
-                              dtype='float32', get_hdu=False, get_data=False, get_header=False, comments=['Number of fitted Gaussian components.']):
+    def produce_component_map(self,
+                              suffix: str = '_component_map',
+                              save: bool = True,
+                              dtype: str = 'float32',
+                              get_hdu: bool = False,
+                              get_data: bool = False,
+                              get_header: bool = False,
+                              comments: List = ['Number of fitted Gaussian components.']) -> Optional[Tuple]:
         """Produce a map of the number of fitted Gaussian components.
 
         Parameters
         ----------
-        comments : list
-            List of strings that are added to the FITS header of the map.
-        suffix : str
-            Suffix that is added to the filename.
-        save : bool
-            Set to `True` if the map should be saved.
-        dtype : str
-            Valid dtype for the resulting map.
-        get_hdu : bool
-            Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
-        get_data : bool
-            Default is `False`. Returns a numpy.ndarray of the FITS array.
-        get_header : bool
-            Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
+        comments : List of strings that are added to the FITS header of the map.
+        suffix : Suffix that is added to the filename.
+        save : Set to `True` if the map should be saved.
+        dtype : Valid dtype for the resulting map.
+        get_hdu : Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data'
+            and 'get_header'.
+        get_data : Default is `False`. Returns a numpy.ndarray of the FITS array.
+        get_header : Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
 
         Returns
         -------
-        tuple or None
-            Result from `return_hdu_options`.
+        Result from `return_hdu_options`.
 
         """
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.produce_map(keyword='N_components', comments=comments,
-                               suffix=suffix, save=save, dtype=dtype)
+        hdu = self.produce_map(
+            keyword='N_components',
+            comments=comments,
+            suffix=suffix,
+            save=save,
+            dtype=dtype
+        )
 
         return return_hdu_options(
             hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
-    def make_cube(self, mode='full_decomposition', save=True, get_hdu=False,
-                  get_data=False, get_header=False, dtype='float32'):
+    def make_cube(self,
+                  mode: Literal['full_decomposition', 'integrated_intensity', 'main_component'] = 'full_decomposition',
+                  save: bool = True,
+                  get_hdu: bool = False,
+                  get_data: bool = False,
+                  get_header: bool = False,
+                  dtype: str = 'float32') -> Optional[Tuple]:
         """Create FITS cube of the decomposition results.
 
         Parameters
         ----------
-        mode : str
-            'full_decomposition' recreates the whole FITS cube, 'integrated_intensity' creates a cube with the integrated intensity values of the Gaussian components placed at their mean positions, 'main_component' only retains the fitted component with the largest amplitude value
-        save : bool
-            Set to `True` if the map should be saved.
-        dtype : str
-            Valid dtype for the resulting map.
-        get_hdu : bool
-            Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data' and 'get_header'.
-        get_data : bool
-            Default is `False`. Returns a numpy.ndarray of the FITS array.
-        get_header : bool
-            Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
+        mode : 'full_decomposition' recreates the whole FITS cube, 'integrated_intensity' creates a cube with the
+            integrated intensity values of the Gaussian components placed at their mean positions, 'main_component'
+            only retains the fitted component with the largest amplitude value
+        save : Set to `True` if the map should be saved.
+        dtype : Valid dtype for the resulting map.
+        get_hdu : Default is `False`. If set to `True`, an astropy.io.fits.HDUList is returned. Overrides 'get_data'
+            and 'get_header'.
+        get_data : Default is `False`. Returns a numpy.ndarray of the FITS array.
+        get_header : Default is `False`. Returns a astropy.io.fits.Header of the FITS array.
 
         Returns
         -------
-        tuple or None
-            Result from `return_hdu_options`.
+        Result from `return_hdu_options`.
 
         """
         say(f'\ncreate {mode} cube...')
@@ -579,16 +581,14 @@ class Finalize(object):
             comments.append('Corrected for main beam efficiency of {}.'.format(
                 self.main_beam_efficiency))
 
-        header = update_header(
-            self.header.copy(), comments=comments, write_meta=True)
+        header = update_header(header=self.header.copy(), comments=comments, write_meta=True)
 
         if save:
-            pathToFile = os.path.join(self.decomp_dirname, 'FITS', filename)
-            save_fits(array, header, pathToFile, verbose=False)
+            pathToFile = Path(self.decomp_dirname, 'FITS', filename)
+            save_fits(data=array, header=header, path_to_file=pathToFile, verbose=False)
             say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
                 filename, os.path.dirname(pathToFile)))
 
-        hdu = fits.PrimaryHDU(array, header)
+        hdu = fits.PrimaryHDU(data=array, header=header)
 
-        return return_hdu_options(
-            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
+        return return_hdu_options(hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
