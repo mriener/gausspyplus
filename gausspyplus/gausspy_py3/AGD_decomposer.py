@@ -154,9 +154,16 @@ def initialGuess(vel,
     if np.all(amps_new > 0):
         amps = amps_new
 
-    odict = {'means': offsets, 'FWHMs': FWHMs, 'amps': amps,
-             'u2': u2, 'errors': errors, 'thresh2': thresh2,
-             'thresh': thresh, 'N_components': N_components}
+    odict = {
+        'means': offsets,
+        'FWHMs': FWHMs,
+        'amps': amps,
+        'u2': u2,
+        'errors': errors,
+        'thresh2': thresh2,
+        'thresh': thresh,
+        'N_components': N_components
+    }
 
     return odict
 
@@ -194,7 +201,7 @@ def AGD(vel,
     # -------------------------------------- #
     # Find phase-one guesses                 #
     # -------------------------------------- #
-    agd1 = initialGuess(
+    agd_phase1 = initialGuess(
         vel,
         data,
         errors=errors[0],
@@ -204,24 +211,24 @@ def AGD(vel,
         SNR2_thresh=SNR2_thresh,
     )
 
-    amps_g1, widths_g1, offsets_g1, u2 = agd1['amps'], agd1['FWHMs'], agd1['means'], agd1['u2']
-    params_g1 = np.append(np.append(amps_g1, widths_g1), offsets_g1)
-    ncomps_g1 = int(len(params_g1) / 3)
-    ncomps_g2 = 0  # Default
-    ncomps_f1 = 0  # Default
+    amps_guess_phase1, widths_guess_phase1, offsets_guess_phase1, u2 = (agd_phase1['amps'], agd_phase1['FWHMs'], agd_phase1['means'], agd_phase1['u2'])
+    params_guess_phase1 = np.append(np.append(amps_guess_phase1, widths_guess_phase1), offsets_guess_phase1)
+    ncomps_guess_phase1 = int(len(params_guess_phase1) / 3)
+    ncomps_guess_phase2 = 0  # Default
+    ncomps_fit_phase1 = 0  # Default
 
     # ----------------------------#
     # Find phase-two guesses #
     # ----------------------------#
     if phase == 'two':
         say('Beginning phase-two AGD... ', verbose)
-        ncomps_g2 = 0
+        ncomps_guess_phase2 = 0
 
         # ----------------------------------------------------------#
         # Produce the residual signal                               #
         #  -- Either the original data, or intermediate subtraction #
         # ----------------------------------------------------------#
-        if ncomps_g1 == 0:
+        if ncomps_guess_phase1 == 0:
             say('Phase 2 with no narrow comps -> No intermediate subtration... ', verbose)
             residuals = data
         else:
@@ -243,11 +250,10 @@ def AGD(vel,
             # Perform the intermediate fit using LMFIT
             t0 = time.time()
             say('Running LMFIT on initial narrow components...', verbose)
-            lmfit_params = paramvec_to_lmfit(
-                params_g1, dct['max_amp'], dct['max_fwhm'])
+            lmfit_params = paramvec_to_lmfit(params_guess_phase1, dct['max_amp'], dct['max_fwhm'])
             result = lmfit_minimize(objectiveD2_leastsq, lmfit_params, method='leastsq')
-            params_f1 = vals_vec_from_lmfit(result.params)
-            ncomps_f1 = int(len(params_f1) / 3)
+            params_fit_phase1 = vals_vec_from_lmfit(result.params)
+            ncomps_fit_phase1 = int(len(params_fit_phase1) / 3)
 
             del lmfit_params
             say(f'LMFIT fit took {time.time() - t0} seconds.')
@@ -255,7 +261,7 @@ def AGD(vel,
             if result.success:
                 # Compute intermediate residuals
                 # Median filter on 2x effective scale to remove poor subtractions of strong components
-                intermediate_model = multi_component_gaussian_model(vel, *params_f1).ravel()  # Explicit final (narrow) model
+                intermediate_model = multi_component_gaussian_model(vel, *params_fit_phase1).ravel()  # Explicit final (narrow) model
                 median_window = 2. * 10**((np.log10(alpha1) + 2.187) / 3.859)
                 residuals = median_filter(data - intermediate_model, np.int(median_window))
             else:
@@ -263,7 +269,7 @@ def AGD(vel,
             # Finished producing residual signal # ---------------------------
 
         # Search for phase-two guesses
-        agd2 = initialGuess(
+        agd_phase2 = initialGuess(
             vel,
             residuals,
             errors=errors[0],
@@ -272,38 +278,37 @@ def AGD(vel,
             SNR_thresh=SNR_thresh,
             SNR2_thresh=SNR2_thresh,
         )
-        ncomps_g2 = agd2['N_components']
-        if ncomps_g2 > 0:
-            params_g2 = np.concatenate(
-                [agd2['amps'], agd2['FWHMs'], agd2['means']])
+        ncomps_guess_phase2 = agd_phase2['N_components']
+        if ncomps_guess_phase2 > 0:
+            params_guess_phase2 = np.concatenate([agd_phase2['amps'], agd_phase2['FWHMs'], agd_phase2['means']])
         else:
-            params_g2 = []
-        u22 = agd2['u2']
+            params_guess_phase2 = []
+        u2_phase2 = agd_phase2['u2']
 
         # END PHASE 2 <<<
 
     # Check for phase two components, make final guess list
     # ------------------------------------------------------
-    if phase == 'two' and (ncomps_g2 > 0):
-        amps_gf = np.append(params_g1[0:ncomps_g1], params_g2[0:ncomps_g2])
-        widths_gf = np.append(params_g1[ncomps_g1:2*ncomps_g1], params_g2[ncomps_g2:2*ncomps_g2])
-        offsets_gf = np.append(params_g1[2*ncomps_g1:3*ncomps_g1], params_g2[2*ncomps_g2:3*ncomps_g2])
-        params_gf = np.concatenate([amps_gf, widths_gf, offsets_gf])
-        ncomps_gf = int(len(params_gf) / 3)
+    if phase == 'two' and (ncomps_guess_phase2 > 0):
+        amps_guess_final = np.append(params_guess_phase1[:ncomps_guess_phase1], params_guess_phase2[:ncomps_guess_phase2])
+        widths_guess_final = np.append(params_guess_phase1[ncomps_guess_phase1:2*ncomps_guess_phase1], params_guess_phase2[ncomps_guess_phase2:2*ncomps_guess_phase2])
+        offsets_guess_final = np.append(params_guess_phase1[2*ncomps_guess_phase1:3*ncomps_guess_phase1], params_guess_phase2[2*ncomps_guess_phase2:3*ncomps_guess_phase2])
+        params_guess_final = np.concatenate([amps_guess_final, widths_guess_final, offsets_guess_final])
+        ncomps_guess_final = int(len(params_guess_final) / 3)
     else:
-        params_gf = params_g1
-        ncomps_gf = int(len(params_gf) / 3)
+        params_guess_final = params_guess_phase1
+        ncomps_guess_final = int(len(params_guess_final) / 3)
 
     # Sort final guess list by amplitude
     # ----------------------------------
-    say('N final parameter guesses: ' + str(ncomps_gf))
-    amps_temp = params_gf[:ncomps_gf]
-    widths_temp = params_gf[ncomps_gf:2*ncomps_gf]
-    offsets_temp = params_gf[2*ncomps_gf:3*ncomps_gf]
+    say('N final parameter guesses: ' + str(ncomps_guess_final))
+    amps_temp = params_guess_final[:ncomps_guess_final]
+    widths_temp = params_guess_final[ncomps_guess_final:2*ncomps_guess_final]
+    offsets_temp = params_guess_final[2*ncomps_guess_final:3*ncomps_guess_final]
     w_sort_amp = np.argsort(amps_temp)[::-1]
-    params_gf = np.concatenate([amps_temp[w_sort_amp], widths_temp[w_sort_amp], offsets_temp[w_sort_amp]])
+    params_guess_final = np.concatenate([amps_temp[w_sort_amp], widths_temp[w_sort_amp], offsets_temp[w_sort_amp]])
 
-    if (perform_final_fit is True) and (ncomps_gf > 0):
+    if (perform_final_fit is True) and (ncomps_guess_final > 0):
         say('\n\n  --> Final Fitting... \n', verbose)
 
         # Objective functions for final fit
@@ -314,7 +319,7 @@ def AGD(vel,
 
         # Final fit using unconstrained parameters
         t0 = time.time()
-        lmfit_params = paramvec_to_lmfit(params_gf, dct['max_amp'], None)
+        lmfit_params = paramvec_to_lmfit(params_guess_final, dct['max_amp'], None)
         result2 = lmfit_minimize(objective_leastsq, lmfit_params, method='leastsq')
         params_fit = vals_vec_from_lmfit(result2.params)
         params_errs = errs_vec_from_lmfit(result2.params)
@@ -329,10 +334,10 @@ def AGD(vel,
     # Try to improve the fit
     # ----------------------
     if dct['improve_fitting']:
-        if ncomps_gf == 0:
+        if ncomps_guess_final == 0:
             ncomps_fit = 0
             params_fit = []
-        #  TODO: check if ncomps_fit should be ncomps_gf
+        #  TODO: check if ncomps_fit should be ncomps_guess_final
         best_fit_list, N_neg_res_peak, N_blended, log_gplus =\
             try_to_improve_fitting(
                 vel,
@@ -348,14 +353,15 @@ def AGD(vel,
         params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
             rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
 
-        ncomps_gf = ncomps_fit
+        ncomps_guess_final = ncomps_fit
 
+    # TODO: move the plotting functions to plotting.py
     if plot:
     #                       P L O T T I N G
         datamax = np.max(data)
         print(("params_fit:", params_fit))
 
-        if ncomps_gf == 0:
+        if ncomps_guess_final == 0:
             ncomps_fit = 0
             best_fit_final = data*0
 
@@ -382,10 +388,10 @@ def AGD(vel,
             plt.figtext(0.52, 0.43, f'N components: {ncomps_fit}')
 
         plt.figtext(0.12, 0.47, 'Phase-two initial guess')
-        plt.figtext(0.12, 0.45, f'N components: {ncomps_g2}')
+        plt.figtext(0.12, 0.45, f'N components: {ncomps_guess_phase2}')
 
         plt.figtext(0.12, 0.87, 'Phase-one initial guess')
-        plt.figtext(0.12, 0.85, f'N components: {ncomps_g1}')
+        plt.figtext(0.12, 0.85, f'N components: {ncomps_guess_phase1}')
 
         plt.figtext(0.52, 0.87, 'Intermediate fit')
 
@@ -396,11 +402,11 @@ def AGD(vel,
         ax1.axhline(color='black', linewidth=0.5)
         ax1.plot(vel, data, '-k')
         ax1.plot(vel, u2 * u2_scale, '-r')
-        ax1.plot(vel, np.ones(len(vel)) * agd1['thresh'], '--k')
-        ax1.plot(vel, np.ones(len(vel)) * agd1['thresh2'] * u2_scale, '--r')
+        ax1.plot(vel, np.ones(len(vel)) * agd_phase1['thresh'], '--k')
+        ax1.plot(vel, np.ones(len(vel)) * agd_phase1['thresh2'] * u2_scale, '--r')
 
-        for i in range(ncomps_g1):
-            one_component = single_component_gaussian_model(params_g1[i], params_g1[i+ncomps_g1], params_g1[i+2*ncomps_g1])(vel)
+        for i in range(ncomps_guess_phase1):
+            one_component = single_component_gaussian_model(params_guess_phase1[i], params_guess_phase1[i+ncomps_guess_phase1], params_guess_phase1[i+2*ncomps_guess_phase1])(vel)
             ax1.plot(vel, one_component, '-g')
 
         # Plot intermediate fit components (Panel 2)
@@ -409,21 +415,21 @@ def AGD(vel,
         ax2.axhline(color='black', linewidth=0.5)
         ax2.plot(vel, data, '-k')
         ax2.yaxis.tick_right()
-        for i in range(ncomps_f1):
-            one_component = single_component_gaussian_model(params_f1[i], params_f1[i+ncomps_f1], params_f1[i+2*ncomps_f1])(vel)
+        for i in range(ncomps_fit_phase1):
+            one_component = single_component_gaussian_model(params_fit_phase1[i], params_fit_phase1[i+ncomps_fit_phase1], params_fit_phase1[i+2*ncomps_fit_phase1])(vel)
             ax2.plot(vel, one_component, '-', color='blue')
 
         # Residual spectrum (Panel 3)
         # -----------------------------
         if phase == 'two':
-            u22_scale = 1. / np.abs(u22).max() * np.max(residuals) * 0.5
+            u2_phase2_scale = 1. / np.abs(u2_phase2).max() * np.max(residuals) * 0.5
             ax3.axhline(color='black', linewidth=0.5)
             ax3.plot(vel, residuals, '-k')
-            ax3.plot(vel, np.ones(len(vel)) * agd2['thresh'], '--k')
-            ax3.plot(vel, np.ones(len(vel)) * agd2['thresh2'] * u22_scale, '--r')
-            ax3.plot(vel, u22 * u22_scale, '-r')
-            for i in range(ncomps_g2):
-                one_component = single_component_gaussian_model(params_g2[i], params_g2[i+ncomps_g2], params_g2[i+2*ncomps_g2])(vel)
+            ax3.plot(vel, np.ones(len(vel)) * agd_phase2['thresh'], '--k')
+            ax3.plot(vel, np.ones(len(vel)) * agd_phase2['thresh2'] * u2_phase2_scale, '--r')
+            ax3.plot(vel, u2_phase2 * u2_phase2_scale, '-r')
+            for i in range(ncomps_guess_phase2):
+                one_component = single_component_gaussian_model(params_guess_phase2[i], params_guess_phase2[i+ncomps_guess_phase2], params_guess_phase2[i+2*ncomps_guess_phase2])(vel)
                 ax3.plot(vel, one_component, '-g')
 
         # Plot best-fit model (Panel 4)
@@ -441,23 +447,18 @@ def AGD(vel,
 
     # Construct output dictionary (odict)
     # -----------------------------------
-    odict = {}
-    odict['initial_parameters'] = params_gf
+    odict = {'initial_parameters': params_guess_final, 'N_components': ncomps_guess_final, 'index': idx}
+    if (perform_final_fit is True) and (ncomps_guess_final > 0):
+        odict = {**odict, **{'best_fit_parameters': params_fit, 'best_fit_errors': params_errs}}
 
-    odict['N_components'] = ncomps_gf
-    odict['index'] = idx
     if dct['improve_fitting']:
-        odict['best_fit_rchi2'] = rchi2
-        odict['best_fit_aicc'] = aicc
-        odict['pvalue'] = pvalue
+        odict = {**odict, **{'best_fit_rchi2': rchi2,
+                             'best_fit_aicc': aicc,
+                             'pvalue': pvalue,
+                             'N_neg_res_peak': N_neg_res_peak,
+                             'N_blended': N_blended,
+                             'log_gplus': log_gplus,
+                             'quality_control': quality_control}
+                 }
 
-        odict['N_neg_res_peak'] = N_neg_res_peak
-        odict['N_blended'] = N_blended
-        odict['log_gplus'] = log_gplus
-        odict['quality_control'] = quality_control
-
-    if (perform_final_fit is True) and (ncomps_gf > 0):
-        odict['best_fit_parameters'] = params_fit
-        odict['best_fit_errors'] = params_errs
-
-    return (1, odict)
+    return 1, odict
