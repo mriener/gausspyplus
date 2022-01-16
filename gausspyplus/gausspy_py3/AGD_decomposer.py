@@ -125,8 +125,8 @@ def initialGuess(vel,
     # --------------------------------
     zeros = np.abs(np.diff(np.sign(u3)))
     zeros = zeros * mask1 * mask3 * mask4
-    offsets_data_i = np.array(np.where(zeros)).ravel()  # Index offsets
-    offsets = fvel(offsets_data_i + 0.5)  # Velocity offsets (Added 0.5 July 23)
+    indices_of_offsets = np.array(np.where(zeros)).ravel()  # Index offsets
+    offsets = fvel(indices_of_offsets + 0.5)  # Velocity offsets
     N_components = len(offsets)
     say(f'Components found for alpha={alpha}: {N_components}', verbose=verbose)
 
@@ -140,10 +140,10 @@ def initialGuess(vel,
         return odict
 
     # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
-    widths = np.sqrt(np.abs(data/u2)[offsets_data_i])
+    widths = np.sqrt(np.abs(data / u2)[indices_of_offsets])
     FWHMs = widths * CONVERSION_STD_TO_FWHM
 
-    amps = np.array(data[offsets_data_i])
+    amps = np.array(data[indices_of_offsets])
 
     # Attempt deblending. If Deblending results in all non-negative answers, keep.
     FF_matrix = np.zeros([len(amps), len(amps)])
