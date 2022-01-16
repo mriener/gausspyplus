@@ -9,6 +9,8 @@
 import inspect
 import multiprocessing
 import numpy as np
+
+from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
 from . import AGD_decomposer
 import signal
 
@@ -59,7 +61,7 @@ def compare_parameters(guess_params, true_params):
     # Loop through answers and guesses
     for i in range(n_true):
         for j in range(n_guess):
-            sigs_away = np.abs((true_offsets[i] - guess_offsets[j]) / (true_FWHMs[i] / 2.355))
+            sigs_away = np.abs((true_offsets[i] - guess_offsets[j]) / (true_FWHMs[i] / CONVERSION_STD_TO_FWHM))
             if ((sigs_away < 1.0) and                           # | Position match
                     (guess_FWHMs[j] > 0.3 * true_FWHMs[i]) and  # | Width match
                     (guess_FWHMs[j] < 2.5 * true_FWHMs[i]) and  # |

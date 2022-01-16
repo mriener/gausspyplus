@@ -6,6 +6,9 @@ import numpy as np
 from lmfit import Parameters
 
 
+CONVERSION_STD_TO_FWHM = 2*np.sqrt(2*np.log(2))
+
+
 # TODO: rename to integrated_area_under_gaussian_curve
 def area_of_gaussian(amp: float, fwhm: float) -> float:
     """Calculate the integrated area of the Gaussian function.
@@ -16,7 +19,7 @@ def area_of_gaussian(amp: float, fwhm: float) -> float:
     fwhm : FWHM value of the Gaussian component.
 
     """
-    return amp * fwhm / ((1. / np.sqrt(2*np.pi)) * 2*np.sqrt(2*np.log(2)))
+    return amp * fwhm / ((1. / np.sqrt(2*np.pi)) * CONVERSION_STD_TO_FWHM)
 
 
 def gaussian(amp:float , fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
@@ -80,7 +83,7 @@ def number_of_gaussian_components(params: List) -> int:
 # TODO: check if this function is used anywhere (function was called 'gaussian_function' originally)
 def single_component_gaussian_model(peak: float, fwhm: float, mean: float) -> Callable:
     """Return a Gaussian function."""
-    sigma = fwhm / 2.354820045  # (2 * sqrt( 2 * ln(2)))
+    sigma = fwhm / CONVERSION_STD_TO_FWHM
     return lambda x: peak * np.exp(-(x - mean)**2 / 2. / sigma**2)
 
 

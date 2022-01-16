@@ -506,7 +506,7 @@ def get_fully_blended_gaussians(params_fit: List,
     """
     ncomps_fit = number_of_gaussian_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
-    # stddevs_fit = list(np.array(fwhms_fit) / 2.354820045)
+    # stddevs_fit = list(np.array(fwhms_fit) / CONVERSION_STD_TO_FWHM)
     indices_blended = np.array([])
     blended_pairs = []
     items = list(range(ncomps_fit))

@@ -10,7 +10,7 @@ from astropy.wcs import WCS
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians
 from gausspyplus.utils.fit_quality_checks import negative_residuals
-from gausspyplus.utils.gaussian_functions import gaussian, combined_gaussian, area_of_gaussian
+from gausspyplus.utils.gaussian_functions import gaussian, combined_gaussian, area_of_gaussian, CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.output import say
 from gausspyplus.utils.spectral_cube_functions import correct_header, change_header, update_header, save_fits, return_hdu_options
 from gausspyplus.spatial_fitting import SpatialFitting
@@ -216,10 +216,8 @@ class Finalize(object):
 
         velocities = z_wcs * self.to_unit
         e_velocities = np.array(fit_e_means) * self.velocity_increment
-        vel_disps = (
-            np.array(fit_fwhms) / 2.354820045) * self.velocity_increment
-        e_vel_disps = (
-            np.array(fit_e_fwhms) / 2.354820045) * self.velocity_increment
+        vel_disps = (np.array(fit_fwhms) / CONVERSION_STD_TO_FWHM) * self.velocity_increment
+        e_vel_disps = (np.array(fit_e_fwhms) / CONVERSION_STD_TO_FWHM) * self.velocity_increment
 
         amplitudes = np.array(fit_amps)
         e_amplitudes = np.array(fit_e_amps)
