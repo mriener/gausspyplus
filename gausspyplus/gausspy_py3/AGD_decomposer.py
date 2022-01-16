@@ -39,6 +39,31 @@ def create_fitmask(size, offsets_i, di):
     return fitmask
 
 
+def _determine_derivatives(data, dv, alpha):
+    gauss_sigma = alpha
+    gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
+    gauss_dn = gauss_sigma_int * 6
+
+    xx = np.arange(2 * gauss_dn + 2) - (gauss_dn) - 0.5
+    gauss = np.exp(-xx ** 2 / 2. / gauss_sigma ** 2)
+    gauss = gauss / np.sum(gauss)
+    gauss1 = np.diff(gauss) / dv
+    gauss3 = np.diff(np.diff(gauss1)) / dv ** 2
+
+    xx2 = np.arange(2 * gauss_dn + 1) - (gauss_dn)
+    gauss2 = np.exp(-xx2 ** 2 / 2. / gauss_sigma ** 2)
+    gauss2 = gauss2 / np.sum(gauss2)
+    gauss2 = np.diff(gauss2) / dv
+    gauss2 = np.diff(gauss2) / dv
+    gauss4 = np.diff(np.diff(gauss2)) / dv ** 2
+
+    u = convolve(data, gauss1, mode='wrap')
+    u2 = convolve(data, gauss2, mode='wrap')
+    u3 = convolve(data, gauss3, mode='wrap')
+    u4 = convolve(data, gauss4, mode='wrap')
+    return u, u2, u3, u4
+
+
 def initialGuess(vel,
                  data,
                  errors=None,
@@ -74,28 +99,7 @@ def initialGuess(vel,
     # Take regularized derivatives
     t0 = time.time()
     say(f'Convolution sigma [pixels]: {alpha}', verbose)
-    gauss_sigma = alpha
-    gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
-    gauss_dn = gauss_sigma_int * 6
-
-    xx = np.arange(2*gauss_dn+2)-(gauss_dn) - 0.5
-    gauss = np.exp(-xx**2/2./gauss_sigma**2)
-    gauss = gauss / np.sum(gauss)
-    gauss1 = np.diff(gauss) / dv
-    gauss3 = np.diff(np.diff(gauss1)) / dv**2
-
-    xx2 = np.arange(2*gauss_dn+1)-(gauss_dn)
-    gauss2 = np.exp(-xx2**2/2./gauss_sigma**2)
-    gauss2 = gauss2 / np.sum(gauss2)
-    gauss2 = np.diff(gauss2) / dv
-    gauss2 = np.diff(gauss2) / dv
-    gauss4 = np.diff(np.diff(gauss2)) / dv**2
-
-    # u = convolve(data, gauss1, mode='wrap')
-    u2 = convolve(data, gauss2, mode='wrap')
-    u3 = convolve(data, gauss3, mode='wrap')
-    u4 = convolve(data, gauss4, mode='wrap')
-
+    u, u2, u3, u4 = _determine_derivatives(data, dv, alpha)
     say('...took {0:4.2f} seconds per derivative.'.format(
         (time.time()-t0)/4.), verbose)
 
