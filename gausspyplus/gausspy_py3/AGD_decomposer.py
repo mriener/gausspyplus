@@ -28,7 +28,7 @@ from gausspyplus.utils.gaussian_functions import (
 from gausspyplus.utils.output import say
 
 
-def create_fitmask(size, offsets_i, di):
+def _create_fitmask(size, offsets_i, di):
     """Return valid domain for intermediate fit in d2/dx2 space.
 
     fitmask = (0,1)
@@ -227,8 +227,8 @@ def AGD(vel,
         else:
             # "Else" Narrow components were found, and Phase == 2, so perform intermediate subtraction...
 
-            # The "fitmask" is a collection of windows around the a list of phase-one components
-            fitmask = create_fitmask(len(vel), v_to_i(offsets_g1), widths_g1 / dv / CONVERSION_STD_TO_FWHM * 0.9)
+            # "fitmask" is a collection of windows around the a list of phase-one components
+            fitmask = _create_fitmask(len(vel), v_to_i(offsets_guess_phase1), widths_guess_phase1 / dv / CONVERSION_STD_TO_FWHM * 0.9)
             notfitmask = 1 - fitmask
 
             # Error function for intermediate optimization
