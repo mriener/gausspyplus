@@ -31,13 +31,11 @@ def create_fitmask(size, offsets_i, di):
     """Return valid domain for intermediate fit in d2/dx2 space.
 
     fitmask = (0,1)
-    fitmaskw = (True, False)
     """
     fitmask = np.zeros(size)
     for i in range(len(offsets_i)):
         fitmask[int(offsets_i[i]-di[i]):int(offsets_i[i]+di[i])] = 1.0
-    fitmaskw = fitmask == 1.0
-    return fitmask, fitmaskw
+    return fitmask
 
 
 def initialGuess(vel,
@@ -233,7 +231,7 @@ def AGD(vel,
             # "Else" Narrow components were found, and Phase == 2, so perform intermediate subtraction...
 
             # The "fitmask" is a collection of windows around the a list of phase-one components
-            fitmask, fitmaskw = create_fitmask(len(vel), v_to_i(offsets_g1), widths_g1 / dv / 2.355 * 0.9)
+            fitmask = create_fitmask(len(vel), v_to_i(offsets_g1), widths_g1 / dv / 2.355 * 0.9)
             notfitmask = 1 - fitmask
 
             # Error function for intermediate optimization
