@@ -187,11 +187,6 @@ def AGD(vel,
         dct['max_amp'] = None
         dct['max_fwhm'] = None
 
-    if not isinstance(SNR_thresh, list):
-        SNR_thresh = [SNR_thresh, SNR_thresh]
-    if not isinstance(SNR2_thresh, list):
-        SNR2_thresh = [SNR2_thresh, SNR2_thresh]
-
     say('\n  --> AGD() \n', verbose)
 
     if (not alpha2) and (phase == 'two'):
@@ -210,8 +205,8 @@ def AGD(vel,
         errors=errors[0],
         alpha=alpha1,
         verbose=verbose,
-        SNR_thresh=SNR_thresh[0],
-        SNR2_thresh=SNR2_thresh[0],
+        SNR_thresh=SNR_thresh,
+        SNR2_thresh=SNR2_thresh,
     )
 
     amps_g1, widths_g1, offsets_g1, u2 = agd1['amps'], agd1['FWHMs'], agd1['means'], agd1['u2']
@@ -279,8 +274,8 @@ def AGD(vel,
             errors=errors[0],
             alpha=alpha2,
             verbose=verbose,
-            SNR_thresh=SNR_thresh[1],
-            SNR2_thresh=SNR2_thresh[1],  # June 9 2014, change
+            SNR_thresh=SNR_thresh,
+            SNR2_thresh=SNR2_thresh,
         )
         ncomps_g2 = agd2['N_components']
         if ncomps_g2 > 0:
