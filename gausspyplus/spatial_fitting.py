@@ -1,12 +1,8 @@
-# @Author: riener
-# @Date:   2019-01-22T08:00:18+01:00
-# @Filename: spatial_fitting.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:18:41+02:00
-
 import collections
 import os
 import pickle
+from pathlib import Path
+from typing import Dict, Optional, List, Tuple, Any, Union
 
 import numpy as np
 import scipy.ndimage as ndimage
@@ -24,21 +20,19 @@ from gausspyplus.utils.output import set_up_logger, say
 
 
 class SpatialFitting(object):
-    def __init__(self, path_to_pickle_file=None,
-                 path_to_decomp_file=None, fin_filename=None,
-                 config_file=''):
+    def __init__(self,
+                 path_to_pickle_file: Optional[Union[str, Path]] = None,
+                 path_to_decomp_file: Optional[Union[str, Path]] = None,
+                 fin_filename: Optional[Union[str, Path]] = None,
+                 config_file: Union[str, Path] = ''):
         """Class implementing the two phases of spatially coherent refitting discussed in Riener+ 2019.
 
         Parameters
         ----------
-        path_to_pickle_file : type
-            Description of parameter `path_to_pickle_file`.
-        path_to_decomp_file : type
-            Description of parameter `path_to_decomp_file`.
-        fin_filename : type
-            Description of parameter `fin_filename`.
-        config_file : type
-            Description of parameter `config_file`.
+        path_to_pickle_file :
+        path_to_decomp_file :
+        fin_filename :
+        config_file :
 
         """
         self.path_to_pickle_file = path_to_pickle_file
@@ -92,7 +86,7 @@ class SpatialFitting(object):
             get_values_from_config_file(
                 self, config_file, config_key='spatial fitting')
 
-    def check_settings(self):
+    def check_settings(self) -> None:
         """Check user settings and raise error messages or apply corrections."""
         if self.path_to_pickle_file is None:
             raise Exception("Need to specify 'path_to_pickle_file'")
@@ -145,7 +139,7 @@ class SpatialFitting(object):
         if self.flag_ncomps is None:
             self.flag_ncomps = self.refit_ncomps
 
-    def initialize(self):
+    def initialize(self) -> None:
         """Read in data files and initialize parameters."""
         with open(self.path_to_pickle_file, "rb") as pickle_file:
             pickledData = pickle.load(pickle_file, encoding='latin1')
@@ -210,7 +204,7 @@ class SpatialFitting(object):
         self.w_min = self.w_1 / np.sqrt(2)
         self.min_p = self._w_start - self.w_2
 
-    def mask_out_beyond_pixel_range(self):
+    def mask_out_beyond_pixel_range(self) -> None:
         import itertools
 
         locations = list(itertools.product(
@@ -221,7 +215,7 @@ class SpatialFitting(object):
             if loc not in locations:
                 self.nanMask[idx] = np.nan
 
-    def getting_ready(self):
+    def getting_ready(self) -> None:
         """Set up logger and write initial output to terminal."""
         self.logger = False
         if self.log_output:
@@ -292,6 +286,7 @@ class SpatialFitting(object):
             say(string, logger=self.logger)
 
     def finalize(self):
+        # TODO: What is the return type of this function?
         self.logger = False
         self.phase_two = True
         self._finalize = True
@@ -303,13 +298,12 @@ class SpatialFitting(object):
         self.check_indices_refit()
         return self.refitting()
 
-    def spatial_fitting(self, continuity=False):
+    def spatial_fitting(self, continuity: bool = False) -> None:
         """Start the spatially coherent refitting.
 
         Parameters
         ----------
-        continuity : bool (default: 'False')
-            Set to 'True' for phase 2 of the spatially coherent refitting (coherence of centroid positions).
+        continuity : Set to 'True' for phase 2 of the spatially coherent refitting (coherence of centroid positions).
 
         """
         self.phase_two = continuity
@@ -322,24 +316,20 @@ class SpatialFitting(object):
         else:
             self.determine_spectra_for_refitting()
 
-    def define_mask(self, key, limit, flag):
+    def define_mask(self, key: str, limit: Union[int, float], flag: bool) -> np.ndarray:
         """Create boolean mask with data values exceeding the defined limits set to 'True'.
 
         This mask is only created if 'flag=True'.
 
         Parameters
         ----------
-        key : str
-            Dictionary key of the parameter: 'N_blended', 'N_neg_res_peak', or 'best_fit_rchi2'.
-        limit : int or float
-            Upper limit of the corresponding value.
-        flag : bool
-            User-defined flag for the corresponding dictionary parameter.
+        key : Dictionary key of the parameter: 'N_blended', 'N_neg_res_peak', or 'best_fit_rchi2'.
+        limit : Upper limit of the corresponding value.
+        flag : User-defined flag for the corresponding dictionary parameter.
 
         Returns
         -------
-        mask : numpy.ndarray
-            Boolean mask with values exceeding 'limit' set to 'True'.
+        mask : Boolean mask with values exceeding 'limit' set to 'True'.
 
         """
         if not flag:
@@ -359,7 +349,7 @@ class SpatialFitting(object):
         mask = array < limit
         return mask
 
-    def define_mask_broad_limit(self, flag):
+    def define_mask_broad_limit(self, flag: bool) -> Union[np.ndarray, int]:
         """Create boolean mask identifying the location of broad fit components.
 
         The mask is 'True' at the location of spectra that contain fit components exceeding the 'max_fwhm' value.
@@ -368,14 +358,14 @@ class SpatialFitting(object):
 
         Parameters
         ----------
-        flag : bool
-            User-defined 'flag_broad' parameter.
+        flag : User-defined 'flag_broad' parameter.
 
         Returns
         -------
         mask : numpy.ndarray
 
         """
+        # TODO: n_broad seems to be incorrect -> shouldn't that be a count?
         n_broad = np.zeros(self.length)
 
         if not flag:
@@ -389,24 +379,24 @@ class SpatialFitting(object):
         mask = n_broad > 0
         return mask, n_broad
 
-    def broad_components(self, values):
+    def broad_components(self, values: np.ndarray) -> Union[float, int]:
         """Check for the presence of broad fit components.
 
         This check is performed by comparing the broadest fit components of a spectrum with its 8 immediate neighbors.
 
-        A fit component is defined as broad if its FWHM value exceeds the FWHM value of the largest fit components of more than 'self.broad_neighbor_fraction' of its neighbors by at least a factor of 'self.fwhm_factor'.
+        A fit component is defined as broad if its FWHM value exceeds the FWHM value of the largest fit components of
+        more than 'self.broad_neighbor_fraction' of its neighbors by at least a factor of 'self.fwhm_factor'.
 
-        In addition we impose that the minimum difference between the compared FWHM values has to exceed 'self.fwhm_separation' to avoid flagging narrow components.
+        In addition we impose that the minimum difference between the compared FWHM values has to exceed
+        'self.fwhm_separation' to avoid flagging narrow components.
 
         Parameters
         ----------
-        values : numpy.ndarray
-            Array of FWHM values of the broadest fit components for a spectrum and its 8 immediate neighbors.
+        values : Array of FWHM values of the broadest fit components for a spectrum and its 8 immediate neighbors.
 
         Returns
         -------
-        float or int
-             FWHM value in case of a broad fit component, 0 otherwise.
+        FWHM value in case of a broad fit component, 0 otherwise.
 
         """
         central_value = values[4]
@@ -431,15 +421,14 @@ class SpatialFitting(object):
             return central_value
         return 0
 
-    def define_mask_broad(self, flag):
+    def define_mask_broad(self, flag: bool) -> np.ndarray:
         """Create a boolean mask indicating the location of broad fit components.
 
         If 'self.flag_broad=False' no locations are masked.
 
         Parameters
         ----------
-        flag : bool
-            User-defined 'self.flag_broad' parameter.
+        flag : User-defined 'self.flag_broad' parameter.
 
         Returns
         -------
@@ -486,6 +475,7 @@ class SpatialFitting(object):
         return mask_broad
 
     def weighted_median(self, data):
+        # TODO: add type hints
         """Adapted from: https://gist.github.com/tinybike/d9ff1dad515b66cc0d87"""
         w_1 = 1
         w_2 = w_1 / np.sqrt(2)
@@ -516,20 +506,18 @@ class SpatialFitting(object):
                 w_median = s_data[idx + 1]
         return w_median
 
-    def number_of_component_jumps(self, values):
+    def number_of_component_jumps(self, values: np.ndarray) -> int:
         """Determine the number of component jumps towards neighboring fits.
 
         A component jump occurs if the number of components is different by more than 'self.max_jump_comps' components.
 
         Parameters
         ----------
-        values : numpy.ndarray
-            Array of the number of fit components for a spectrum and its 8 immediate neighbors.
+        values : Array of the number of fit components for a spectrum and its 8 immediate neighbors.
 
         Returns
         -------
-        int
-             Number of component jumps.
+        Number of component jumps.
 
         """
         central_value = values[4]
@@ -544,31 +532,23 @@ class SpatialFitting(object):
                 counter += 1
         return counter
 
-    def define_mask_neighbor_ncomps(self, flag):
+    def define_mask_neighbor_ncomps(self, flag: bool) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
         """Create a boolean mask indicating the location of component jumps.
 
         Parameters
         ----------
-        nanmask_1d : numpy.ndarray
-            Boolean mask containing the information about already flagged spectra, which are not considered in the calculation unless 'self.only_print_flags=True'.
-        flag : bool
-            User-defined 'self.flag_ncomps' parameter.
+        flag : User-defined 'self.flag_ncomps' parameter.
 
         Returns
         -------
-        mask_neighbor : numpy.ndarray
-            Boolean mask indicating the location of component jump.
-        ncomps_jumps : numpy.ndarray
-            Array containing the information of how many component jumps occur at which location.
-        ncomps_1d : numpy.ndarray
-            Array containing the information about the number of fitted components per location.
+        mask_neighbor : Boolean mask indicating the location of component jump.
+        ncomps_jumps : Array containing the information of how many component jumps occur at which location.
+        ncomps_1d : Array containing the information about the number of fitted components per location.
 
         """
         if not flag:
             return np.zeros(self.length).astype('bool'), None, None
 
-        # nanmask_1d += self.nanMask  # not really necessary
-        # if self.only_print_flags:
         nanmask_1d = self.nanMask
         nanmask_2d = nanmask_1d.reshape(self.shape)
         ncomps_1d = np.empty(self.length)
@@ -593,9 +573,10 @@ class SpatialFitting(object):
 
         mask_neighbor = mask_neighbor.astype('bool')
 
+        # TODO: check the return type: above 3 params are returned but in the following 4??
         return mask_neighbor, ncomps_wmedian, ncomps_jumps, ncomps_1d
 
-    def determine_spectra_for_flagging(self):
+    def determine_spectra_for_flagging(self) -> None:
         """Flag spectra not satisfying user-defined flagging criteria."""
         self.mask_blended = self.define_mask(
             'N_blended', 0, self.flag_blended)
@@ -662,7 +643,7 @@ class SpatialFitting(object):
 
             say(text, logger=self.logger)
 
-    def define_mask_refit(self):
+    def define_mask_refit(self) -> None:
         """Select spectra to refit in phase 1 of the spatially coherent refitting."""
         mask_refit = np.zeros(self.length).astype('bool')
         if self.refit_blended:
@@ -684,13 +665,13 @@ class SpatialFitting(object):
         self.locations_refit = np.take(
             np.array(self.location), self.indices_refit, axis=0)
 
-    def get_n_refit(self, flag, n_refit):
+    def get_n_refit(self, flag: bool, n_refit: int) -> int:
         if flag:
             return n_refit
         else:
             return 0
 
-    def determine_spectra_for_refitting(self):
+    def determine_spectra_for_refitting(self) -> None:
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
         say('\ndetermine spectra that need refitting...', logger=self.logger)
 
@@ -781,7 +762,7 @@ class SpatialFitting(object):
             self.refitting_iteration += 1
             self.refitting()
 
-    def stopping_criterion(self, n_refit_list):
+    def stopping_criterion(self, n_refit_list: List) -> bool:
         """Check if spatial refitting iterations should be stopped."""
         #  stop refitting if the user-defined maximum number of iterations are reached
         if self.refitting_iteration >= self.max_refitting_iteration:
@@ -797,7 +778,7 @@ class SpatialFitting(object):
                     stop = False
             return stop
 
-    def refitting(self):
+    def refitting(self) -> None:
         """Refit spectra with multiprocessing routine."""
         say('\nstart refit iteration #{}...'.format(
             self.refitting_iteration), logger=self.logger)
@@ -885,18 +866,18 @@ class SpatialFitting(object):
         else:
             self.determine_spectra_for_refitting()
 
-    def determine_neighbor_indices(self, neighbors, include_flagged=False):
+    def determine_neighbor_indices(self, neighbors: List, include_flagged: bool = False) -> Tuple[np.ndarray, bool]:
         """Determine indices of all valid neighboring pixels.
 
         Parameters
         ----------
-        neighbors : list
-            List containing information about the location of N neighboring spectra in the form [(y1, x1), ..., (yN, xN)].
+        neighbors : List containing information about the location of N neighboring spectra in the form
+            [(y1, x1), ..., (yN, xN)].
 
         Returns
         -------
-        indices_neighbors : numpy.ndarray
-            Array containing the corresponding indices of the N neighboring spectra in the form [idx1, ..., idxN].
+        indices_neighbors : Array containing the corresponding indices of the N neighboring spectra in the form
+            [idx1, ..., idxN].
 
         """
         all_neighbors = False
@@ -937,7 +918,8 @@ class SpatialFitting(object):
 
         return indices_neighbors, all_neighbors
 
-    def neighbor_indices_including_flagged(self, indices_neighbors):
+    def neighbor_indices_including_flagged(self, indices_neighbors: np.ndarray) -> np.ndarray:
+        # TODO: check type hints
         for idx in indices_neighbors:
             if (idx in self.nanIndices) or\
                     (self.decomposition['N_components'][idx] == 0):
@@ -947,22 +929,18 @@ class SpatialFitting(object):
         sort = np.argsort(self.count_flags[indices_neighbors])
         return indices_neighbors[sort]
 
-    def refit_spectrum_phase_1(self, index, i):
+    def refit_spectrum_phase_1(self, index: int, i: int) -> List:
         """Refit a spectrum based on neighboring unflagged fit solutions.
 
         Parameters
         ----------
-        index : int
-            Index ('index_fit' keyword) of the spectrum that will be refit.
-        i : int
-            List index of the entry in the list that is handed over to the
-            multiprocessing routine
+        index : Index ('index_fit' keyword) of the spectrum that will be refit.
+        i : List index of the entry in the list that is handed over to the multiprocessing routine
 
         Returns
         -------
-        list
-            A list in the form of [index, dictResults, indices_neighbors, refit]
-            in case of a successful refit; otherwise [index, 'None', indices_neighbors, refit] is returned.
+        A list in the form of [index, dictResults, indices_neighbors, refit] in case of a successful refit; otherwise
+            [index, 'None', indices_neighbors, refit] is returned.
 
         """
         refit = False
@@ -1041,34 +1019,34 @@ class SpatialFitting(object):
 
         return [index, dictResults, indices_neighbors, refit]
 
-    def try_refit_with_grouping(self, index, spectrum, rms,
-                                indices_neighbors, signal_ranges,
-                                noise_spike_ranges, signal_mask):
+    def try_refit_with_grouping(self,
+                                index: int,
+                                spectrum: np.ndarray,
+                                rms: float,
+                                indices_neighbors: np.ndarray,
+                                signal_ranges: List,
+                                noise_spike_ranges: List,
+                                signal_mask: np.ndarray) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum by grouping all neighboring unflagged fit solutions.
 
         Parameters
         ----------
-        index : int
-            Index ('index_fit' keyword) of the spectrum that will be refit.
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        rms : float
-            Root-mean-square noise value of the spectrum.
-        indices_neighbors : numpy.ndarray
-            Array containing the indices of all neighboring fit solutions that should be used for the grouping.
-        signal_ranges : list
-            Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-        noise_spike_ranges : list
-            Nested list containing info about ranges of the spectrum that were estimated to contain noise spike features. These will get masked out from goodness-of-fit calculations.
-        signal_mask : numpy.ndarray
-            Boolean array containing the information of signal_ranges.
+        index : Index ('index_fit' keyword) of the spectrum that will be refit.
+        spectrum : Spectrum to refit.
+        rms : Root-mean-square noise value of the spectrum.
+        indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
+            grouping.
+        signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
+            The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+        noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain
+            noise spike features. These will get masked out from goodness-of-fit calculations.
+        signal_mask : Boolean array containing the information of signal_ranges.
 
         Returns
         -------
-        dictResults : dict
-            Information about the new best fit solution in case of a successful refit. Otherwise 'None' is returned.
-        refit : bool
-            Information of whether there was a new successful refit.
+        dictResults : Information about the new best fit solution in case of a successful refit. Otherwise 'None' is
+            returned.
+        refit : Information of whether there was a new successful refit.
 
         """
         #  prepare fit parameter values of all unflagged neighboring fit solutions for the grouping
@@ -1091,76 +1069,75 @@ class SpatialFitting(object):
                 refit = True
                 if dictResults is None:
                     continue
-                if self.choose_new_fit(dictResults, index):
+                if self._choose_new_fit(dictResults, index):
                     return dictResults, refit
 
         return None, refit
 
-    def skip_index_for_refitting(self, index, index_neighbor):
+    def skip_index_for_refitting(self, index: int, index_neighbor: int) -> bool:
         """Check whether neighboring fit solution should be skipped.
 
-        We want to exclude (most likely futile) refits with initial guesses from the fit solutions of neighboring spectra if the same fit solutions were already used in a previous iteration.
+        We want to exclude (most likely futile) refits with initial guesses from the fit solutions of neighboring
+        spectra if the same fit solutions were already used in a previous iteration.
 
         Parameters
         ----------
-        index : int
-            Index ('index_fit' keyword) of the spectrum that will be refit.
-        index_neighbor : int
-            Index ('index_fit' keyword) of the neighboring fit solution.
+        index : Index ('index_fit' keyword) of the spectrum that will be refit.
+        index_neighbor : Index ('index_fit' keyword) of the neighboring fit solution.
 
         Returns
         -------
-        bool
-            Whether to skip the neighboring fit solution for an attempted refit.
+        Whether to skip the neighboring fit solution for an attempted refit.
 
         """
-        if self.refitting_iteration > 1:
+        return (
+            self.refitting_iteration > 1
             #  check if spectrum was selected for refitting in any of the  previous iterations
-            if self.neighbor_indices[index] is not None:
-                #  check if neighbor was used in that refitting iteration
-                if index_neighbor in self.neighbor_indices[index]:
-                    #  check if neighbor was refit in previous iteration
-                    if not self.mask_refitted[index_neighbor]:
-                        return True
-        return False
+            and self.neighbor_indices[index] is not None
+            #  check if neighbor was used in that refitting iteration
+            and index_neighbor in self.neighbor_indices[index]
+            #  check if neighbor was refit in previous iteration
+            and not self.mask_refitted[index_neighbor]
+        )
 
-    def try_refit_with_individual_neighbors(self, index, spectrum, rms,
-                                            indices_neighbors, signal_ranges,
-                                            noise_spike_ranges, signal_mask,
-                                            interval=None, n_centroids=None, flag='none', dct_new_fit=None):
+    def try_refit_with_individual_neighbors(self,
+                                            index: int,
+                                            spectrum: np.ndarray,
+                                            rms: float,
+                                            indices_neighbors: np.ndarray,
+                                            signal_ranges: List,
+                                            noise_spike_ranges: List,
+                                            signal_mask: np.ndarray,
+                                            interval: Optional[List] = None,
+                                            n_centroids: Optional[int] = None,
+                                            flag: str = 'none',
+                                            dct_new_fit: Optional[Dict] = None) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum with the fit solution of an unflagged neighboring spectrum.
 
         Parameters
         ----------
-        index : int
-            Index ('index_fit' keyword) of the spectrum that will be refit.
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        rms : float
-            Root-mean-square noise value of the spectrum.
-        indices_neighbors : numpy.ndarray
-            Array containing the indices of all neighboring fit solutions that should be used for the grouping.
-        signal_ranges : list
-            Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-        noise_spike_ranges : list
-            Nested list containing info about ranges of the spectrum that were estimated to contain noise spike features. These will get masked out from goodness-of-fit calculations.
-        signal_mask : numpy.ndarray
-            Boolean array containing the information of signal_ranges.
-        interval : list
-            List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper]. Only used in phase 2 of the spatially coherent refitting.
-        n_centroids : int
-            Number of centroid positions that should be present in interval.
-        flag : str
-            Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
+        index : Index ('index_fit' keyword) of the spectrum that will be refit.
+        spectrum : Spectrum to refit.
+        rms : Root-mean-square noise value of the spectrum.
+        indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
+            grouping.
+        signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
+            The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+        noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain
+            noise spike features. These will get masked out from goodness-of-fit calculations.
+        signal_mask : Boolean array containing the information of signal_ranges.
+        interval : List specifying the interval of spectral channels containing the flagged feature in the form of
+            [lower, upper]. Only used in phase 2 of the spatially coherent refitting.
+        n_centroids : Number of centroid positions that should be present in interval.
+        flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
 
         Returns
         -------
-        dictResults : dict
-            Information about the new best fit solution in case of a successful refit. Otherwise 'None' is returned.
-        refit : bool
-            Information of whether there was a new successful refit.
+        dictResults : Information about the new best fit solution in case of a successful refit. Otherwise 'None' is
+            returned.
+        refit : Information of whether there was a new successful refit.
 
         """
         dictComps = None
@@ -1190,40 +1167,45 @@ class SpatialFitting(object):
             #  try to refit with new fit solution
 
             dictResults = self.gaussian_fitting(
-                spectrum, rms, dictComps, signal_ranges, noise_spike_ranges,
-                signal_mask)
+                spectrum=spectrum,
+                rms=rms,
+                dictComps=dictComps,
+                signal_ranges=signal_ranges,
+                noise_spike_ranges=noise_spike_ranges,
+                signal_mask=signal_mask)
             refit = True
             if dictResults is None:
                 continue
-            if self.choose_new_fit(
-                    dictResults, index, dct_new_fit=dct_new_fit,
-                    interval=interval, n_centroids=n_centroids):
+            if self._choose_new_fit(dictResults=dictResults,
+                                    index=index,
+                                    dct_new_fit=dct_new_fit,
+                                    interval=interval,
+                                    n_centroids=n_centroids):
                 return dictResults, refit
 
         return None, refit
 
-    def get_refit_interval(self, spectrum, rms, amps, fwhms, means, flag):
+    def get_refit_interval(self,
+                           spectrum: np.ndarray,
+                           rms: float,
+                           amps: List,
+                           fwhms: List,
+                           means: List,
+                           flag: str) -> List:
         """Get interval of spectral channels containing flagged feature selected for refitting.
 
         Parameters
         ----------
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        rms : float
-            Root-mean-square noise value of the spectrum.
-        amps : list
-            List of amplitude values of the fitted components.
-        fwhms : ist
-            List of FWHM values of the fitted components.
-        means : ist
-            List of mean position values of the fitted components.
-        flag : str
-            Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
+        spectrum : Spectrum to refit.
+        rms : Root-mean-square noise value of the spectrum.
+        amps : List of amplitude values of the fitted components.
+        fwhms : List of FWHM values of the fitted components.
+        means : List of mean position values of the fitted components.
+        flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
 
         Returns
         -------
-        list
-            List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
+        List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
 
         """
         #  for component flagged as broad select the interval [mean - FWHM, mean + FWHM]
@@ -1264,31 +1246,31 @@ class SpatialFitting(object):
 
         return [lower, upper]
 
-    def replace_flagged_interval(self, index, index_neighbor, spectrum, rms,
-                                 flag='none', interval=None, dct_new_fit=None):
+    def replace_flagged_interval(self,
+                                 index: int,
+                                 index_neighbor: int,
+                                 spectrum: np.ndarray,
+                                 rms: float,
+                                 flag: str = 'none',
+                                 interval: Optional[List] = None,
+                                 dct_new_fit: Optional[Dict] = None) -> Dict:
         """Update initial guesses for fit components by replacing flagged feature with a neighboring fit solution.
 
         Parameters
         ----------
-        index : int
-            Index ('index_fit' keyword) of the spectrum that will be refit.
-        index_neighbor : int
-            Index ('index_fit' keyword) of the neighboring fit solution.
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        rms : float
-            Root-mean-square noise value of the spectrum.
-        flag : str
-            Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
-        interval : list
-            List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
+        index : Index ('index_fit' keyword) of the spectrum that will be refit.
+        index_neighbor : Index ('index_fit' keyword) of the neighboring fit solution.
+        spectrum : Spectrum to refit.
+        rms : Root-mean-square noise value of the spectrum.
+        flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
+        interval : List specifying the interval of spectral channels containing the flagged feature in the form of
+            [lower, upper].
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
 
         Returns
         -------
-        dictComps : dict
-            Dictionary containing updated initial guesses for the fit solution.
+        dictComps : Dictionary containing updated initial guesses for the fit solution.
 
         """
         #  for phase 2 of the spatially coherent refitting; if fit solution was already updated in previous iteration
@@ -1386,7 +1368,7 @@ class SpatialFitting(object):
 
         return dictComps
 
-    def components_in_interval(self, fwhms, means, interval):
+    def components_in_interval(self, fwhms: List, means: List, interval: List) -> Tuple[List, List]:
         """Find indices of components overlapping with the interval and update the interval range to accommodate full extent of the components.
 
         Component i is selected if means[i] +/- fwhms[i] overlaps with the
@@ -1396,19 +1378,16 @@ class SpatialFitting(object):
 
         Parameters
         ----------
-        fwhms : list
-            List of FWHM values of fit components.
-        means : list
-            List of mean position values of fit components.
-        interval : list
-            List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
+        fwhms : List of FWHM values of fit components.
+        means : List of mean position values of fit components.
+        interval : List specifying the interval of spectral channels containing the flagged feature in the form of
+            [lower, upper].
 
         Returns
         -------
-        indices : list
-            List with indices of components overlapping with interval.
-        interval_new : list
-            Updated interval that accommodates all spectral channels contained in the range means[i] +/- fwhms[i].
+        indices : List with indices of components overlapping with interval.
+        interval_new : Updated interval that accommodates all spectral channels contained in the range
+            means[i] +/- fwhms[i].
 
         """
         lower_interval, upper_interval = interval.copy()
@@ -1425,29 +1404,27 @@ class SpatialFitting(object):
                 indices.append(i)
         return indices, [lower_interval_new, upper_interval_new]
 
-    def add_initial_value_to_dict(self, dictComps, spectrum,
-                                  amp, fwhm, mean, mean_err):
+    def add_initial_value_to_dict(self,
+                                  dictComps: Dict,
+                                  spectrum: np.ndarray,
+                                  amp: float,
+                                  fwhm: float,
+                                  mean: float,
+                                  mean_err: float) -> Dict:
         """Update dictionary of fit components with new component.
 
         Parameters
         ----------
-        dictComps : dict
-            Dictionary of fit components.
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        amp : float
-            Amplitude value of fit component.
-        fwhm : type
-            FWHM value of fit component.
-        mean : float
-            Mean position value of fit component.
-        mean_err : float
-            Error of mean position value of fit component.
+        dictComps : Dictionary of fit components.
+        spectrum : Spectrum to refit.
+        amp : Amplitude value of fit component.
+        fwhm : FWHM value of fit component.
+        mean : Mean position value of fit component.
+        mean_err : Error of mean position value of fit component.
 
         Returns
         -------
-        dictComps : dict
-            Updated dictionary of fit components.
+        dictComps : Updated dictionary of fit components.
 
         """
         stddev = fwhm / CONVERSION_STD_TO_FWHM
@@ -1483,17 +1460,16 @@ class SpatialFitting(object):
 
         return dictComps
 
-    def get_dictionary_value(self, key, index, dct_new_fit=None):
+    def get_dictionary_value(self, key: str, index: int, dct_new_fit: Optional[Dict] = None):
         """Return a dictionary value.
+        # TODO: type hint for return
+        # TODO: replace this with dictionary method -> default
 
         Parameters
         ----------
-        key : str
-            Key of the dictionary.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        dct_new_fit : dict
-            If this dictionary is supplied, the value is extracted from it (only used in phase 2 of the spatially coherent refitting); otherwise the value is extracted from the 'self.decomposition' dictionary
+        key : Key of the dictionary.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        dct_new_fit : If this dictionary is supplied, the value is extracted from it (only used in phase 2 of the spatially coherent refitting); otherwise the value is extracted from the 'self.decomposition' dictionary
 
         """
         if dct_new_fit is not None:
@@ -1501,31 +1477,29 @@ class SpatialFitting(object):
         else:
             return self.decomposition[key][index]
 
-    def get_flags(self, dictResults, index, key='None', flag=None,
-                  dct_new_fit=None):
+    def get_flags(self,
+                  dictResults: Dict,
+                  index: int,
+                  key: Optional[str] = 'None',
+                  flag: Optional[bool] = None,
+                  dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
         """Check how the refit affected the number of blended or negative residual features.
 
         This check will only be performed if the 'self.flag_blended=True' or 'self.flag_neg_res_peak=True'.
 
         Parameters
         ----------
-        dictResults : dict
-            Dictionary containing the new best fit results after the refit attempt.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        key : str
-            Dictionary keys, either 'N_blended' or 'N_neg_res_peak'.
-        flag : bool
-            User-selected flag criterion, either 'self.flag_blended', or 'self.flag_neg_res_peak'
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
+        dictResults : Dictionary containing the new best fit results after the refit attempt.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        key : Dictionary keys, either 'N_blended' or 'N_neg_res_peak'.
+        flag : User-selected flag criterion, either 'self.flag_blended', or 'self.flag_neg_res_peak'
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
 
         Returns
         -------
-        flag_old : int
-            Count of flagged features present in spectrum before refit.
-        flag_new : int
-            Count of flagged features present in spectrum after refit.
+        flag_old : Count of flagged features present in spectrum before refit.
+        flag_new : Count of flagged features present in spectrum after refit.
 
         """
         flag_old, flag_new = (0 for _ in range(2))
@@ -1547,26 +1521,22 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
-    def get_flags_rchi2(self, dictResults, index, dct_new_fit=None):
+    def get_flags_rchi2(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
         """Check how the reduced chi-square value of a spectrum changed after the refit.
 
         This check will only be performed if the 'self.flag_rchi2=True'.
 
         Parameters
         ----------
-        dictResults : dict
-            Dictionary containing the new best fit results after the refit attempt.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
+        dictResults : Dictionary containing the new best fit results after the refit attempt.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
 
         Returns
         -------
-        flag_old : int
-            Flag value before the refit.
-        flag_new : int
-            Flag value after the refit.
+        flag_old : Flag value before the refit.
+        flag_new : Flag value after the refit.
 
         """
         flag_old, flag_new = (0 for _ in range(2))
@@ -1590,7 +1560,7 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
-    def get_flags_pvalue(self, dictResults, index, dct_new_fit=None):
+    def get_flags_pvalue(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
         flag_old, flag_new = (0 for _ in range(2))
 
         if not self.flag_residual:
@@ -1611,26 +1581,22 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
-    def get_flags_broad(self, dictResults, index, dct_new_fit=None):
+    def get_flags_broad(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
         """Check how the refit affected the number of components flagged as broad.
 
         This check will only be performed if the 'self.flag_broad=True'.
 
         Parameters
         ----------
-        dictResults : dict
-            Dictionary containing the new best fit results after the refit attempt.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
+        dictResults : Dictionary containing the new best fit results after the refit attempt.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
 
         Returns
         -------
-        flag_old : int
-            Flag value before the refit.
-        flag_new : int
-            Flag value after the refit.
+        flag_old : Flag value before the refit.
+        flag_new : Flag value after the refit.
 
         """
         flag_old, flag_new = (0 for _ in range(2))
@@ -1660,24 +1626,22 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
-    def get_flags_ncomps(self, dictResults, index, dct_new_fit=None):
+    def get_flags_ncomps(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
         """Check how the number of component jumps changed after the refit.
+
+        TODO: Remove unused dictResults -> also from code where function is called!
 
         Parameters
         ----------
-        dictResults : dict
-            Dictionary containing the new best fit results after the refit attempt.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
+        dictResults : Dictionary containing the new best fit results after the refit attempt.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
 
         Returns
         -------
-        flag_old : int
-            Flag value before the refit.
-        flag_new : int
-            Flag value after the refit.
+        flag_old : Flag value before the refit.
+        flag_new : Flag value after the refit.
 
         """
         flag_old, flag_new = (0 for _ in range(2))
@@ -1717,31 +1681,30 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
-    def get_flags_centroids(self, dictResults, index, dct_new_fit=None,
-                            interval=None, n_centroids=None):
+    def get_flags_centroids(self,
+                            dictResults: Dict,
+                            index: int,
+                            dct_new_fit: Optional[Dict] = None,
+                            interval: Optional[List] = None,
+                            n_centroids: Optional[int] = None) -> Tuple[int, int]:
         """Check how the presence of centroid positions changed after the refit.
 
         This check is only performed in phase 2 of the spatially coherent refitting.
 
         Parameters
         ----------
-        dictResults : dict
-            Dictionary containing the new best fit results after the refit attempt.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
-        interval : list
-            List specifying the interval of spectral channels where 'n_centroids' number of centroid positions are required.
-        n_centroids : int
-            Number of centroid positions that should be present in interval.
+        dictResults : Dictionary containing the new best fit results after the refit attempt.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
+        interval : List specifying the interval of spectral channels where 'n_centroids' number of centroid positions
+            are required.
+        n_centroids : Number of centroid positions that should be present in interval.
 
         Returns
         -------
-        flag_old : int
-            Flag value before the refit.
-        flag_new : int
-            Flag value after the refit.
+        flag_old : Flag value before the refit.
+        flag_new : Flag value after the refit.
 
         """
         flag_old, flag_new = (0 for _ in range(2))
@@ -1772,27 +1735,27 @@ class SpatialFitting(object):
 
         return flag_old, flag_new
 
-    def choose_new_fit(self, dictResults, index, dct_new_fit=None,
-                       interval=None, n_centroids=None):
+    def _choose_new_fit(self,
+                        dictResults: Dict,
+                        index: int,
+                        dct_new_fit: Optional[Dict] = None,
+                        interval: Optional[List] = None,
+                        n_centroids: Optional[int] = None) -> bool:
         """Decide whether to accept the new fit solution as the new best fit.
 
         Parameters
         ----------
-        dictResults : dict
-            Dictionary containing the new best fit results after the refit attempt.
-        index : int
-            Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        dct_new_fit : dict
-            Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was already updated in a previous iteration.
-        interval : list
-            List specifying the interval of spectral channels where 'n_centroids' number of centroid positions are required.
-        n_centroids : int
-            Number of centroid positions that should be present in interval.
+        dictResults : Dictionary containing the new best fit results after the refit attempt.
+        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
+        dct_new_fit : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
+            already updated in a previous iteration.
+        interval : List specifying the interval of spectral channels where 'n_centroids' number of centroid positions
+            are required.
+        n_centroids : Number of centroid positions that should be present in interval.
 
         Returns
         -------
-        bool
-            Decision of whether new fit solution gets accepted as new best fit.
+        Decision of whether new fit solution gets accepted as new best fit.
 
         """
         #  check how values/numbers of flagged features changed after the refit
@@ -1862,22 +1825,19 @@ class SpatialFitting(object):
 
         return True
 
-    def get_initial_values(self, indices_neighbors):
+    def get_initial_values(self, indices_neighbors: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get sorted parameter values (amps, means, fwhms) of neighboring fit components for the grouping.
 
         Parameters
         ----------
-        indices_neighbors : numpy.ndarray
-            Array containing the indices of all neighboring fit solutions that should be used for the grouping. in the form [idx1, ..., idxN].
+        indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
+            grouping. in the form [idx1, ..., idxN].
 
         Returns
         -------
-        amps : numpy.ndarray
-            Array of amplitude values (sorted according to mean position).
-        means : numpy.ndarray
-            Array of sorted mean position values.
-        fwhms : numpy.ndarray
-            Array of FWHM values (sorted according to mean position).
+        amps : Array of amplitude values (sorted according to mean position).
+        means : Array of sorted mean position values.
+        fwhms : Array of FWHM values (sorted according to mean position).
 
         """
         amps, means, fwhms = (np.array([]) for i in range(3))
@@ -1890,24 +1850,24 @@ class SpatialFitting(object):
         sorted_indices = np.argsort(means)
         return amps[sorted_indices], means[sorted_indices], fwhms[sorted_indices]
 
-    def grouping(self, amps_tot, means_tot, fwhms_tot, split_fwhm=True):
+    def grouping(self,
+                 amps_tot: np.ndarray,
+                 means_tot: np.ndarray,
+                 fwhms_tot: np.ndarray,
+                 split_fwhm: bool = True) -> collections.OrderedDict:
         """Grouping according to mean position values only or mean position values and FWHM values.
 
         Parameters
         ----------
-        amps_tot : numpy.ndarray
-            Array of amplitude values (sorted according to mean position).
-        means_tot : numpy.ndarray
-            Array of sorted mean position values.
-        fwhms_tot : numpy.ndarray
-            Array of FWHM values (sorted according to mean position).
-        split_fwhm : bool
-            Whether to group according to mean position and FWHM values ('True') or only according to mean position values ('False').
+        amps_tot : Array of amplitude values (sorted according to mean position).
+        means_tot : Array of sorted mean position values.
+        fwhms_tot : Array of FWHM values (sorted according to mean position).
+        split_fwhm : Whether to group according to mean position and FWHM values ('True') or only according to mean
+            position values ('False').
 
         Returns
         -------
-        dictCompsOrdered : collections.OrderedDict
-            Ordered dictionary containing the results of the grouping.
+        dictCompsOrdered : Ordered dictionary containing the results of the grouping.
 
         """
         #  group with regards to mean positions only
@@ -1960,20 +1920,17 @@ class SpatialFitting(object):
 
         return dictCompsOrdered
 
-    def get_initial_values_from_neighbor(self, i, spectrum):
+    def get_initial_values_from_neighbor(self, i: int, spectrum: np.ndarray) -> Dict:
         """Get dictionary with information about all fit components from neighboring fit solution.
 
         Parameters
         ----------
-        i : int
-            Index of neighboring fit solution.
-        spectrum : numpy.ndarray
-            Spectrum to refit.
+        i : Index of neighboring fit solution.
+        spectrum : Spectrum to refit.
 
         Returns
         -------
-        dictComps : dict
-            Dictionary containing information about all fit components from neighboring fit solution.
+        dictComps : Dictionary containing information about all fit components from neighboring fit solution.
 
         """
         dictComps = {}
@@ -2012,22 +1969,22 @@ class SpatialFitting(object):
 
         return dictComps
 
-    def determine_average_values(self, spectrum, rms, dictComps):
+    def determine_average_values(self,
+                                 spectrum: np.ndarray,
+                                 rms: float,
+                                 dictComps: collections.OrderedDict) -> collections.OrderedDict:
         """Determine average values for fit components obtained by grouping.
 
         Parameters
         ----------
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        rms : float
-            Root-mean-square noise value of the spectrum.
-        dictComps : collections.OrderedDict
-            Ordered dictionary containing results of the grouping.
+        spectrum : Spectrum to refit.
+        rms : Root-mean-square noise value of the spectrum.
+        dictComps : Ordered dictionary containing results of the grouping.
 
         Returns
         -------
-        dictComps : collections.OrderedDict
-            Updated ordered dictionary containing average values for the fit components obtained via the grouping.
+        dictComps : Updated ordered dictionary containing average values for the fit components obtained via the
+            grouping.
 
         """
         for key in dictComps.copy().keys():
@@ -2086,34 +2043,34 @@ class SpatialFitting(object):
             dictComps[key]['fwhm_bounds'] = [fwhm_min, fwhm_max]
         return dictComps
 
-    def gaussian_fitting(self, spectrum, rms, dictComps, signal_ranges,
-                         noise_spike_ranges, signal_mask, params_only=False,
-                         channels=None):
+    def gaussian_fitting(self,
+                         spectrum: np.ndarray,
+                         rms: float,
+                         dictComps: Dict,
+                         signal_ranges: List,
+                         noise_spike_ranges: List,
+                         signal_mask: np.ndarray,
+                         params_only: bool = False,
+                         channels: Optional[np.ndarray] = None) -> Dict:
         """Perform a new Gaussian decomposition with updated initial guesses.
 
         Parameters
         ----------
-        spectrum : numpy.ndarray
-            Spectrum to refit.
-        rms : float
-            Root-mean-square noise value of the spectrum.
-        dictComps : dict
-            Dictionary containing information about new initial guesses for fit components.
-        signal_ranges : list
-            Nested list containing info about ranges of the spectrum that were estimated to contain signal. The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-        noise_spike_ranges : list
-            Nested list containing info about ranges of the spectrum that were estimated to contain noise spike features. These will get masked out from goodness-of-fit calculations.
-        signal_mask : numpy.ndarray
-            Boolean array containing the information of signal_ranges.
-        params_only : bool (default: 'False')
-            If set to 'True', the returned dictionary of the fit results will only contain information about the amplitudes, FWHM values and mean positions of the fitted components.
-        channels : numpy.ndarray
-            Array containing the number of spectral channels.
+        spectrum : Spectrum to refit.
+        rms : Root-mean-square noise value of the spectrum.
+        dictComps : Dictionary containing information about new initial guesses for fit components.
+        signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
+            The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
+        noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain
+            noise spike features. These will get masked out from goodness-of-fit calculations.
+        signal_mask : Boolean array containing the information of signal_ranges.
+        params_only : If set to 'True', the returned dictionary of the fit results will only contain information about
+            the amplitudes, FWHM values and mean positions of the fitted components.
+        channels : Array containing the number of spectral channels.
 
         Returns
         -------
-        dictResults : dictionary
-            Dictionary containing information about the fit results.
+        dictResults : Dictionary containing information about the fit results.
 
         """
         if channels is None:
@@ -2217,7 +2174,7 @@ class SpatialFitting(object):
 
         return dictResults
 
-    def save_final_results(self):
+    def save_final_results(self) -> None:
         """Save the results of the spatially coherent refitting iterations."""
         pathToFile = os.path.join(
             self.decomp_dirname, f'{self.fin_filename}.pickle')
@@ -2229,18 +2186,16 @@ class SpatialFitting(object):
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
     #
 
-    def get_centroid_interval(self, dct):
+    def get_centroid_interval(self, dct: Dict) -> Dict:
         """Calculate the interval spanned by each group of centroids.
 
         Parameters
         ----------
-        dct : dict
-            Dictionary containing information of the grouping for phase 2 of the spatially coherent refitting.
+        dct : Dictionary containing information of the grouping for phase 2 of the spatially coherent refitting.
 
         Returns
         -------
-        dct : dict
-            Updated dictionary containing information about the interval spanned by each group of centroids.
+        dct : Updated dictionary containing information about the interval spanned by each group of centroids.
 
         """
         dct['means_interval'] = {}
@@ -2252,7 +2207,7 @@ class SpatialFitting(object):
             dct['means_interval'][key] = [mean_min, mean_max]
         return dct
 
-    def components_per_interval(self, dct):
+    def components_per_interval(self, dct: Dict) -> Dict:
         """Calculate how many components neighboring fits had per grouped centroid interval."""
         dct['ncomps_per_interval'] = {}
         for key in dct['grouping']:
@@ -2277,6 +2232,7 @@ class SpatialFitting(object):
 
     def get_n_centroid(self, n_centroids, weights):
         """Calculate expected value for number of centroids per grouped centroid interval."""
+        # TODO: Add type hints
         choices = list(set(n_centroids))
         #
         #  first, check only immediate neighboring spectra
@@ -2308,8 +2264,9 @@ class SpatialFitting(object):
         idx = np.argmax(weights_choices)
         return choices[idx]
 
-    def compute_weights(self, dct, weights):
+    def compute_weights(self, dct: Dict, weights) -> Dict:
         """Calculate weight of required components per centroid interval."""
+        # TODO: Add type hint for weights
         dct['factor_required'] = {}
         dct['n_centroids'] = {}
         for key in dct['grouping']:
@@ -2319,7 +2276,7 @@ class SpatialFitting(object):
             dct['factor_required'][key] = sum(array * weights)
         return dct
 
-    def sort_out_keys(self, dct):
+    def sort_out_keys(self, dct: Dict) -> Dict:
         """Keep only centroid intervals that have a certain minimum weight."""
         dct_new = {}
         keys = ['indices_neighbors', 'weights', 'means_interval',
@@ -2336,14 +2293,16 @@ class SpatialFitting(object):
         dct_new['means_interval'] = means_interval
         return dct_new
 
-    def add_key_to_dict(self, dct, key='means_interval', val=None):
+    def add_key_to_dict(self, dct: Dict, key: str = 'means_interval', val: Optional[Any] = None) -> Dict:
         """Add a new key number & value to an existing dictionary key."""
+        # TODO: make Any type hint more specific
         key_new = str(len(dct[key]) + 1)
         dct[key][key_new] = val
         return dct
 
-    def merge_dictionaries(self, dct_1, dct_2):
+    def merge_dictionaries(self, dct_1: Dict, dct_2: Dict) -> Dict:
         """Merge two dictionaries to a single one and calculate new centroid intervals."""
+        # TODO: use builtin methods to merge dictionaries
         dct_merged = {key: {} for key in [
             'factor_required', 'n_centroids', 'means_interval']}
 
@@ -2359,6 +2318,7 @@ class SpatialFitting(object):
         return dct_merged
 
     def merge_intervals(self, intervals):
+        # TODO: Add type hints
         """Merge overlapping intervals.
 
         Original code by amon: https://codereview.stackexchange.com/questions/69242/merging-overlapping-intervals
@@ -2380,7 +2340,7 @@ class SpatialFitting(object):
                     merged.append(higher)
         return merged
 
-    def combine_directions(self, dct):
+    def combine_directions(self, dct: Dict) -> Dict:
         """Combine directions and get master dictionary."""
         dct_hv = self.merge_dictionaries(
             dct['horizontal'].copy(), dct['vertical'].copy())
@@ -2428,6 +2388,7 @@ class SpatialFitting(object):
         return dct_total
 
     def get_weights(self, indices, idx, direction):
+        # TODO: add type hints
         """Allocate weights to neighboring spectra."""
         chosen_weights, indices_neighbors = ([] for _ in range(2))
         possible_indices = np.arange(len(indices))
@@ -2453,22 +2414,19 @@ class SpatialFitting(object):
                         chosen_weights.append(weight)
         return np.array(indices_neighbors), np.array(chosen_weights)
 
-    def check_continuity_centroids(self, idx, loc):
+    def check_continuity_centroids(self, idx: int, loc: Tuple) -> Dict:
         """Check for coherence of centroid positions of neighboring spectra.
 
         See Sect. 3.3.2. and Fig. 10 in Riener+ 2019 for more details.
 
         Parameters
         ----------
-        idx : int
-            Index ('index_fit' keyword) of the central spectrum.
-        loc : tuple
-            Location (ypos, xpos) of the central spectrum.
+        idx : Index ('index_fit' keyword) of the central spectrum.
+        loc : Location (ypos, xpos) of the central spectrum.
 
         Returns
         -------
-        dct_total : dict
-            Dictionary containing results of the spatial coherence check for neighboring centroid positions.
+        dct_total : Dictionary containing results of the spatial coherence check for neighboring centroid positions.
 
         """
         dct, dct_total = [{} for _ in range(2)]
@@ -2508,7 +2466,7 @@ class SpatialFitting(object):
         dct_total = self.combine_directions(dct_total)
         return dct_total
 
-    def check_for_required_components(self, idx, dct):
+    def check_for_required_components(self, idx: int, dct: Dict) -> Dict:
         """Check the presence of the required centroid positions within the determined interval."""
         dct_refit = {key: {} for key in ['n_centroids', 'means_interval']}
         for key in ['indices_neighbors', 'weights']:
@@ -2525,14 +2483,15 @@ class SpatialFitting(object):
                     dct_refit, key='means_interval', val=interval)
         return dct_refit
 
-    def number_of_values_in_interval(self, lst, interval):
+    def number_of_values_in_interval(self, lst: List, interval: Tuple) -> int:
         """Return number of points in list that are located within the interval."""
+        # TODO: check if interval is a tuple or a list
         lower, upper = interval
         array = np.array(lst)
         mask = np.logical_and(array > lower, array < upper)
         return np.count_nonzero(mask)
 
-    def select_neighbors_to_use_for_refit(self, dct):
+    def select_neighbors_to_use_for_refit(self, dct: Dict) -> Dict:
         """Select only neighboring fit solutions for the refit that show the right number of centroid positions within the determined interval."""
         mask = dct['weights'] >= self.w_min
         indices = dct['indices_neighbors'][mask]
@@ -2561,7 +2520,7 @@ class SpatialFitting(object):
 
         return dct
 
-    def determine_all_neighbors(self):
+    def determine_all_neighbors(self) -> None:
         """Determine the indices of all valid neighbors."""
         say("\ndetermine neighbors for all spectra...", logger=self.logger)
 
@@ -2587,7 +2546,7 @@ class SpatialFitting(object):
             indices_neighbors_total = indices_neighbors_total.astype('int')
             self.neighbor_indices_all[i] = indices_neighbors_total
 
-    def check_indices_refit(self):
+    def check_indices_refit(self) -> None:
         """Check which spectra show incoherence in their fitted centroid positions and require refitting."""
         say('\ncheck which spectra require refitting...', logger=self.logger)
         if self.refitting_iteration == 1:
@@ -2610,7 +2569,7 @@ class SpatialFitting(object):
         self.locations_refit = np.take(
             np.array(self.location), self.indices_refit, axis=0)
 
-    def check_continuity(self):
+    def check_continuity(self) -> None:
         """Check continuity of centroid positions.
 
         See Fig. 9 and Sect. 3.3.2. in Riener+ 2019 for more details.
@@ -2625,21 +2584,18 @@ class SpatialFitting(object):
         self.check_indices_refit()
         self.refitting()
 
-    def refit_spectrum_phase_2(self, index, i):
+    def refit_spectrum_phase_2(self, index: int, i: int) -> List:
         """Parallelized function for refitting spectra whose fitted centroid position values show spatial incoherence.
 
         Parameters
         ----------
-        index : int
-            Index ('index_fit' keyword) of the spectrum that will be refit.
-        i : int
-            List index of the entry in the list that is handed over to the
-            multiprocessing routine
+        index : Index ('index_fit' keyword) of the spectrum that will be refit.
+        i : List index of the entry in the list that is handed over to the multiprocessing routine
 
         Returns
         -------
-        list
-            A list in the form of [index, dictResults_best, indices_neighbors, refit] in case of a successful refit; otherwise [index, 'None', indices_neighbors, refit] is returned.
+        A list in the form of [index, dictResults_best, indices_neighbors, refit] in case of a successful refit;
+            otherwise [index, 'None', indices_neighbors, refit] is returned.
 
         """
         refit = False
