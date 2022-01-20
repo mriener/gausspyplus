@@ -60,10 +60,6 @@ def initialGuess(vel,
     say(f'SNR_thesh = {SNR_thresh}', verbose)
     say(f'SNR2_thesh = {SNR2_thresh}', verbose)
 
-    if not alpha:
-        print('Must choose value for alpha, no default.')
-        return
-
     if np.any(np.isnan(data)):
         print('NaN-values in data, cannot continue.')
         return
@@ -186,10 +182,6 @@ def AGD(vel,
         dct['max_fwhm'] = None
 
     say('\n  --> AGD() \n', verbose)
-
-    if (not alpha2) and (phase == 'two'):
-        print('alpha2 value required')
-        return
 
     dv = np.abs(vel[1] - vel[0])
     v_to_i = interp1d(vel, np.arange(len(vel)))
