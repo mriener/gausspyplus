@@ -31,15 +31,6 @@ class GaussianDecomposer(object):
               verbose=False, learning_rate=0.9, eps=0.25, MAD=0.1,
               logger=False):
         """Solve for optimal values of alpha1 (and alpha2) using training data."""
-        if (((self.p['phase'] == 'one') and (not alpha1_initial)) or
-           ((self.p['phase'] == 'two') and ((not alpha1_initial) or (not alpha1_initial)))):
-            print('Must choose initial guesses.')
-            print('e.g., train(alpha1_initial=1.0, alpha2_initial=100.)')
-            return
-        if not self.p['training_data']:
-            print('Must first load training data.')
-            print('e.g., load_training_data("training_data.pickle")')
-            return
         print('Training...')
 
         self.p['alpha1'], self.p['alpha2'], self.p['training_results'] =\
@@ -66,14 +57,6 @@ class GaussianDecomposer(object):
                   signal_ranges=None,
                   noise_spike_ranges=None):
         """Decompose a single spectrum using current parameters."""
-        if ((self.p['phase'] == 'one') and (not self.p['alpha1'])):
-            print('phase = one, and alpha1 is unset')
-            return
-
-        if (self.p['phase'] == 'two') and ((not self.p['alpha1']) or (not self.p['alpha2'])):
-            print('phase = two, and either alpha1 or alpha2 is unset')
-            return
-
         a1 = self.p['alpha1']
         a2 = self.p['alpha2'] if self.p['phase'] == 'two' else None
 
