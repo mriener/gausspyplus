@@ -83,6 +83,11 @@ def set_up_logger(parentDirname, filename, method='g+_decomposition'):
     return logging.getLogger(__name__)
 
 
+def make_pretty_header(string):
+    """Return a nicely formatted heading."""
+    return "\n{line}\n{string}\n{line}".format(line='=' * len(string), string=string)
+
+
 def say(message, verbose=True, logger=False, end=None):
     """Diagnostic messages."""
     if logger:

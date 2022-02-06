@@ -9,7 +9,7 @@ from astropy.wcs import WCS
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.utils.spectral_cube_functions import correct_header
-from gausspyplus.utils.output import set_up_logger, say
+from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 
 
 class GaussPyDecompose:
@@ -57,12 +57,6 @@ class GaussPyDecompose:
         if config_file:
             get_values_from_config_file(
                 self, config_file, config_key='decomposition')
-
-    def getting_ready(self):
-        string = 'GaussPy decomposition'
-        banner = len(string) * '='
-        heading = '\n' + banner + '\n' + string + '\n' + banner
-        say(heading, logger=self.logger)
 
     @functools.cached_property
     def dirpath(self):
@@ -169,12 +163,12 @@ class GaussPyDecompose:
         if self.single_prepared_spectrum:
             self.testing = True
             self.use_ncpus = 1
-            self.getting_ready()
+            say(message=make_pretty_header('GaussPy decomposition'), logger=self.logger)
             return self.start_decomposition()
         else:
             self.check_settings()
             self.initialize_data()
-            self.getting_ready()
+            say(message=make_pretty_header('GaussPy decomposition'), logger=self.logger)
             self.start_decomposition()
             if 'batchdecomp_temp.pickle' in os.listdir(os.getcwd()):
                 os.remove('batchdecomp_temp.pickle')
