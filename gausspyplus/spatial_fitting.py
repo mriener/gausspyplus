@@ -1,6 +1,7 @@
 import collections
 import os
 import pickle
+import textwrap
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple, Any, Union
 
@@ -215,6 +216,24 @@ class SpatialFitting(object):
             if loc not in locations:
                 self.nanMask[idx] = np.nan
 
+    def _info_text(self, refit=False):
+        text_phase_1 = '' if not refit else textwrap.dedent(f"""
+            For phase 1:
+            Exclude flagged spectra as possible refit solutions in first refit attempts: {self.exclude_flagged}
+            Use also flagged spectra as refit solutions in case no new best fit could be obtained from unflagged spectra: {self.use_all_neighors}""")
+        return text_phase_1 + textwrap.dedent(f"""
+            {('Flagging', 'Refitting')[refit]}:
+             - Blended components: {(self.flag_blended, self.refit_blended)[refit]}'
+             - Negative residual features: {(self.flag_neg_res_peak, self.refit_neg_res_peak)[refit]}
+             - Broad components: {(self.flag_broad, self.refit_broad)[refit]}
+               flagged if FWHM of broadest component in spectrum is:
+               >= {(self.fwhm_factor, self.fwhm_factor_refit)[refit]} times the FWHM of second broadest component
+               or
+               >= {(self.fwhm_factor, self.fwhm_factor_refit)[refit]} times any FWHM in >= {self.broad_neighbor_fraction:.0%} of its neigbors
+             - High reduced chi2 values (> {(self.rchi2_limit, self.rchi2_limit_refit)[refit]}): {(self.flag_rchi2, self.refit_rchi2)[refit]}
+             - Non-Gaussian distributed residuals: {(self.flag_residual, self.refit_residual)[refit]}
+             - Differing number of components: {(self.flag_ncomps, self.refit_ncomps)[refit]}""")
+
     def _getting_ready(self) -> None:
         """Set up logger and write initial output to terminal."""
         if self.log_output:
@@ -222,60 +241,9 @@ class SpatialFitting(object):
         else:
             self.logger = False
         say(message=make_pretty_header(f'Spatial refitting - Phase {1 + self.phase_two}'), logger=self.logger)
-
-        string = str(
-            '\nFlagging:'
-            '\n - Blended components: {a}'
-            '\n - Negative residual features: {b}'
-            '\n - Broad components: {c}'
-            '\n   flagged if FWHM of broadest component in spectrum is:'
-            '\n   >= {d} times the FWHM of second broadest component'
-            '\n   or'
-            '\n   >= {d} times any FWHM in >= {e:.0%} of its neigbors'
-            '\n - High reduced chi2 values (> {f}): {g}'
-            '\n - Non-Gaussian distributed residuals: {h}'
-            '\n - Differing number of components: {i}').format(
-                a=self.flag_blended,
-                b=self.flag_neg_res_peak,
-                c=self.flag_broad,
-                d=self.fwhm_factor,
-                e=self.broad_neighbor_fraction,
-                f=self.rchi2_limit,
-                g=self.flag_rchi2,
-                h=self.flag_residual,
-                i=self.flag_ncomps)
-        say(string, logger=self.logger)
-
-        string = str(
-            '\nFor phase 1:'
-            '\nExclude flagged spectra as possible refit solutions in first refit attempts: {}'
-            '\nUse also flagged spectra as refit solutions in case no new best fit could be obtained from unflagged spectra: {}').format(self.exclude_flagged, self.use_all_neighors)
+        say(self._info_text(refit=False), logger=self.logger)
         if not self.phase_two:
-            say(string, logger=self.logger)
-
-        string = str(
-            '\nRefitting:'
-            '\n - Blended components: {a}'
-            '\n - Negative residual features: {b}'
-            '\n - Broad components: {c}'
-            '\n   try to refit if FWHM of broadest component in spectrum is:'
-            '\n   >= {d} times the FWHM of second broadest component'
-            '\n   or'
-            '\n   >= {d} times any FWHM in >= {e:.0%} of its neigbors'
-            '\n - High reduced chi2 values (> {f}): {g}'
-            '\n - Non-Gaussian distributed residuals: {h}'
-            '\n - Differing number of components: {i}').format(
-                a=self.refit_blended,
-                b=self.refit_neg_res_peak,
-                c=self.refit_broad,
-                d=self.fwhm_factor_refit,
-                e=self.broad_neighbor_fraction,
-                f=self.rchi2_limit_refit,
-                g=self.refit_rchi2,
-                h=self.refit_residual,
-                i=self.refit_ncomps)
-        if not self.phase_two:
-            say(string, logger=self.logger)
+            say(self._info_text(refit=True), logger=self.logger)
 
     def finalize(self):
         # TODO: What is the return type of this function?
