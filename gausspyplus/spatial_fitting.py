@@ -1365,6 +1365,15 @@ class SpatialFitting(object):
                 indices.append(i)
         return indices, [lower_interval_new, upper_interval_new]
 
+    @staticmethod
+    # TODO: move this to another general module
+    def upper_limit_for_amplitude(spectrum: np.ndarray, mean: float, fwhm: float, buffer_factor: float = 1.) -> float:
+        stddev = fwhm / CONVERSION_STD_TO_FWHM
+        idx_low = max(0, int(mean - stddev))
+        idx_upp = int(mean + stddev) + 2
+        # TODO: explain magic factor 1.1?
+        return buffer_factor * np.max(spectrum[idx_low:idx_upp])
+
     def _add_initial_value_to_dict(self,
                                    dictComps: Dict,
                                    spectrum: np.ndarray,
@@ -1388,13 +1397,6 @@ class SpatialFitting(object):
         dictComps : Updated dictionary of fit components.
 
         """
-        stddev = fwhm / CONVERSION_STD_TO_FWHM
-
-        #  determine upper limit for amplitude value
-        idx_low = max(0, int(mean - stddev))
-        idx_upp = int(mean + stddev) + 2
-        amp_max = np.max(spectrum[idx_low:idx_upp])
-
         #  determine lower and upper limits for mean position
         #  TODO: add here also mean +/- stddev??
         mean_min = min(mean - self.mean_separation, mean - mean_err)
@@ -1409,16 +1411,15 @@ class SpatialFitting(object):
             fwhm_max = fwhm + self.fwhm_separation
 
         keyname = str(len(dictComps) + 1)
-        dictComps[keyname] = {}
-        dictComps[keyname]['amp_ini'] = amp
-        dictComps[keyname]['mean_ini'] = mean
-        dictComps[keyname]['fwhm_ini'] = fwhm
-
-        dictComps[keyname]['amp_bounds'] = [0., 1.1*amp_max]
-        dictComps[keyname]['mean_bounds'] = [mean_min, mean_max]
-        # dictComps[keyname]['fwhm_bounds'] = [0., None]
-        dictComps[keyname]['fwhm_bounds'] = [fwhm_min, fwhm_max]
-
+        dictComps[keyname] = {
+            'amp_ini': amp,
+            'mean_ini': mean,
+            'fwhm_ini': fwhm,
+            'amp_bounds': [0., SpatialFitting.upper_limit_for_amplitude(spectrum, mean, fwhm, buffer_factor=1.1)],
+            'mean_bounds': [mean_min, mean_max],
+            # 'fwhm_bounds': [0., None],
+            'fwhm_bounds': [fwhm_min, fwhm_max]
+        }
         return dictComps
 
     def _get_dictionary_value(self, key: str, index: int, dct_new_fit: Optional[Dict] = None):
@@ -1901,11 +1902,6 @@ class SpatialFitting(object):
             mean = self.decomposition['means_fit'][i][key]
             mean_err = self.decomposition['means_fit_err'][i][key]
             fwhm = self.decomposition['fwhms_fit'][i][key]
-            stddev = fwhm / CONVERSION_STD_TO_FWHM
-
-            idx_low = max(0, int(mean - stddev))
-            idx_upp = int(mean + stddev) + 2
-            amp_max = np.max(spectrum[idx_low:idx_upp])
 
             mean_min = min(mean - self.mean_separation, mean - mean_err)
             mean_min = max(0, mean_min)  # prevent negative values
@@ -1919,14 +1915,14 @@ class SpatialFitting(object):
                 fwhm_max = fwhm + self.fwhm_separation
 
             keyname = str(key + 1)
-            dictComps[keyname] = {}
-            dictComps[keyname]['amp_ini'] = amp
-            dictComps[keyname]['mean_ini'] = mean
-            dictComps[keyname]['fwhm_ini'] = fwhm
-
-            dictComps[keyname]['amp_bounds'] = [0., 1.1*amp_max]
-            dictComps[keyname]['mean_bounds'] = [mean_min, mean_max]
-            dictComps[keyname]['fwhm_bounds'] = [fwhm_min, fwhm_max]
+            dictComps[keyname] = {
+                'amp_ini': amp,
+                'mean_ini': mean,
+                'fwhm_ini': fwhm,
+                'amp_bounds': [0.0, SpatialFitting.upper_limit_for_amplitude(spectrum, mean, fwhm, buffer_factor=1.1)],
+                'mean_bounds': [mean_min, mean_max],
+                'fwhm_bounds': [fwhm_min, fwhm_max],
+            }
 
         return dictComps
 
@@ -1961,14 +1957,8 @@ class SpatialFitting(object):
             amp_ini = np.mean(amps)
             mean_ini = np.mean(means)
             fwhm_ini = np.mean(fwhms)
-            stddev_ini = fwhm_ini / CONVERSION_STD_TO_FWHM
 
-            # TODO: change stddev_ini to fwhm_ini?
-            idx_low = max(0, int(mean_ini - stddev_ini))
-            idx_upp = int(mean_ini + stddev_ini) + 2
-
-            amp_max = np.max(spectrum[idx_low:idx_upp])
-            if amp_max < self.snr*rms:
+            if (amp_max := SpatialFitting.upper_limit_for_amplitude(spectrum, mean_ini, fwhm_ini)) < self.snr*rms:
                 dictComps.pop(key)
                 continue
 
