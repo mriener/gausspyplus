@@ -92,10 +92,11 @@ def single_training_example(kwargs):
         plot=kwargs['plot'],
         verbose=kwargs['verbose'],
         SNR_thresh=kwargs['SNR_thresh'],
-        perform_final_fit=False,
+        perform_final_fit=False, # TODO: Does it make sense to set perform_final_fit to False here?
         phase=kwargs['phase'],
         SNR2_thresh=kwargs['SNR2_thresh'])
 
+    # TODO: Currently the returned status can never be 0, so the following makes no sense
     # If nothing was found, skip to next iteration
     if status == 0:
         print('Nothing found in this spectrum, continuing...')
