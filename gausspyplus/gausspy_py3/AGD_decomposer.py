@@ -8,6 +8,8 @@
 import time
 
 # Standard Third Party
+from typing import Optional, Dict, Literal, Tuple, List, Union
+
 import numpy as np
 from scipy.interpolate import interp1d
 from lmfit import minimize as lmfit_minimize
@@ -28,7 +30,7 @@ from gausspyplus.utils.gaussian_functions import (
 from gausspyplus.utils.output import say
 
 
-def _create_fitmask(size, offsets_i, di):
+def _create_fitmask(size: int, offsets_i: np.ndarray, di: np.ndarray) -> np.ndarray:
     """Return valid domain for intermediate fit in d2/dx2 space.
 
     fitmask = (0,1)
@@ -39,7 +41,9 @@ def _create_fitmask(size, offsets_i, di):
     return fitmask
 
 
-def _determine_derivatives(data, dv, alpha):
+def _determine_derivatives(data: np.ndarray,
+                           dv: Union[int, float],
+                           alpha: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     gauss_sigma = alpha
     gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
     gauss_dn = gauss_sigma_int * 6
@@ -64,17 +68,16 @@ def _determine_derivatives(data, dv, alpha):
     return u, u2, u3, u4
 
 
-def initialGuess(vel,
-                 data,
-                 errors=None,
-                 alpha=None,
-                 verbose=False,
-                 SNR_thresh=5.0,
-                 SNR2_thresh=5.0):
+def initialGuess(vel: np.ndarray,
+                 data: np.ndarray,
+                 errors: Optional[float] = None,
+                 alpha: Optional[float] = None,
+                 verbose: bool = False,
+                 SNR_thresh: float = 5.0,
+                 SNR2_thresh: float = 5.0) -> Optional[Dict]:
     """Find initial parameter guesses (AGD algorithm).
 
     data,             Input data
-    dv,             x-spacing absolute units
     alpha = No Default,     regularization parameter
     verbose = True    Diagnostic messages
     SNR_thresh = 5.0  Initial Spectrum S/N threshold
@@ -93,7 +96,7 @@ def initialGuess(vel,
     # Data inspection
     vel = np.array(vel)
     data = np.array(data)
-    dv = np.abs(vel[1]-vel[0])
+    dv = np.abs(vel[1]-vel[0])  # x-spacing in absolute units
     fvel = interp1d(np.arange(len(vel)), vel)  # Converts from index -> x domain
 
     # Take regularized derivatives
@@ -113,7 +116,7 @@ def initialGuess(vel,
 
     if SNR2_thresh > 0.:
         wsort = np.argsort(np.abs(u2))
-        RMSD2 = np.std(u2[wsort[0:int(0.5*len(u2))]]) / 0.377  # RMS based in +-1 sigma fluctuations
+        RMSD2 = np.std(u2[wsort[:int(0.5*len(u2))]]) / 0.377  # RMS based in +-1 sigma fluctuations
         say(f'Second derivative noise: {RMSD2}', verbose)
         thresh2 = -RMSD2 * SNR2_thresh
         say(f'Second derivative threshold: {thresh2}', verbose)
@@ -140,8 +143,7 @@ def initialGuess(vel,
         return odict
 
     # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
-    widths = np.sqrt(np.abs(data / u2)[indices_of_offsets])
-    FWHMs = widths * CONVERSION_STD_TO_FWHM
+    FWHMs = np.sqrt(np.abs(data / u2)[indices_of_offsets]) * CONVERSION_STD_TO_FWHM
 
     amps = np.array(data[indices_of_offsets])
 
@@ -168,21 +170,21 @@ def initialGuess(vel,
     return odict
 
 
-def AGD(vel,
-        data,
-        errors,
-        idx=None,
-        signal_ranges=None,
-        noise_spike_ranges=None,
-        improve_fitting_dict=None,
-        alpha1=None,
-        alpha2=None,
-        plot=False,
-        verbose=False,
-        SNR_thresh=5.0,
-        SNR2_thresh=5.0,
-        perform_final_fit=True,
-        phase='one'):
+def AGD(vel: np.ndarray,
+        data: np.ndarray,
+        errors: np.ndarray,
+        idx: Optional[int] = None,
+        signal_ranges: Optional[List] = None,
+        noise_spike_ranges: Optional[List] = None,
+        improve_fitting_dict: Optional[Dict] = None,
+        alpha1: Optional[float] = None,
+        alpha2: Optional[float] = None,
+        plot: bool = False,
+        verbose: bool = False,
+        SNR_thresh: float = 5.0,
+        SNR2_thresh: float = 5.0,
+        perform_final_fit: bool = True,
+        phase: Literal['one', 'two'] = 'one') -> Tuple[int, Dict]:
     """ Autonomous Gaussian Decomposition."""
     dct = {}
     if improve_fitting_dict is not None:
@@ -198,6 +200,7 @@ def AGD(vel,
     dv = np.abs(vel[1] - vel[0])
     v_to_i = interp1d(vel, np.arange(len(vel)))
 
+    # TODO: put this in private function -> combine it with phase 2 guesses -> maybe rename initialGuess?
     # -------------------------------------- #
     # Find phase-one guesses                 #
     # -------------------------------------- #
@@ -338,17 +341,16 @@ def AGD(vel,
             ncomps_fit = 0
             params_fit = []
         #  TODO: check if ncomps_fit should be ncomps_guess_final
-        best_fit_list, N_neg_res_peak, N_blended, log_gplus =\
-            try_to_improve_fitting(
-                vel,
-                data,
-                errors,
-                params_fit,
-                ncomps_fit,
-                dct,
-                signal_ranges=signal_ranges,
-                noise_spike_ranges=noise_spike_ranges
-            )
+        best_fit_list, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
+            vel=vel,
+            data=data,
+            errors=errors,
+            params_fit=params_fit,
+            ncomps_fit=ncomps_fit,
+            dct=dct,
+            signal_ranges=signal_ranges,
+            noise_spike_ranges=noise_spike_ranges
+        )
 
         params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
             rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
