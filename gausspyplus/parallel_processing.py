@@ -1,8 +1,3 @@
-# @Author: riener
-# @Date:   2018-12-19T17:26:54+01:00
-# @Filename: parallel_processing.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:18:02+02:00
 """Parallelization routines."""
 
 import multiprocessing
@@ -38,12 +33,11 @@ def init_worker_ts():
 def init_gausspy(*args):
     global agd_object, science_data_path, ilist, agd_data
     if args:
-        [agd_object, agd_data, ilist] = args[0]
+        agd_object, agd_data, ilist = args[0]
     else:
-        [agd_object, science_data_path, ilist] = pickle.load(
-            open('batchdecomp_temp.pickle', 'rb'), encoding='latin1')
+        agd_object, science_data_path, ilist = pickle.load(open('batchdecomp_temp.pickle', 'rb'), encoding='latin1')
         agd_data = pickle.load(open(science_data_path, 'rb'), encoding='latin1')
-    if ilist == None:
+    if ilist is None:
         ilist = np.arange(len(agd_data['data_list']))
 
 
@@ -67,45 +61,44 @@ def calculate_noise(i):
 
 
 def decompose_one(i):
-    if agd_data['data_list'][i] is not None:
-        if 'signal_ranges' in list(agd_data.keys()):
-            signal_ranges = agd_data['signal_ranges'][i]
-            noise_spike_ranges = agd_data['noise_spike_ranges'][i]
-        else:
-            signal_ranges, noise_spike_ranges = (None for _ in range(2))
-
-        # TODO: what if idx keyword is missing or None?
-        result = GaussianDecomposer.decompose(
-            agd_object,
-            agd_data['x_values'],
-            agd_data['data_list'][i],
-            agd_data['error'][i] * np.ones(len(agd_data['x_values'])),
-            idx=agd_data['index'][i],
-            signal_ranges=signal_ranges,
-            noise_spike_ranges=noise_spike_ranges)
-        return result
-    else:
+    if agd_data['data_list'][i] is None:
         return None
+    if 'signal_ranges' in list(agd_data.keys()):
+        signal_ranges = agd_data['signal_ranges'][i]
+        noise_spike_ranges = agd_data['noise_spike_ranges'][i]
+    else:
+        signal_ranges, noise_spike_ranges = None, None
+
+    # TODO: what if idx keyword is missing or None?
+    return GaussianDecomposer.decompose(
+        self=agd_object,
+        xdata=agd_data['x_values'],
+        ydata=agd_data['data_list'][i],
+        edata=agd_data['error'][i] * np.ones(len(agd_data['x_values'])),
+        idx=agd_data['index'][i],
+        signal_ranges=signal_ranges,
+        noise_spike_ranges=noise_spike_ranges
+    )
 
 
 def refit_spectrum_1(i):
-    return SpatialFitting.refit_spectrum_phase_1(mp_params[0], mp_data[i], i)
+    return SpatialFitting.refit_spectrum_phase_1(self=mp_params[0], index=mp_data[i], i=i)
 
 
 def refit_spectrum_2(i):
-    return SpatialFitting.refit_spectrum_phase_2(mp_params[0], mp_data[i], i)
+    return SpatialFitting.refit_spectrum_phase_2(self=mp_params[0], index=mp_data[i], i=i)
 
 
 def calculate_noise_gpy(i):
-    return GaussPyPrepare.calculate_rms_noise(mp_params[0], i)
+    return GaussPyPrepare.calculate_rms_noise(self=mp_params[0], index=i)
 
 
 def decompose_spectrum_ts(i):
-    return GaussPyTrainingSet.decompose(mp_params[0], mp_data[i], i)
+    return GaussPyTrainingSet.decompose(self=mp_params[0], index=mp_data[i], i=i)
 
 
 def make_table(i):
-    return Finalize.get_table_rows(mp_params[0], mp_data[i], i)
+    return Finalize.get_table_rows(self=mp_params[0], idx=mp_data[i], j=i)
 
 
 def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
@@ -144,7 +137,7 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
             'leave': True
         }
         # Print out the progress as tasks complete
-        for f in tqdm(as_completed(futures), **kwargs):
+        for _ in tqdm(as_completed(futures), **kwargs):
             pass
     out = []
     # Get the results from the futures.
@@ -164,24 +157,24 @@ def func(use_ncpus=None, function='noise'):
     print(f'Using {use_ncpus} of {ncpus} cpus')
     try:
         if function == 'noise':
-            results_list = parallel_process(mp_ilist, calculate_noise, n_jobs=use_ncpus)
+            results_list = parallel_process(array=mp_ilist, function=calculate_noise, n_jobs=use_ncpus)
         elif function == 'gausspy_decompose':
-            results_list = parallel_process(ilist, decompose_one, n_jobs=use_ncpus)
+            results_list = parallel_process(array=ilist, function=decompose_one, n_jobs=use_ncpus)
         elif function == 'gpy_noise':
-            results_list = parallel_process(mp_ilist, calculate_noise_gpy, n_jobs=use_ncpus)
+            results_list = parallel_process(array=mp_ilist, function=calculate_noise_gpy, n_jobs=use_ncpus)
         elif function == 'refit_phase_1':
-            results_list = parallel_process(mp_ilist, refit_spectrum_1, n_jobs=use_ncpus)
+            results_list = parallel_process(array=mp_ilist, function=refit_spectrum_1, n_jobs=use_ncpus)
         elif function == 'refit_phase_2':
-            results_list = parallel_process(mp_ilist, refit_spectrum_2, n_jobs=use_ncpus)
+            results_list = parallel_process(array=mp_ilist, function=refit_spectrum_2, n_jobs=use_ncpus)
         elif function == 'make_table':
-            results_list = parallel_process(mp_ilist, make_table, n_jobs=use_ncpus)
+            results_list = parallel_process(array=mp_ilist, function=make_table, n_jobs=use_ncpus)
     except KeyboardInterrupt:
         print("KeyboardInterrupt... quitting.")
         quit()
     return results_list
 
 
-# TODO: alternative way for mulitprocessing used for gausspy decomposition -> can be deleted
+# TODO: alternative way for multiprocessing used for gausspy decomposition -> can be deleted
 # def func(use_ncpus=None):
 #     # Multiprocessing code
 #     ncpus = multiprocessing.cpu_count()
@@ -216,13 +209,13 @@ def func_ts(total, use_ncpus=None):
     if use_ncpus is None:
         use_ncpus = int(0.75 * ncpus)
     print(f'using {use_ncpus} out of {ncpus} cpus')
-    p = multiprocessing.Pool(use_ncpus, init_worker_ts)
+    p = multiprocessing.Pool(processes=use_ncpus, initializer=init_worker_ts)
 
     try:
         results_list = []
         counter = 0
         pbar = tqdm(total=total)
-        for i, result in enumerate(p.imap_unordered(decompose_spectrum_ts, mp_ilist)):
+        for result in p.imap_unordered(func=decompose_spectrum_ts, iterable=mp_ilist):
             if result is not None:
                 counter += 1
                 pbar.update(1)
@@ -241,4 +234,4 @@ def func_ts(total, use_ncpus=None):
 
 
 if __name__ == "__main__":
-    ''
+    pass
