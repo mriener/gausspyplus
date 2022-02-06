@@ -7,7 +7,9 @@ import warnings
 from pathlib import Path
 
 from gausspyplus.config_file import get_values_from_config_file
-from gausspyplus.utils.output import format_warning, set_up_logger, say
+from gausspyplus.gausspy_py3 import gp as gp
+from gausspyplus.utils.output import format_warning, set_up_logger, say, make_pretty_header
+
 warnings.showwarning = format_warning
 
 
@@ -39,12 +41,6 @@ class GaussPyTraining(object):
                              filename=Path(self.path_to_training_set).stem,
                              method='g+_training')
 
-    def _print_header(self):
-        string = 'GaussPy training'
-        banner = len(string) * '='
-        heading = '\n' + banner + '\n' + string + '\n' + banner
-        say(heading, verbose=self.verbose, logger=self.logger)
-
     def training(self):
         if self.path_to_training_set is None:
             raise Exception("Need to specify 'path_to_training_set'")
@@ -54,12 +50,10 @@ class GaussPyTraining(object):
         if self.two_phase_decomposition and self.alpha2_initial is None:
             self.alpha2_initial = 6.
             warnings.warn(f"No value for 'alpha2_initial' supplied. Setting {self.alpha2_initial=}.")
-        self._print_header()
+        say(message=make_pretty_header('GaussPy training'), verbose=self.verbose, logger=self.logger)
         self._gausspy_train_alpha()
 
     def _gausspy_train_alpha(self):
-        from gausspyplus.gausspy_py3 import gp as gp
-
         say(f'Using training set: {self.path_to_training_set}', logger=self.logger)
 
         decomposer = gp.GaussianDecomposer()

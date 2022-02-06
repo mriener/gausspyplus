@@ -12,7 +12,8 @@ from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.definitions import PreparedSpectrum
 from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
-from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say
+from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say, \
+    make_pretty_header
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
 
 
@@ -138,18 +139,11 @@ class GaussPyPrepare(object):
         (dirpath_pickle := Path(self.dirpath, 'gpy_prepared')).mkdir(parents=True, exist_ok=True)
         return dirpath_pickle
 
-    def getting_ready(self):
-        string = 'GaussPy preparation'
-        banner = len(string) * '='
-        heading = '\n' + banner + '\n' + string + '\n' + banner
-        say(heading, logger=self.logger)
-
     def return_single_prepared_spectrum(self, data_location=None):
         self.data_location = data_location if data_location is not None else self.data_location
         self.testing = True
         self.log_output = False
         self.check_settings()
-
         spectrum = self.calculate_rms_noise(index=0)
         return {
             'header': self.header,
@@ -165,7 +159,7 @@ class GaussPyPrepare(object):
 
     def prepare_cube(self):
         self.check_settings()
-        self.getting_ready()
+        say(message=make_pretty_header('GaussPy preparation'), logger=self.logger)
         self.prepare_gausspy_pickle()
 
     def calculate_average_rms_from_data(self):

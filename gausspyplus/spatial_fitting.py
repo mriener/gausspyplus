@@ -16,7 +16,7 @@ from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_f
 from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
 from gausspyplus.utils.noise_estimation import mask_channels
-from gausspyplus.utils.output import set_up_logger, say
+from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 
 
 class SpatialFitting(object):
@@ -217,19 +217,11 @@ class SpatialFitting(object):
 
     def _getting_ready(self) -> None:
         """Set up logger and write initial output to terminal."""
-        self.logger = False
         if self.log_output:
-            self.logger = set_up_logger(
-                self.dirpath_gpy, self.filename, method='g+_spatial_refitting')
-
-        phase = 1
-        if self.phase_two:
-            phase = 2
-
-        string = f'Spatial refitting - Phase {phase}'
-        banner = len(string) * '='
-        heading = '\n' + banner + '\n' + string + '\n' + banner
-        say(heading, logger=self.logger)
+            self.logger = set_up_logger(self.dirpath_gpy, self.filename, method='g+_spatial_refitting')
+        else:
+            self.logger = False
+        say(message=make_pretty_header(f'Spatial refitting - Phase {1 + self.phase_two}'), logger=self.logger)
 
         string = str(
             '\nFlagging:'
