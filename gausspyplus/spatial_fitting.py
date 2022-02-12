@@ -1288,7 +1288,7 @@ class SpatialFitting(object):
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean - idx_lower,
-                mean_err=mean_err
+                mean_bound=max(self.mean_separation, mean_err)
             )
 
         channels = np.arange(len(spectrum[idx_lower:idx_upper]))
@@ -1320,7 +1320,7 @@ class SpatialFitting(object):
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean + idx_lower,
-                mean_err=mean_err
+                mean_bound=max(self.mean_separation, mean_err)
             )
 
         for amp, fwhm, mean, mean_err in zip(amps, fwhms, means, means_err):
@@ -1330,7 +1330,7 @@ class SpatialFitting(object):
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean,
-                mean_err=mean_err
+                mean_bound=max(self.mean_separation, mean_err)
             )
 
         return dictComps
@@ -1384,7 +1384,7 @@ class SpatialFitting(object):
                                    amp: float,
                                    fwhm: float,
                                    mean: float,
-                                   mean_err: float) -> Dict:
+                                   mean_bound: float) -> Dict:
         """Update dictionary of fit components with new component.
 
         Parameters
@@ -1394,35 +1394,31 @@ class SpatialFitting(object):
         amp : Amplitude value of fit component.
         fwhm : FWHM value of fit component.
         mean : Mean position value of fit component.
-        mean_err : Error of mean position value of fit component.
+        mean_bound : Relative bound (upper and lower) of mean position value of fit component.
 
         Returns
         -------
         dictComps : Updated dictionary of fit components.
 
         """
-        #  determine lower and upper limits for mean position
         #  TODO: add here also mean +/- stddev??
-        mean_min = min(mean - self.mean_separation, mean - mean_err)
-        mean_min = max(0, mean_min)  # prevent negative values
-        mean_max = max(mean + self.mean_separation, mean + mean_err)
 
-        fwhm_min = 0.
-        fwhm_max = None
-
-        if self.constrain_fwhm:
-            fwhm_min = max(0., fwhm - self.fwhm_separation)
-            fwhm_max = fwhm + self.fwhm_separation
-
-        keyname = str(len(dictComps) + 1)
-        dictComps[keyname] = {
+        dictComps[str(len(dictComps) + 1)] = {
             'amp_ini': amp,
             'mean_ini': mean,
             'fwhm_ini': fwhm,
-            'amp_bounds': [0., SpatialFitting.upper_limit_for_amplitude(spectrum, mean, fwhm, buffer_factor=1.1)],
-            'mean_bounds': [mean_min, mean_max],
-            # 'fwhm_bounds': [0., None],
-            'fwhm_bounds': [fwhm_min, fwhm_max]
+            'amp_bounds': [
+                0.,
+                SpatialFitting.upper_limit_for_amplitude(spectrum, mean, fwhm, buffer_factor=1.1)
+            ],
+            'mean_bounds': [
+                max(0., mean - mean_bound),
+                mean + mean_bound
+            ],
+            'fwhm_bounds': [
+                max(0., fwhm - self.fwhm_separation) if self.constrain_fwhm else 0.,
+                fwhm + self.fwhm_separation if self.constrain_fwhm else None
+            ]
         }
         return dictComps
 
