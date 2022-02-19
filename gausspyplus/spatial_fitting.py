@@ -2157,29 +2157,6 @@ class SpatialFitting(object):
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
     #
 
-    def _components_per_interval(self, dct: Dict) -> Dict:
-        """Calculate how many components neighboring fits had per grouped centroid interval."""
-        dct['ncomps_per_interval'] = {}
-        for key in dct['grouping']:
-            ncomps_per_interval = []
-            means_interval = dct['means_interval'][key]
-
-            for idx in dct['indices_neighbors']:
-                means = self.decomposition['means_fit'][idx]
-                if means is None:
-                    ncomps_per_interval.append(0)
-                    continue
-                if len(means) == 0:
-                    ncomps_per_interval.append(0)
-                    continue
-                condition_1 = means_interval[0] < np.array(means)
-                condition_2 = means_interval[1] > np.array(means)
-                mask = np.logical_and(condition_1, condition_2)
-                ncomps_per_interval.append(np.count_nonzero(mask))
-            dct['ncomps_per_interval'][key] = ncomps_per_interval
-
-        return dct
-
     def _get_n_centroid(self, n_centroids, weights):
         """Calculate expected value for number of centroids per grouped centroid interval."""
         # TODO: Add type hints
@@ -2392,7 +2369,11 @@ class SpatialFitting(object):
                                            max(value['means']) + self.mean_separation / 2]
                                      for key, value in dct['grouping'].items()}
 
-            dct = self._components_per_interval(dct)
+            means_of_neighbors = [self.decomposition['means_fit'][idx] for idx in dct['indices_neighbors']]
+            dct['ncomps_per_interval'] = {key: [sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
+                                                for means in means_of_neighbors]
+                                          for key, (mean_min, mean_max) in dct['means_interval'].items()}
+
             dct = self._compute_weights(dct, weights_neighbors)
             dct = self._sort_out_keys(dct)
 
