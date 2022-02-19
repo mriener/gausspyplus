@@ -2157,26 +2157,6 @@ class SpatialFitting(object):
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
     #
 
-    def _get_centroid_interval(self, dct: Dict) -> Dict:
-        """Calculate the interval spanned by each group of centroids.
-
-        Parameters
-        ----------
-        dct : Dictionary containing information of the grouping for phase 2 of the spatially coherent refitting.
-
-        Returns
-        -------
-        dct : Updated dictionary containing information about the interval spanned by each group of centroids.
-
-        """
-        dct['means_interval'] = {}
-        for key in dct['grouping']:
-            mean_min = min(dct['grouping'][key]['means'])
-            mean_min = max(0, mean_min - self.mean_separation / 2)
-            mean_max = max(dct['grouping'][key]['means']) + self.mean_separation / 2
-            dct['means_interval'][key] = [mean_min, mean_max]
-        return dct
-
     def _components_per_interval(self, dct: Dict) -> Dict:
         """Calculate how many components neighboring fits had per grouped centroid interval."""
         dct['ncomps_per_interval'] = {}
@@ -2407,7 +2387,11 @@ class SpatialFitting(object):
 
             amps, means, fwhms = self._get_initial_values(indices_neighbors)
             dct['grouping'] = self._grouping(amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False)
-            dct = self._get_centroid_interval(dct)
+
+            dct['means_interval'] = {key: [max(0, min(value['means']) - self.mean_separation / 2),
+                                           max(value['means']) + self.mean_separation / 2]
+                                     for key, value in dct['grouping'].items()}
+
             dct = self._components_per_interval(dct)
             dct = self._compute_weights(dct, weights_neighbors)
             dct = self._sort_out_keys(dct)
