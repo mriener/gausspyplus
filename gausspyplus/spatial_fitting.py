@@ -1,7 +1,9 @@
 import collections
+import functools
 import os
 import pickle
 import textwrap
+from operator import itemgetter
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple, Any, Union
 
@@ -1795,6 +1797,10 @@ class SpatialFitting(object):
 
         return True
 
+    def _get_values_for_indices(self, indices: np.ndarray, key: str) -> np.ndarray:
+        # sum(tuple_of_lists, []) makes a flat list out of the tuple of lists
+        return np.array(sum((self.decomposition[key][idx] for idx in indices), []))
+
     def _get_initial_values(self, indices_neighbors: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get sorted parameter values (amps, means, fwhms) of neighboring fit components for the grouping.
 
@@ -1810,15 +1816,11 @@ class SpatialFitting(object):
         fwhms : Array of FWHM values (sorted according to mean position).
 
         """
-        amps, means, fwhms = (np.array([]) for i in range(3))
-
-        for i in indices_neighbors:
-            amps = np.append(amps, self.decomposition['amplitudes_fit'][i])
-            means = np.append(means, self.decomposition['means_fit'][i])
-            fwhms = np.append(fwhms, self.decomposition['fwhms_fit'][i])
-
-        sorted_indices = np.argsort(means)
-        return amps[sorted_indices], means[sorted_indices], fwhms[sorted_indices]
+        amps = self._get_values_for_indices(indices=indices_neighbors, key='amplitudes_fit')
+        means = self._get_values_for_indices(indices=indices_neighbors, key='means_fit')
+        fwhms = self._get_values_for_indices(indices=indices_neighbors, key='fwhms_fit')
+        sort_order = np.argsort(means)
+        return amps[sort_order], means[sort_order], fwhms[sort_order]
 
     def _grouping(self,
                   amps_tot: np.ndarray,
@@ -2344,32 +2346,33 @@ class SpatialFitting(object):
             )
         return dct_total
 
-    def _get_weights(self, indices, idx, direction):
-        # TODO: add type hints
-        """Allocate weights to neighboring spectra."""
-        chosen_weights, indices_neighbors = ([] for _ in range(2))
-        possible_indices = np.arange(len(indices))
-        index = np.where(indices == idx)[0][0]
-        indices = np.delete(indices, index)
-        possible_indices -= index
-        possible_indices = np.delete(possible_indices, index)
+    @functools.cached_property
+    def weights(self):
+        weights = dict.fromkeys(['horizontal', 'vertical'], {-2: self.w_2, -1: self.w_1, 1: self.w_1, 2: self.w_2})
+        weights.update(dict.fromkeys(['diagonal_ul', 'diagonal_ur'], {
+            -2: self.w_2 / np.sqrt(8),
+            -1: self.w_1 / np.sqrt(2),
+            1: self.w_1 / np.sqrt(2),
+            2: self.w_2 / np.sqrt(8)
+        }))
+        return weights
 
-        if direction in ['horizontal', 'vertical']:
-            weights = np.array([self.w_2, self.w_1, self.w_1, self.w_2])
-        else:
-            weights = np.array([self.w_2 / np.sqrt(8), self.w_1 / np.sqrt(2),
-                                self.w_1 / np.sqrt(2), self.w_2 / np.sqrt(8)])
-
-        counter = 0
-        for i, weight in zip([-2, -1, 1, 2], weights):
-            if i in possible_indices:
-                idx_neighbor = indices[counter]
-                counter += 1
-                if (self.decomposition['N_components'][idx_neighbor] is not None
-                        and self.decomposition['N_components'][idx_neighbor] != 0):
-                    indices_neighbors.append(idx_neighbor)
-                    chosen_weights.append(weight)
-        return np.array(indices_neighbors), np.array(chosen_weights)
+    def _get_indices_and_weights_of_valid_neighbors(self, loc, idx, direction):
+        indices_neighbors_and_center = get_neighbors(
+            loc,
+            exclude_p=False,
+            shape=self.shape,
+            nNeighbors=2,
+            direction=direction,
+            get_indices=True
+        )
+        is_neighbor = indices_neighbors_and_center != idx
+        has_fit_components = np.array([self.decomposition['N_components'][i]
+                                       for i in indices_neighbors_and_center]).astype(bool)
+        relative_position_to_center = np.arange(len(indices_neighbors_and_center)) - np.flatnonzero(~is_neighbor)
+        return (indices_neighbors_and_center[is_neighbor & has_fit_components],
+                np.array([self.weights[direction][pos]
+                          for pos in relative_position_to_center[is_neighbor & has_fit_components]]))
 
     def _check_continuity_centroids(self, idx: int, loc: Tuple) -> Dict:
         """Check for coherence of centroid positions of neighboring spectra.
@@ -2386,23 +2389,10 @@ class SpatialFitting(object):
         dct_total : Dictionary containing results of the spatial coherence check for neighboring centroid positions.
 
         """
-        dct, dct_total = [{} for _ in range(2)]
+        dct, dct_total = {}, {}
 
         for direction in ['horizontal', 'vertical', 'diagonal_ul', 'diagonal_ur']:
-            indices_neighbors_and_central = get_neighbors(
-                loc,
-                exclude_p=False,
-                shape=self.shape,
-                nNeighbors=2,
-                direction=direction,
-                get_indices=True
-            )
-
-            indices_neighbors, weights = self._get_weights(
-                indices=indices_neighbors_and_central,
-                idx=idx,
-                direction=direction
-            )
+            indices_neighbors, weights_neighbors = self._get_indices_and_weights_of_valid_neighbors(loc, idx, direction)
 
             if len(indices_neighbors) == 0:
                 dct_total[direction] = {key: {} for key in ['indices_neighbors', 'weights', 'means_interval',
@@ -2413,13 +2403,13 @@ class SpatialFitting(object):
                 continue
 
             dct['indices_neighbors'] = indices_neighbors
-            dct['weights'] = weights
+            dct['weights'] = weights_neighbors
 
             amps, means, fwhms = self._get_initial_values(indices_neighbors)
             dct['grouping'] = self._grouping(amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False)
             dct = self._get_centroid_interval(dct)
             dct = self._components_per_interval(dct)
-            dct = self._compute_weights(dct, weights)
+            dct = self._compute_weights(dct, weights_neighbors)
             dct = self._sort_out_keys(dct)
 
             #  TODO: check why copy() is needed here
