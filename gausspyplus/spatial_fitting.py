@@ -2203,20 +2203,6 @@ class SpatialFitting(object):
             dct['factor_required'][key] = sum(array * weights)
         return dct
 
-    def _sort_out_keys(self, dct: Dict) -> Dict:
-        """Keep only centroid intervals that have a certain minimum weight."""
-        dct_new = {}
-        keys = ['indices_neighbors', 'weights', 'means_interval', 'n_centroids', 'factor_required']
-        dct_new = {key: {} for key in keys}
-        dct_new['indices_neighbors'] = dct['indices_neighbors']
-        dct_new['weights'] = dct['weights']
-
-        means_interval = [dct['means_interval'][key] for key in dct['factor_required']
-                          if dct['factor_required'][key] > self.min_p]
-
-        dct_new['means_interval'] = means_interval
-        return dct_new
-
     def _add_key_to_dict(self, dct: Dict, key: str = 'means_interval', val: Optional[Any] = None) -> Dict:
         """Add a new key number & value to an existing dictionary key."""
         # TODO: make Any type hint more specific
@@ -2375,7 +2361,10 @@ class SpatialFitting(object):
                                           for key, (mean_min, mean_max) in dct['means_interval'].items()}
 
             dct = self._compute_weights(dct, weights_neighbors)
-            dct = self._sort_out_keys(dct)
+
+            # Keep only centroid intervals that have a certain minimum weight
+            dct['means_interval'] = [dct['means_interval'][key] for key in dct['factor_required']
+                                     if dct['factor_required'][key] > self.min_p]
 
             #  TODO: check why copy() is needed here
             dct_total[direction] = dct.copy()
