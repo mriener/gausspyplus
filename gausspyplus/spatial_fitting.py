@@ -2191,18 +2191,6 @@ class SpatialFitting(object):
         idx = np.argmax(weights_choices)
         return choices[idx]
 
-    def _compute_weights(self, dct: Dict, weights) -> Dict:
-        """Calculate weight of required components per centroid interval."""
-        # TODO: Add type hint for weights
-        dct['factor_required'] = {}
-        dct['n_centroids'] = {}
-        for key in dct['grouping']:
-            array = np.array(dct['ncomps_per_interval'][key])
-            dct['n_centroids'][key] = self._get_n_centroid(array, weights)
-            array = array.astype('bool')
-            dct['factor_required'][key] = sum(array * weights)
-        return dct
-
     def _add_key_to_dict(self, dct: Dict, key: str = 'means_interval', val: Optional[Any] = None) -> Dict:
         """Add a new key number & value to an existing dictionary key."""
         # TODO: make Any type hint more specific
@@ -2360,7 +2348,11 @@ class SpatialFitting(object):
                                                 for means in means_of_neighbors]
                                           for key, (mean_min, mean_max) in dct['means_interval'].items()}
 
-            dct = self._compute_weights(dct, weights_neighbors)
+            # Calculate weight of required components per centroid interval.
+            dct['n_centroids'] = {key: self._get_n_centroid(np.array(val), weights_neighbors)
+                                  for key, val in dct['ncomps_per_interval'].items()}
+            dct['factor_required'] = {key: sum(np.array(val, dtype=bool) * weights_neighbors)
+                                      for key, val in dct['ncomps_per_interval'].items()}
 
             # Keep only centroid intervals that have a certain minimum weight
             dct['means_interval'] = [dct['means_interval'][key] for key in dct['factor_required']
