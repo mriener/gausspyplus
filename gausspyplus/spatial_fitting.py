@@ -2201,7 +2201,7 @@ class SpatialFitting(object):
     def _merge_dictionaries(self, dct_1: Dict, dct_2: Dict) -> Dict:
         """Merge two dictionaries to a single one and calculate new centroid intervals."""
         # TODO: use builtin methods to merge dictionaries
-        dct_merged = {key: {} for key in ['factor_required', 'n_centroids', 'means_interval']}
+        dct_merged = {}
 
         for key in ['indices_neighbors', 'weights']:
             dct_merged[key] = []
@@ -2326,11 +2326,11 @@ class SpatialFitting(object):
             indices_neighbors, weights_neighbors = self._get_indices_and_weights_of_valid_neighbors(loc, idx, direction)
 
             if len(indices_neighbors) == 0:
-                dct[direction] = {key: {} for key in ['indices_neighbors', 'weights', 'means_interval',
-                                                      'n_centroids', 'factor_required']}
-                dct[direction]['means_interval'] = []
-                dct[direction]['indices_neighbors'] = np.array([])
-                dct[direction]['weights'] = np.array([])
+                dct[direction] = {
+                    'indices_neighbors': indices_neighbors,
+                    'weights': weights_neighbors,
+                    'means_interval': [],
+                }
                 continue
 
             amps, means, fwhms = self._get_initial_values(indices_neighbors)
@@ -2346,8 +2346,6 @@ class SpatialFitting(object):
                                    for key, (mean_min, mean_max) in means_interval.items()}
 
             # Calculate weight of required components per centroid interval.
-            n_centroids = {key: self._get_n_centroid(np.array(val), weights_neighbors)
-                           for key, val in ncomps_per_interval.items()}
             factor_required = {key: sum(np.array(val, dtype=bool) * weights_neighbors)
                                for key, val in ncomps_per_interval.items()}
 
@@ -2358,11 +2356,7 @@ class SpatialFitting(object):
             dct[direction] = {
                 'indices_neighbors': indices_neighbors,
                 'weights': weights_neighbors,
-                'grouping': grouping,
                 'means_interval': means_interval,
-                'ncomps_per_interval': ncomps_per_interval,
-                'n_centroids': n_centroids,
-                'factor_required': factor_required,
             }
 
         dct = self._combine_directions(dct)
