@@ -2317,52 +2317,56 @@ class SpatialFitting(object):
 
         Returns
         -------
-        dct_total : Dictionary containing results of the spatial coherence check for neighboring centroid positions.
+        dct : Dictionary containing results of the spatial coherence check for neighboring centroid positions.
 
         """
-        dct, dct_total = {}, {}
+        dct = {}
 
-        for direction in ['horizontal', 'vertical', 'diagonal_ul', 'diagonal_ur']:
+        for direction in self.weights.keys():
             indices_neighbors, weights_neighbors = self._get_indices_and_weights_of_valid_neighbors(loc, idx, direction)
 
             if len(indices_neighbors) == 0:
-                dct_total[direction] = {key: {} for key in ['indices_neighbors', 'weights', 'means_interval',
-                                                            'n_centroids', 'factor_required']}
-                dct_total[direction]['means_interval'] = []
-                dct_total[direction]['indices_neighbors'] = np.array([])
-                dct_total[direction]['weights'] = np.array([])
+                dct[direction] = {key: {} for key in ['indices_neighbors', 'weights', 'means_interval',
+                                                      'n_centroids', 'factor_required']}
+                dct[direction]['means_interval'] = []
+                dct[direction]['indices_neighbors'] = np.array([])
+                dct[direction]['weights'] = np.array([])
                 continue
 
-            dct['indices_neighbors'] = indices_neighbors
-            dct['weights'] = weights_neighbors
-
             amps, means, fwhms = self._get_initial_values(indices_neighbors)
-            dct['grouping'] = self._grouping(amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False)
+            grouping = self._grouping(amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False)
 
-            dct['means_interval'] = {key: [max(0, min(value['means']) - self.mean_separation / 2),
-                                           max(value['means']) + self.mean_separation / 2]
-                                     for key, value in dct['grouping'].items()}
+            means_interval = {key: [max(0, min(value['means']) - self.mean_separation / 2),
+                                    max(value['means']) + self.mean_separation / 2]
+                              for key, value in grouping.items()}
 
-            means_of_neighbors = [self.decomposition['means_fit'][idx] for idx in dct['indices_neighbors']]
-            dct['ncomps_per_interval'] = {key: [sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
-                                                for means in means_of_neighbors]
-                                          for key, (mean_min, mean_max) in dct['means_interval'].items()}
+            means_of_neighbors = [self.decomposition['means_fit'][idx] for idx in indices_neighbors]
+            ncomps_per_interval = {key: [sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
+                                         for means in means_of_neighbors]
+                                   for key, (mean_min, mean_max) in means_interval.items()}
 
             # Calculate weight of required components per centroid interval.
-            dct['n_centroids'] = {key: self._get_n_centroid(np.array(val), weights_neighbors)
-                                  for key, val in dct['ncomps_per_interval'].items()}
-            dct['factor_required'] = {key: sum(np.array(val, dtype=bool) * weights_neighbors)
-                                      for key, val in dct['ncomps_per_interval'].items()}
+            n_centroids = {key: self._get_n_centroid(np.array(val), weights_neighbors)
+                           for key, val in ncomps_per_interval.items()}
+            factor_required = {key: sum(np.array(val, dtype=bool) * weights_neighbors)
+                               for key, val in ncomps_per_interval.items()}
 
             # Keep only centroid intervals that have a certain minimum weight
-            dct['means_interval'] = [dct['means_interval'][key] for key in dct['factor_required']
-                                     if dct['factor_required'][key] > self.min_p]
+            means_interval = [means_interval[key] for key in factor_required
+                              if factor_required[key] > self.min_p]
 
-            #  TODO: check why copy() is needed here
-            dct_total[direction] = dct.copy()
+            dct[direction] = {
+                'indices_neighbors': indices_neighbors,
+                'weights': weights_neighbors,
+                'grouping': grouping,
+                'means_interval': means_interval,
+                'ncomps_per_interval': ncomps_per_interval,
+                'n_centroids': n_centroids,
+                'factor_required': factor_required,
+            }
 
-        dct_total = self._combine_directions(dct_total)
-        return dct_total
+        dct = self._combine_directions(dct)
+        return dct
 
     def _check_for_required_components(self, idx: int, dct: Dict) -> Dict:
         """Check the presence of the required centroid positions within the determined interval."""
