@@ -2198,22 +2198,6 @@ class SpatialFitting(object):
         dct[key][key_new] = val
         return dct
 
-    def _merge_dictionaries(self, dct_1: Dict, dct_2: Dict) -> Dict:
-        """Merge two dictionaries to a single one and calculate new centroid intervals."""
-        # TODO: use builtin methods to merge dictionaries
-        dct_merged = {}
-
-        for key in ['indices_neighbors', 'weights']:
-            dct_merged[key] = []
-            for dct in [dct_1, dct_2]:
-                dct_merged[key] = np.append(dct_merged[key], dct[key])
-
-        key = 'means_interval'
-        intervals = dct_1[key] + dct_2[key]
-        dct_merged[key] = self._merge_intervals(intervals)
-
-        return dct_merged
-
     def _merge_intervals(self, intervals):
         # TODO: Add type hints
         """Merge overlapping intervals.
@@ -2239,9 +2223,15 @@ class SpatialFitting(object):
 
     def _combine_directions(self, dct: Dict) -> Dict:
         """Combine directions and get master dictionary."""
-        dct_hv = self._merge_dictionaries(dct['horizontal'].copy(), dct['vertical'].copy())
-        dct_dd = self._merge_dictionaries(dct['diagonal_ul'].copy(), dct['diagonal_ur'].copy())
-        dct_total = self._merge_dictionaries(dct_hv, dct_dd)
+        dct_total = {
+            'indices_neighbors': np.concatenate(
+                [dct[direction]['indices_neighbors'] for direction in self.weights.keys()]),
+            'weights': np.concatenate(
+                [dct[direction]['weights'] for direction in self.weights.keys()]),
+            # TODO: replace _merge_intervals with _merge_overlapping_intervals from determine_intervals?
+            'means_interval': self._merge_intervals([interval for direction in self.weights.keys()
+                                                     for interval in dct[direction]['means_interval']])
+        }
 
         intervals = dct_total['means_interval'].copy()
         dct_total['means_interval'] = {}
