@@ -11,12 +11,16 @@ import sys
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
 
 
-def _merge_overlapping_intervals(intervals: List[List]) -> List[List]:
+def merge_overlapping_intervals(intervals: List[List]) -> List[List]:
     """Merge overlapping intervals (Credit: https://stackoverflow.com/a/43600953)."""
     intervals.sort(key=lambda interval: interval[0])
-    merged_intervals = [intervals[0]]
+    try:
+        merged_intervals = [intervals[0]]
+    except IndexError:  # in case intervals is an empty list
+        merged_intervals = []
     for current in intervals:
         previous = merged_intervals[-1]
+        # test for intersection between previous and current: we know via sorting that previous[0] <= current[0]
         if current[0] <= previous[1]:
             previous[1] = max(previous[1], current[1])
         else:
@@ -32,7 +36,7 @@ def _add_buffer_to_intervals(ranges: List[Optional[List]],
     if not ranges:  # in case ranges is an empty list
         return ranges
     intervals = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
-    return _merge_overlapping_intervals(intervals)
+    return merge_overlapping_intervals(intervals)
 
 
 def check_if_intervals_contain_signal(spectrum: np.ndarray,
