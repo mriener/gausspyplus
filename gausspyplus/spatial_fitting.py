@@ -2200,49 +2200,33 @@ class SpatialFitting(object):
         return dct
 
     def _combine_directions(self, dct: Dict) -> Dict:
-        """Combine directions and get master dictionary."""
-        dct_total = {
-            'indices_neighbors': np.concatenate(
-                [dct[direction]['indices_neighbors'] for direction in self.weights.keys()]),
-            'weights': np.concatenate(
-                [dct[direction]['weights'] for direction in self.weights.keys()]),
-            'means_interval': merge_overlapping_intervals([interval for direction in self.weights.keys()
-                                                           for interval in dct[direction]['means_interval']])
+        """Combine directions and build master dictionary."""
+        indices_neighbors = np.concatenate(
+            [dct[direction]['indices_neighbors'] for direction in self.weights.keys()])
+        weights = np.concatenate(
+            [dct[direction]['weights'] for direction in self.weights.keys()])
+        intervals = merge_overlapping_intervals(
+            [interval for direction in self.weights.keys() for interval in dct[direction]['means_interval']])
+        means_interval = {str(key): [max(0, interval[0] - self.mean_separation / 2),
+                                     interval[1] + self.mean_separation / 2]
+                          for key, interval in enumerate(intervals, start=1)}
+        # TODO: The following lines also appear in _check_continuity_centroids; should this be refactored into its own
+        #  method?
+        means_of_neighbors = [self.decomposition['means_fit'][idx] for idx in indices_neighbors]
+        # estimate the expected number of centroids for interval
+        ncomps_per_interval = {key: [sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
+                                     for means in means_of_neighbors]
+                               for key, (mean_min, mean_max) in means_interval.items()}
+        # calculate number of centroids per centroid interval of neighbors
+        n_centroids = {key: self._get_n_centroid(np.array(ncomps), weights)
+                       for key, ncomps in ncomps_per_interval.items()}
+        return {
+            'indices_neighbors': indices_neighbors,
+            'weights': weights,
+            'means_interval': means_interval,
+            'n_comps': ncomps_per_interval,
+            'n_centroids': n_centroids
         }
-
-        intervals = dct_total['means_interval'].copy()
-        dct_total['means_interval'] = {}
-        for interval in intervals:
-            dct_total = self._add_key_to_dict(dct=dct_total, key='means_interval', val=interval)
-
-        #  add buffer of half the mean_separation to left and right of means_interval
-        for key in dct_total['means_interval']:
-            lower, upper = dct_total['means_interval'][key]
-            lower = max(0, lower - self.mean_separation / 2)
-            upper = upper + self.mean_separation / 2
-            dct_total['means_interval'][key] = [lower, upper]
-
-        # for key in ['indices_neighbors', 'weights']: # BUG!
-        for key in ['indices_neighbors']:
-            dct_total[key] = dct_total[key].astype('int')
-        #
-        #  Calculate number of centroids per centroid interval of neighbors
-        #  and estimate the expected number of centroids for interval
-        #
-        dct_total['n_comps'] = {}
-        dct_total['n_centroids'] = {}
-        for key in dct_total['means_interval']:
-            dct_total['n_comps'][key] = []
-            lower, upper = dct_total['means_interval'][key]
-            for idx in dct_total['indices_neighbors']:
-                means = self.decomposition['means_fit'][idx]
-                ncomps = sum(lower < mean < upper for mean in means)
-                dct_total['n_comps'][key].append(ncomps)
-            dct_total['n_centroids'][key] = self._get_n_centroid(
-                 n_centroids=np.array(dct_total['n_comps'][key]),
-                weights=dct_total['weights']
-            )
-        return dct_total
 
     @functools.cached_property
     def weights(self):
