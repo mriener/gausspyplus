@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
+from gausspyplus.utils.determine_intervals import merge_overlapping_intervals
 from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
 from gausspyplus.utils.noise_estimation import mask_channels
@@ -2198,29 +2199,6 @@ class SpatialFitting(object):
         dct[key][key_new] = val
         return dct
 
-    def _merge_intervals(self, intervals):
-        # TODO: Add type hints
-        """Merge overlapping intervals.
-
-        Original code by amon: https://codereview.stackexchange.com/questions/69242/merging-overlapping-intervals
-        """
-        sorted_by_lower_bound = sorted(intervals, key=lambda tup: tup[0])
-        merged = []
-
-        for higher in sorted_by_lower_bound:
-            if not merged:
-                merged.append(higher)
-            else:
-                lower = merged[-1]
-                # test for intersection between lower and higher:
-                # we know via sorting that lower[0] <= higher[0]
-                if higher[0] <= lower[1]:
-                    upper_bound = max(lower[1], higher[1])
-                    merged[-1] = (lower[0], upper_bound)  # replace by merged interval
-                else:
-                    merged.append(higher)
-        return merged
-
     def _combine_directions(self, dct: Dict) -> Dict:
         """Combine directions and get master dictionary."""
         dct_total = {
@@ -2228,9 +2206,8 @@ class SpatialFitting(object):
                 [dct[direction]['indices_neighbors'] for direction in self.weights.keys()]),
             'weights': np.concatenate(
                 [dct[direction]['weights'] for direction in self.weights.keys()]),
-            # TODO: replace _merge_intervals with _merge_overlapping_intervals from determine_intervals?
-            'means_interval': self._merge_intervals([interval for direction in self.weights.keys()
-                                                     for interval in dct[direction]['means_interval']])
+            'means_interval': merge_overlapping_intervals([interval for direction in self.weights.keys()
+                                                           for interval in dct[direction]['means_interval']])
         }
 
         intervals = dct_total['means_interval'].copy()
