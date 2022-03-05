@@ -202,7 +202,6 @@ class SpatialFitting(object):
         normalization_factor = 1 / (2 * (self.weight_factor + 1))
         self.w_2 = normalization_factor
         self.w_1 = self.weight_factor * normalization_factor
-        self.w_min = self.w_1 / np.sqrt(2)
         self.min_p = self._w_start - self.w_2
 
     def _mask_out_beyond_pixel_range(self) -> None:
@@ -2162,7 +2161,7 @@ class SpatialFitting(object):
         """Calculate expected value for number of centroids per grouped centroid interval."""
         choices = list(set(n_centroids))
         # first, check only immediate neighboring spectra
-        mask_weight = weights >= self.w_min
+        mask_weight = weights >= (self.w_1 / np.sqrt(2))
         counts_choices = [0 if choice == 0 else np.count_nonzero(n_centroids[mask_weight] == choice)
                           for choice in choices]
 
@@ -2407,7 +2406,7 @@ class SpatialFitting(object):
 
         dct_refit['indices_refit'] = self._select_neighbors_to_use_for_refit(
             # TODO: Check if dct_refit['weights'] >= self.w_min condition was already checked earlier
-            indices=dct_refit['indices_neighbors'][dct_refit['weights'] >= self.w_min],
+            indices=dct_refit['indices_neighbors'][dct_refit['weights'] >= (self.w_1 / np.sqrt(2))],
             means_interval=dct_refit['means_interval'],
             n_centroids=dct_refit['n_centroids'],
         )
