@@ -2158,23 +2158,21 @@ class SpatialFitting(object):
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
     #
 
-    def _get_n_centroid(self, n_centroids, weights):
+    def _get_n_centroid(self, n_centroids: np.ndarray, weights: np.ndarray) -> int:
         """Calculate expected value for number of centroids per grouped centroid interval."""
-        # TODO: Add type hints
         choices = list(set(n_centroids))
-        #
-        #  first, check only immediate neighboring spectra
-        #
+        # first, check only immediate neighboring spectra
         mask_weight = weights >= self.w_min
-        n_neighbors = np.count_nonzero(mask_weight)
+        counts_choices = [0 if choice == 0 else np.count_nonzero(n_centroids[mask_weight] == choice)
+                          for choice in choices]
 
-        counts_choices = []
-        for choice in choices:
-            if choice == 0:
-                counts_choices.append(0)
-                continue
-            count_choice = np.count_nonzero(n_centroids[mask_weight] == choice)
-            counts_choices.append(count_choice)
+        n_neighbors = np.count_nonzero(mask_weight)
+        if np.max(counts_choices) > 0.5 * n_neighbors:
+            return choices[np.argmax(counts_choices)]
+
+        # include additional neighbors that are two pixels away
+        weights_choices = [0 if choice == 0 else sum(weights[n_centroids == choice]) for choice in choices]
+        return choices[np.argmax(weights_choices)]
 
         if np.max(counts_choices) > 0.5 * n_neighbors:
             idx = np.argmax(counts_choices)
@@ -2182,16 +2180,6 @@ class SpatialFitting(object):
         #
         #  include additional neighbors that are two pixels away
         #
-        weights_choices = []
-        for choice in choices:
-            if choice == 0:
-                weights_choices.append(0)
-                continue
-            mask = n_centroids == choice
-            weights_choices.append(sum(weights[mask]))
-        idx = np.argmax(weights_choices)
-        return choices[idx]
-
     def _add_key_to_dict(self, dct: Dict, key: str = 'means_interval', val: Optional[Any] = None) -> Dict:
         """Add a new key number & value to an existing dictionary key."""
         # TODO: make Any type hint more specific
