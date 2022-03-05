@@ -1,16 +1,15 @@
 import collections
 import functools
+import itertools
 import os
 import pickle
 import textwrap
-from operator import itemgetter
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple, Any, Union
+from typing import Dict, Optional, List, Tuple, Union
 
 import numpy as np
 import scipy.ndimage as ndimage
 
-from functools import reduce
 from networkx.algorithms.components.connected import connected_components
 from tqdm import tqdm
 
@@ -205,8 +204,6 @@ class SpatialFitting(object):
         self.min_p = self._w_start - self.w_2
 
     def _mask_out_beyond_pixel_range(self) -> None:
-        import itertools
-
         locations = list(itertools.product(
             range(self.pixel_range['y'][0], self.pixel_range['y'][1]),
             range(self.pixel_range['x'][0], self.pixel_range['x'][1])))
