@@ -2412,12 +2412,6 @@ class SpatialFitting(object):
             n_centroids=dct_refit['n_centroids'],
         )
 
-        # TODO: is indices_refit_all needed? What is its purpose?
-        indices_refit_all_individual = list(dct_refit['indices_refit'].values())
-        dct_refit['indices_refit_all'] = (reduce(np.intersect1d, indices_refit_all_individual)
-                                          if len(indices_refit_all_individual) > 1 else indices_refit_all_individual[0])
-
-        #  TODO: first try to fit with indices_refit_all if present
         for key, indices_neighbors in dct_refit['indices_refit'].items():
             dictResults, refit = self._try_refit_with_individual_neighbors(
                 index=index,
