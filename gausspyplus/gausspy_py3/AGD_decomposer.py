@@ -266,7 +266,7 @@ def AGD(vel: np.ndarray,
                 # Median filter on 2x effective scale to remove poor subtractions of strong components
                 intermediate_model = multi_component_gaussian_model(vel, *params_fit_phase1).ravel()  # Explicit final (narrow) model
                 median_window = 2. * 10**((np.log10(alpha1) + 2.187) / 3.859)
-                residuals = median_filter(data - intermediate_model, np.int(median_window))
+                residuals = median_filter(data - intermediate_model, np.int64(median_window))
             else:
                 residuals = data
             # Finished producing residual signal # ---------------------------
