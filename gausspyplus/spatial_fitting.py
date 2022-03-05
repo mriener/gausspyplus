@@ -2343,13 +2343,8 @@ class SpatialFitting(object):
             self.locations_refit = self.locations_all.copy()
             return
 
-        indices_remove = np.array([])
-
-        for i in self.indices_all:
-            if np.count_nonzero(self.mask_refitted[self.neighbor_indices_all[i]]) == 0:
-                indices_remove = np.append(indices_remove, i).astype('int')
-
-        self.indices_refit = np.delete(self.indices_all.copy(), indices_remove)
+        self.indices_refit = np.array([i for i in self.indices_all
+                                       if np.count_nonzero(self.mask_refitted[self.neighbor_indices_all[i]])], dtype='int')
         self.locations_refit = np.take(np.array(self.location), self.indices_refit, axis=0)
 
     def _check_continuity(self) -> None:
