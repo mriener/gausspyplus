@@ -2301,33 +2301,15 @@ class SpatialFitting(object):
                             for i, key in enumerate(keys_for_refit, start=1)},
         }
 
-    def _select_neighbors_to_use_for_refit(self, dct: Dict) -> Dict:
-        """Select only neighboring fit solutions for the refit that show the right number of centroid positions within the determined interval."""
-        mask = dct['weights'] >= self.w_min
-        indices = dct['indices_neighbors'][mask]
-        dct['indices_refit'] = {}
-
-        for key in dct['means_interval']:
-            interval = dct['means_interval'][key]
-            ncomps_expected = dct['n_centroids'][key]
-
-            indices_refit = []
-            for idx in indices:
-                means = self.decomposition['means_fit'][idx]
-                ncomps = sum(interval[0] < x < interval[1] for x in means)
-                if ncomps == ncomps_expected:
-                    indices_refit.append(idx)
-
-            dct['indices_refit'][key] = indices_refit
-
-        indices_refit_all_individual = list(dct['indices_refit'].values())
-        if len(indices_refit_all_individual) > 1:
-            indices_refit_all = reduce(np.intersect1d, indices_refit_all_individual)
-            dct['indices_refit_all'] = indices_refit_all
-        else:
-            dct['indices_refit_all'] = indices_refit_all_individual[0]
-
-        return dct
+    def _select_neighbors_to_use_for_refit(self,
+                                           indices: np.ndarray,
+                                           means_interval: Dict,
+                                           n_centroids: Dict) -> Dict:
+        """Select neighboring fit solutions with right number of centroid positions as refit solutions."""
+        return {key: [idx for idx in indices
+                      if n_centroids[key] == sum(interval[0] < x < interval[1]
+                                                 for x in self.decomposition['means_fit'][idx])]
+                for key, interval in means_interval.items()}
 
     def _determine_all_neighbors(self) -> None:
         """Determine the indices of all valid neighbors."""
@@ -2423,14 +2405,20 @@ class SpatialFitting(object):
         if len(dct_refit['means_interval'].keys()) == 0:
             return [index, None, indices_neighbors, refit]
 
-        dct_refit = self._select_neighbors_to_use_for_refit(dct_refit)
+        dct_refit['indices_refit'] = self._select_neighbors_to_use_for_refit(
+            # TODO: Check if dct_refit['weights'] >= self.w_min condition was already checked earlier
+            indices=dct_refit['indices_neighbors'][dct_refit['weights'] >= self.w_min],
+            means_interval=dct_refit['means_interval'],
+            n_centroids=dct_refit['n_centroids'],
+        )
+
+        # TODO: is indices_refit_all needed? What is its purpose?
+        indices_refit_all_individual = list(dct_refit['indices_refit'].values())
+        dct_refit['indices_refit_all'] = (reduce(np.intersect1d, indices_refit_all_individual)
+                                          if len(indices_refit_all_individual) > 1 else indices_refit_all_individual[0])
 
         #  TODO: first try to fit with indices_refit_all if present
-        for key in dct_refit['indices_refit']:
-            indices_neighbors = np.array(dct_refit['indices_refit'][key]).astype('int')
-            interval = dct_refit['means_interval'][key]
-            n_centroids = dct_refit['n_centroids'][key]
-
+        for key, indices_neighbors in dct_refit['indices_refit'].items():
             dictResults, refit = self._try_refit_with_individual_neighbors(
                 index=index,
                 spectrum=spectrum,
@@ -2439,8 +2427,8 @@ class SpatialFitting(object):
                 signal_ranges=signal_ranges,
                 noise_spike_ranges=noise_spike_ranges,
                 signal_mask=signal_mask,
-                interval=interval,
-                n_centroids=n_centroids,
+                interval=dct_refit['means_interval'][key],
+                n_centroids=dct_refit['n_centroids'][key],
                 dct_new_fit=dictResults
             )
 
