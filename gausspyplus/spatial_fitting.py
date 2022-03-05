@@ -2381,19 +2381,13 @@ class SpatialFitting(object):
 
         """
         refit = False
-        loc = self.locations_refit[i]
-        spectrum = self.data[index]
-        rms = self.errors[index][0]
-        signal_ranges = self.signalRanges[index]
-        noise_spike_ranges = self.noiseSpikeRanges[index]
-        signal_mask = self.signal_mask[index]
-
-        dictResults, dictResults_best = (None for _ in range(2))
+        dictResults, dictResults_best = None, None
         #  TODO: check if this is correct:
         indices_neighbors = []
-
-        dictComps = self._check_continuity_centroids(index, loc)
-        dct_refit = self._check_for_required_components(index, dictComps)
+        dct_refit = self._check_for_required_components(
+            idx=index,
+            dct=self._check_continuity_centroids(idx=index, loc=self.locations_refit[i])
+        )
 
         if self._finalize:
             return [index, dct_refit['means_interval'], dct_refit['n_centroids']]
@@ -2411,12 +2405,12 @@ class SpatialFitting(object):
         for key, indices_neighbors in dct_refit['indices_refit'].items():
             dictResults, refit = self._try_refit_with_individual_neighbors(
                 index=index,
-                spectrum=spectrum,
-                rms=rms,
+                spectrum=self.data[index],
+                rms=self.errors[index][0],
                 indices_neighbors=indices_neighbors,
-                signal_ranges=signal_ranges,
-                noise_spike_ranges=noise_spike_ranges,
-                signal_mask=signal_mask,
+                signal_ranges=self.signalRanges[index],
+                noise_spike_ranges=self.noiseSpikeRanges[index],
+                signal_mask=self.signal_mask[index],
                 interval=dct_refit['means_interval'][key],
                 n_centroids=dct_refit['n_centroids'][key],
                 dct_new_fit=dictResults
