@@ -1668,8 +1668,8 @@ class SpatialFitting(object):
 
         flag_old, flag_new = (2 for _ in range(2))
 
-        n_centroids_old = self._number_of_values_in_interval(lst=means_old, interval=interval)
-        n_centroids_new = self._number_of_values_in_interval(lst=means_new, interval=interval)
+        n_centroids_old = sum(interval[0] < x < interval[1] for x in means_old)
+        n_centroids_new = sum(interval[0] < x < interval[1] for x in means_new)
 
         #  reward new fit if it has the required number of centroid positions within 'interval'
         if n_centroids_new == n_centroids:
@@ -2291,7 +2291,7 @@ class SpatialFitting(object):
         """Check the presence of the required centroid positions within the determined interval."""
         means = self.decomposition['means_fit'][idx]
         keys_for_refit = [key for key, interval in dct['means_interval'].items()
-                          if self._number_of_values_in_interval(lst=means, interval=interval) != dct['n_centroids'][key]]
+                          if sum(interval[0] < x < interval[1] for x in means) != dct['n_centroids'][key]]
         return {
             'indices_neighbors': dct['indices_neighbors'],
             'weights': dct['weights'],
@@ -2300,14 +2300,6 @@ class SpatialFitting(object):
             'n_centroids': {str(i): dct['n_centroids'][key]
                             for i, key in enumerate(keys_for_refit, start=1)},
         }
-
-    def _number_of_values_in_interval(self, lst: List, interval: Tuple) -> int:
-        """Return number of points in list that are located within the interval."""
-        # TODO: check if interval is a tuple or a list
-        lower, upper = interval
-        array = np.array(lst)
-        mask = np.logical_and(array > lower, array < upper)
-        return np.count_nonzero(mask)
 
     def _select_neighbors_to_use_for_refit(self, dct: Dict) -> Dict:
         """Select only neighboring fit solutions for the refit that show the right number of centroid positions within the determined interval."""
@@ -2322,7 +2314,7 @@ class SpatialFitting(object):
             indices_refit = []
             for idx in indices:
                 means = self.decomposition['means_fit'][idx]
-                ncomps = self._number_of_values_in_interval(lst=means, interval=interval)
+                ncomps = sum(interval[0] < x < interval[1] for x in means)
                 if ncomps == ncomps_expected:
                     indices_refit.append(idx)
 
