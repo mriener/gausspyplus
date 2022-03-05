@@ -2174,19 +2174,6 @@ class SpatialFitting(object):
         weights_choices = [0 if choice == 0 else sum(weights[n_centroids == choice]) for choice in choices]
         return choices[np.argmax(weights_choices)]
 
-        if np.max(counts_choices) > 0.5 * n_neighbors:
-            idx = np.argmax(counts_choices)
-            return choices[idx]
-        #
-        #  include additional neighbors that are two pixels away
-        #
-    def _add_key_to_dict(self, dct: Dict, key: str = 'means_interval', val: Optional[Any] = None) -> Dict:
-        """Add a new key number & value to an existing dictionary key."""
-        # TODO: make Any type hint more specific
-        key_new = str(len(dct[key]) + 1)
-        dct[key][key_new] = val
-        return dct
-
     def _combine_directions(self, dct: Dict) -> Dict:
         """Combine directions and build master dictionary."""
         indices_neighbors = np.concatenate(
@@ -2298,23 +2285,21 @@ class SpatialFitting(object):
                 'means_interval': means_interval,
             }
 
-        dct = self._combine_directions(dct)
-        return dct
+        return self._combine_directions(dct)
 
     def _check_for_required_components(self, idx: int, dct: Dict) -> Dict:
         """Check the presence of the required centroid positions within the determined interval."""
-        dct_refit = {key: {} for key in ['n_centroids', 'means_interval']}
-        for key in ['indices_neighbors', 'weights']:
-            dct_refit[key] = dct[key]
         means = self.decomposition['means_fit'][idx]
-        for key in dct['means_interval']:
-            ncomps_expected = dct['n_centroids'][key]
-            interval = dct['means_interval'][key]
-            ncomps = self._number_of_values_in_interval(lst=means, interval=interval)
-            if ncomps != ncomps_expected:
-                dct_refit = self._add_key_to_dict(dct=dct_refit, key='n_centroids', val=ncomps_expected)
-                dct_refit = self._add_key_to_dict(dct=dct_refit, key='means_interval', val=interval)
-        return dct_refit
+        keys_for_refit = [key for key, interval in dct['means_interval'].items()
+                          if self._number_of_values_in_interval(lst=means, interval=interval) != dct['n_centroids'][key]]
+        return {
+            'indices_neighbors': dct['indices_neighbors'],
+            'weights': dct['weights'],
+            'means_interval': {str(i): dct['means_interval'][key]
+                               for i, key in enumerate(keys_for_refit, start=1)},
+            'n_centroids': {str(i): dct['n_centroids'][key]
+                            for i, key in enumerate(keys_for_refit, start=1)},
+        }
 
     def _number_of_values_in_interval(self, lst: List, interval: Tuple) -> int:
         """Return number of points in list that are located within the interval."""
