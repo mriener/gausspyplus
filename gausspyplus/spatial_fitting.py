@@ -17,7 +17,7 @@ from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
 from gausspyplus.utils.determine_intervals import merge_overlapping_intervals
 from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
-from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
+from gausspyplus.utils.grouping_functions import to_graph, get_neighbors, weighted_median, number_of_component_jumps
 from gausspyplus.utils.noise_estimation import mask_channels
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 
@@ -436,59 +436,6 @@ class SpatialFitting(object):
 
         return mask_broad
 
-    def _weighted_median(self, data):
-        # TODO: add type hints
-        """Adapted from: https://gist.github.com/tinybike/d9ff1dad515b66cc0d87"""
-        w_1 = 1
-        w_2 = w_1 / np.sqrt(2)
-        weights = np.array([w_2, w_1, w_2, w_1, w_1, w_2, w_1, w_2])
-        central_value = data[4]
-        #  Skip if central spectrum was masked out.
-        if np.isnan(central_value):
-            return 0
-        data = np.delete(data, 4)
-        #  Remove all neighbors that are NaN.
-        mask = ~np.isnan(data)
-        data = data[mask]
-        weights = weights[mask]
-        #  Skip if there are no valid available neighbors.
-        if data.size == 0:
-            return 0
-
-        s_data, s_weights = map(np.array, zip(*sorted(zip(data, weights))))
-        midpoint = 0.5 * sum(s_weights)
-        if any(weights > midpoint):
-            return (data[weights == np.max(weights)])[0]
-        cs_weights = np.cumsum(s_weights)
-        idx = np.where(cs_weights <= midpoint)[0][-1]
-        return np.mean(s_data[idx:idx+2]) if cs_weights[idx] == midpoint else s_data[idx + 1]
-
-    def _number_of_component_jumps(self, values: np.ndarray) -> int:
-        """Determine the number of component jumps towards neighboring fits.
-
-        A component jump occurs if the number of components is different by more than 'self.max_jump_comps' components.
-
-        Parameters
-        ----------
-        values : Array of the number of fit components for a spectrum and its 8 immediate neighbors.
-
-        Returns
-        -------
-        Number of component jumps.
-
-        """
-        central_value = values[4]
-        if np.isnan(central_value):
-            return 0
-        values = np.delete(values, 4)
-        counter = 0
-        for value in values:
-            if np.isnan(value):
-                continue
-            if np.abs(central_value - value) > self.max_jump_comps:
-                counter += 1
-        return counter
-
     def _define_mask_neighbor_ncomps(self, flag: bool) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
         """Create a boolean mask indicating the location of component jumps.
 
@@ -519,7 +466,7 @@ class SpatialFitting(object):
 
         ncomps_wmedian = ndimage.generic_filter(
             input=ncomps_2d,
-            function=self._weighted_median,
+            function=weighted_median,
             footprint=footprint,
             mode='constant',
             cval=np.nan
@@ -528,10 +475,11 @@ class SpatialFitting(object):
 
         ncomps_jumps = ndimage.generic_filter(
             input=ncomps_2d,
-            function=self._number_of_component_jumps,
+            function=number_of_component_jumps,
             footprint=footprint,
             mode='reflect',
-            cval=np.nan
+            cval=np.nan,
+            extra_arguments=(self.max_jump_comps,)
         ).flatten()
         mask_neighbor[~self.nanMask] = ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
 
@@ -1613,7 +1561,7 @@ class SpatialFitting(object):
         ncomps[mask_indices] = self.ncomps[indices]
         ncomps_central = self._get_dictionary_value(key='N_components', index=index, dct_new_fit=dct_new_fit)
         ncomps = np.insert(ncomps, 4, ncomps_central)
-        njumps_new = self._number_of_component_jumps(ncomps)
+        njumps_new = number_of_component_jumps(ncomps, self.max_jump_comps)
 
         ncomps_wmedian = self.ncomps_wmedian[index]
         ndiff_old = abs(ncomps_wmedian - self.ncomps[index])
