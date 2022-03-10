@@ -375,66 +375,37 @@ class SpatialFitting(object):
             return central_value
         return 0
 
-    def _define_mask_broad(self, flag: bool) -> np.ndarray:
-        """Create a boolean mask indicating the location of broad fit components.
+    def _check_individual_spectrum_for_broad_fit_component(self, fwhms):
+        # In case there is only one fit parameter there are no other components to compare to
+        if fwhms is None or len(fwhms) < 2:
+            return False
+        # In case of multiple fit parameters select the one with the largest FWHM value and check whether it
+        #  exceeds the second largest FWHM value in that spectrum by a factor of 'self.fwhm_factor'; also check if
+        #  the absolute difference of their values exceeds 'self.fwhm_separation' to avoid narrow components.
+        fwhms = sorted(fwhms)
+        return (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (fwhms[-1] - fwhms[-2]) > self.fwhm_separation
 
-        If 'self.flag_broad=False' no locations are masked.
+    def _define_mask_broad(self) -> np.ndarray:
+        """Return a boolean mask indicating the location of broad fit components."""
+        is_broad_compared_to_other_fit_components_in_spectrum = np.array(
+            [self._check_individual_spectrum_for_broad_fit_component(fwhms)
+             for fwhms in self.decomposition['fwhms_fit']]
+        )
 
-        Parameters
-        ----------
-        flag : User-defined 'self.flag_broad' parameter.
-
-        Returns
-        -------
-        mask_broad : numpy.ndarray
-
-        """
-        if not flag:
-            return np.zeros(self.length).astype('bool')
-
-        broad_1d = np.empty(self.length)
-        broad_1d.fill(np.nan)
-        mask_broad = np.zeros(self.length)
-
-        #  check if the fit component with the largest FWHM value of a spectrum satisfies the criteria to be flagged as
-        #  a broad component by comparing it to the remaining components of the spectrum.
-        for i, fwhms in enumerate(self.decomposition['fwhms_fit']):
-            if fwhms is None:
-                continue
-            if len(fwhms) == 0:
-                continue
-            #  in case there is only one fit parameter there are no other components to compare; we need to compare it
-            #  with the components of the immediate neighbors
-            broad_1d[i] = max(fwhms)
-            if len(fwhms) == 1:
-                continue
-            #  in case of multiple fit parameters select the one with the largest FWHM value and check whether it
-            #  exceeds the second largest FWHM value in that spectrum by a factor of 'self.fwhm_factor'; also check if
-            #  the absolute difference of their values exceeds 'self.fwhm_separation' to avoid narrow components.
-            fwhms = sorted(fwhms)
-            if (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (fwhms[-1] - fwhms[-2]) > self.fwhm_separation:
-                mask_broad[i] = 1
-
-        #  check if the fit component with the largest FWHM value of a spectrum satisfies the criteria to be flagged as
+        # Check if the fit component with the largest FWHM value of a spectrum satisfies the criteria to be flagged as
         #  a broad component by comparing it to the largest FWHM values of its 8 immediate neighbors.
-
-        broad_2d = broad_1d.astype('float').reshape(self.shape)
-
-        footprint = np.ones((3, 3))
-
-        broad_fwhm_values = ndimage.generic_filter(
-            input=broad_2d,
+        #  The input 2D array consists of the maximum FWHM fit component per spectrum.
+        is_broad_compared_to_fit_components_of_neighbors = ndimage.generic_filter(
+            input=np.array([np.nan if (fwhms is None or len(fwhms) == 0) else max(fwhms)
+                            for fwhms in self.decomposition['fwhms_fit']]).reshape(self.shape),
             function=self._broad_components,
-            footprint=footprint,
+            footprint=np.ones((3, 3)),
             mode='constant',
             cval=np.nan
-        ).flatten()
-        # mask_broad = mask_broad.astype('bool')
-        mask_broad += broad_fwhm_values  #.astype('bool')
-        mask_broad[self.nanMask] = 0
-        mask_broad = mask_broad.astype('bool')
-
-        return mask_broad
+        ).flatten().astype("bool")
+        # TODO: is nanMask masking needed if _mask_out_beyond_pixel_range is set?
+        # is_broad_compared_to_other_fit_components_in_spectrum[self.nanMask] = False
+        return is_broad_compared_to_other_fit_components_in_spectrum | is_broad_compared_to_fit_components_of_neighbors
 
     def _define_mask_neighbor_ncomps(self, flag: bool) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
         """Create a boolean mask indicating the location of component jumps.
@@ -494,7 +465,7 @@ class SpatialFitting(object):
         self.mask_neg_res_peak = self._define_mask('N_neg_res_peak', 0, self.flag_neg_res_peak)
         self.mask_rchi2_flagged = self._define_mask('best_fit_rchi2', self.rchi2_limit, self.flag_rchi2)
         self.mask_residual = self._define_mask_residual('pvalue', self.min_pvalue, self.flag_residual)
-        self.mask_broad_flagged = self._define_mask_broad(self.flag_broad)
+        self.mask_broad_flagged = self._define_mask_broad() if self.flag_broad else np.zeros(self.length, dtype=bool)
         self.mask_broad_limit, self.n_broad = self._define_mask_broad_limit(self.flag_broad)
         self.mask_ncomps, self.ncomps_wmedian, self.ncomps_jumps, self.ncomps =\
             self._define_mask_neighbor_ncomps(self.flag_ncomps)
@@ -563,7 +534,7 @@ class SpatialFitting(object):
         #  determine new masks for spectra that do not satisfy the user-defined criteria for broad components and
         #  reduced chi-square values; this is done because users can opt to use different values for flagging and
         #  refitting for these two criteria
-        self.mask_broad_refit = self._define_mask_broad(flag=self.refit_broad)
+        self.mask_broad_refit = self._define_mask_broad() if self.refit_broad else np.zeros(self.length)
         self.mask_rchi2_refit = self._define_mask(
             key='best_fit_rchi2',
             limit=self.rchi2_limit_refit,
