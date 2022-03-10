@@ -304,35 +304,13 @@ class SpatialFitting(object):
         array[self.nanMask] = limit
         return array < limit
 
-    def _define_mask_broad_limit(self, flag: bool) -> Union[np.ndarray, int]:
-        """Create boolean mask identifying the location of broad fit components.
-
-        The mask is 'True' at the location of spectra that contain fit components exceeding the 'max_fwhm' value.
-
-        This mask is only created if 'flag=True'.
-
-        Parameters
-        ----------
-        flag : User-defined 'flag_broad' parameter.
-
-        Returns
-        -------
-        mask : numpy.ndarray
-
-        """
-        # TODO: n_broad seems to be incorrect -> shouldn't that be a count?
-        n_broad = np.zeros(self.length)
-
-        if not flag:
-            return n_broad.astype('bool'), n_broad
-
-        for i, fwhms in enumerate(self.decomposition['fwhms_fit']):
-            if fwhms is None:
-                continue
-            n_broad[i] = np.count_nonzero(np.array(fwhms) > self.max_fwhm)
-        n_broad[self.nanMask] = 0
-        mask = n_broad > 0
-        return mask, n_broad
+    def _define_mask_broad_limit(self) -> np.ndarray:
+        # TODO: Can _define_mask_broad_limit be combined with _broad_components?
+        """Return boolean mask identifying the location of broad fit components."""
+        return np.array(
+            [False if (fwhms is None or len(fwhms) == 0) else np.any(np.array(fwhms) > self.max_fwhm)
+             for fwhms in self.decomposition['fwhms_fit']]
+        )
 
     def _broad_components(self, values: np.ndarray) -> Union[float, int]:
         """Check for the presence of broad fit components.
@@ -466,7 +444,7 @@ class SpatialFitting(object):
         self.mask_rchi2_flagged = self._define_mask('best_fit_rchi2', self.rchi2_limit, self.flag_rchi2)
         self.mask_residual = self._define_mask_residual('pvalue', self.min_pvalue, self.flag_residual)
         self.mask_broad_flagged = self._define_mask_broad() if self.flag_broad else np.zeros(self.length, dtype=bool)
-        self.mask_broad_limit, self.n_broad = self._define_mask_broad_limit(self.flag_broad)
+        self.mask_broad_limit = self._define_mask_broad_limit() if self.flag_broad else np.zeros(self.length, dtype=bool)
         self.mask_ncomps, self.ncomps_wmedian, self.ncomps_jumps, self.ncomps =\
             self._define_mask_neighbor_ncomps(self.flag_ncomps)
 
