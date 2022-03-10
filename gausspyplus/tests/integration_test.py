@@ -54,8 +54,8 @@ def test_decompose_cube_gausspy():
     #     sum(sum(lst) for lst in data_decomposed["fwhms_fit_err"] if lst is not None)
     # )
     assert sum(ncomps for ncomps in data_decomposed["N_components"] if ncomps is not None) == 181
-    assert np.allclose(sum(sum(lst) for lst in data_decomposed["fwhms_fit"] if lst is not None), 2821.864673621699)
-    assert np.allclose(sum(sum(lst) for lst in data_decomposed["fwhms_fit_err"] if lst is not None), 302.18359100171415)
+    assert np.allclose(sum(sum(lst) for lst in data_decomposed["fwhms_fit"] if lst is not None), 2821.8647475612247)
+    assert np.allclose(sum(sum(lst) for lst in data_decomposed["fwhms_fit_err"] if lst is not None), 302.183306677499)
 
     decompose.improve_fitting = True
     decompose.suffix = "_g+"
@@ -75,14 +75,14 @@ def test_decompose_cube_gausspy():
     #     sum(sum(lst) for lst in data_decomposed_gplus["quality_control"] if lst is not None),
     # )
     assert sum(ncomps for ncomps in data_decomposed_gplus["N_components"] if ncomps is not None) == 272
-    assert np.allclose(sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit"] if lst is not None), 4221.252957883912)
-    assert np.allclose(sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit_err"] if lst is not None), 571.0355398551005)
-    assert np.allclose(sum(x for x in data_decomposed_gplus["pvalue"] if x is not None), 13.073002217152819)
-    assert np.allclose(sum(x for x in data_decomposed_gplus["best_fit_rchi2"] if x is not None), 116.98654117147393)
-    assert np.allclose(sum(x for x in data_decomposed_gplus["best_fit_aicc"] if x is not None), -50606.051881717496)
-    assert sum(sum(lst) for lst in data_decomposed_gplus["log_gplus"] if lst is not None) == 104
-    assert sum(len(x) for x in data_decomposed_gplus["log_gplus"] if x is not None and bool(x)) == 69
-    assert sum(sum(lst) for lst in data_decomposed_gplus["quality_control"] if lst is not None) == 158
+    assert np.allclose(sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit"] if lst is not None), 4210.279681986788)
+    assert np.allclose(sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit_err"] if lst is not None), 572.5082893844038)
+    assert np.allclose(sum(x for x in data_decomposed_gplus["pvalue"] if x is not None), 14.174536904795435)
+    assert np.allclose(sum(x for x in data_decomposed_gplus["best_fit_rchi2"] if x is not None), 117.25885765551081)
+    assert np.allclose(sum(x for x in data_decomposed_gplus["best_fit_aicc"] if x is not None), -46522.959923033035)
+    assert sum(sum(lst) for lst in data_decomposed_gplus["log_gplus"] if lst is not None) == 107
+    assert sum(len(x) for x in data_decomposed_gplus["log_gplus"] if x is not None and bool(x)) == 70
+    assert sum(sum(lst) for lst in data_decomposed_gplus["quality_control"] if lst is not None) == 159
 
     # TODO: test a new decomposition round with n_max_comps
 
@@ -121,10 +121,10 @@ def test_spatial_fitting_phase_1():
     #     sum(data_spatial_fitted_phase_1["refit_iteration"])
     # )
     assert sp.refitting_iteration == 2
-    assert sum(ncomps for ncomps in data_spatial_fitted_phase_1["N_components"] if ncomps is not None) == 269
-    assert np.allclose(sum(sum(lst) for lst in data_spatial_fitted_phase_1["fwhms_fit"] if lst is not None), 4103.769462353627)
-    assert np.allclose(sum(sum(lst) for lst in data_spatial_fitted_phase_1["fwhms_fit_err"] if lst is not None), 533.7360162588076)
-    assert sum(data_spatial_fitted_phase_1["refit_iteration"]) == 33
+    assert sum(ncomps for ncomps in data_spatial_fitted_phase_1["N_components"] if ncomps is not None) == 271
+    assert np.allclose(sum(sum(lst) for lst in data_spatial_fitted_phase_1["fwhms_fit"] if lst is not None), 4123.392324363007)
+    assert np.allclose(sum(sum(lst) for lst in data_spatial_fitted_phase_1["fwhms_fit_err"] if lst is not None), 547.6410467442872)
+    assert sum(data_spatial_fitted_phase_1["refit_iteration"]) == 37
 
 
 def test_spatial_fitting_phase_2():
@@ -155,11 +155,11 @@ def test_spatial_fitting_phase_2():
     #     sum(data_spatial_fitted_phase_2["refit_iteration"])
     # )
     assert sp.refitting_iteration == 7
-    assert sum(ncomps for ncomps in data_spatial_fitted_phase_2["N_components"] if ncomps is not None) == 269
+    assert sum(ncomps for ncomps in data_spatial_fitted_phase_2["N_components"] if ncomps is not None) == 270
     assert np.allclose(sum(sum(lst) for lst in data_spatial_fitted_phase_2["fwhms_fit"] if lst is not None),
-                       4109.017925989786)
+                       4108.724871090472)
     assert np.allclose(sum(sum(lst) for lst in data_spatial_fitted_phase_2["fwhms_fit_err"] if lst is not None),
-                       535.1897001846693)
+                       536.7684725772986)
     assert sum(data_spatial_fitted_phase_2["refit_iteration"]) == 1
 
 
