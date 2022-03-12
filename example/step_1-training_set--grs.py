@@ -1,10 +1,8 @@
-# @Author: riener
-# @Date:   2019-04-01T20:20:22+02:00
-# @Filename: training_set--grs.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:28:25+02:00
-
 import os
+import sys
+from pathlib import Path
+ROOT = Path(os.path.realpath("__file__")).parents[1]
+sys.path.append(str(ROOT))
 
 from gausspyplus.training_set import GaussPyTrainingSet
 from gausspyplus.plotting import plot_spectra
@@ -22,7 +20,7 @@ def main():
     #  Directory to which all files produced by GaussPy+ will get saved.
     training.dirpath_gpy = 'decomposition_grs'
     #  Number of spectra included in the training set. We recommend to have at least 250 spectra for a good training set.
-    training.n_spectra = 100
+    training.n_spectra = 10
     #  (Optional) The initial seed that is used to create pseudorandom numbers. Change this value in case the spectra chosen for the training set are not ideal.
     training.random_seed = 111
     #  (Optional) We set the upper limit for the reduced chi-square value to a lower number to only include good fits in the training sample
@@ -33,7 +31,7 @@ def main():
     training.filename_out = \
         'grs-test_field-training_set_{}_spectra.pickle'.format(training.n_spectra)
 
-    training.decompose_spectra()  # Create the training set.
+    # training.decompose_spectra()  # Create the training set.
 
     #  (Optional) Plot the fitting results of the training set.
 
