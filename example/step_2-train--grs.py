@@ -1,11 +1,8 @@
-# @Author: riener
-# @Date:   2019-04-02T16:40:08+02:00
-# @Filename: train--grs.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:27:00+02:00
-
-
 import os
+import sys
+from pathlib import Path
+ROOT = Path(os.path.realpath("__file__")).parents[1]
+sys.path.append(str(ROOT))
 
 from gausspyplus.training import GaussPyTraining
 
@@ -21,7 +18,7 @@ def main():
     #  Filepath to the training set.
     train.path_to_training_set = os.path.join(
         train.dirpath_gpy, 'gpy_training',
-        'grs-test_field-training_set_100_spectra.pickle')
+        'grs-test_field-training_set_10_spectra.pickle')
     #  We select the two-phase-decomposition that uses two smoothing parameters.
     train.two_phase_decomposition = True
     #  Initial value for the first smoothing parameter.
