@@ -118,7 +118,10 @@ class GaussPyDecompose:
     def nan_mask(self):
         return self.pickled_data['nan_mask'] if 'nan_mask' in self.pickled_data.keys() else None
 
-    @functools.cached_property
+    # TODO: Problem with tests: if improve_fitting is changed from False to True cached_property prevents updating the
+    #  dictionary
+    # @functools.cached_property
+    @property
     def fitting(self):
         return {
             'improve_fitting': self.improve_fitting,
