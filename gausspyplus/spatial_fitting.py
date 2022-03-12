@@ -17,7 +17,8 @@ from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
 from gausspyplus.utils.determine_intervals import merge_overlapping_intervals
 from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
-from gausspyplus.utils.grouping_functions import to_graph, get_neighbors, weighted_median, number_of_component_jumps
+from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
+from gausspyplus.utils.ndimage_functions import weighted_median, number_of_component_jumps, broad_components
 from gausspyplus.utils.noise_estimation import mask_channels
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 
@@ -312,47 +313,6 @@ class SpatialFitting(object):
              for fwhms in self.decomposition['fwhms_fit']]
         )
 
-    def _broad_components(self, values: np.ndarray) -> Union[float, int]:
-        """Check for the presence of broad fit components.
-
-        This check is performed by comparing the broadest fit components of a spectrum with its 8 immediate neighbors.
-
-        A fit component is defined as broad if its FWHM value exceeds the FWHM value of the largest fit components of
-        more than 'self.broad_neighbor_fraction' of its neighbors by at least a factor of 'self.fwhm_factor'.
-
-        In addition we impose that the minimum difference between the compared FWHM values has to exceed
-        'self.fwhm_separation' to avoid flagging narrow components.
-
-        Parameters
-        ----------
-        values : Array of FWHM values of the broadest fit components for a spectrum and its 8 immediate neighbors.
-
-        Returns
-        -------
-        FWHM value in case of a broad fit component, 0 otherwise.
-
-        """
-        central_value = values[4]
-        #  Skip if central spectrum was masked out.
-        if np.isnan(central_value):
-            return 0
-        values = np.delete(values, 4)
-        #  Remove all neighbors that are NaN.
-        values = values[~np.isnan(values)]
-        #  Skip if there are no valid available neighbors.
-        if values.size == 0:
-            return 0
-        #  Compare the largest FWHM value of the central spectrum with the largest FWHM values of its neighbors.
-        counter = 0
-        for value in values:
-            if np.isnan(value):
-                continue
-            if central_value > value * self.fwhm_factor and (central_value - value) > self.fwhm_separation:
-                counter += 1
-        if counter > values.size * self.broad_neighbor_fraction:
-            return central_value
-        return 0
-
     def _check_individual_spectrum_for_broad_fit_component(self, fwhms):
         # In case there is only one fit parameter there are no other components to compare to
         if fwhms is None or len(fwhms) < 2:
@@ -376,10 +336,11 @@ class SpatialFitting(object):
         is_broad_compared_to_fit_components_of_neighbors = ndimage.generic_filter(
             input=np.array([np.nan if (fwhms is None or len(fwhms) == 0) else max(fwhms)
                             for fwhms in self.decomposition['fwhms_fit']]).reshape(self.shape),
-            function=self._broad_components,
+            function=broad_components,
             footprint=np.ones((3, 3)),
             mode='constant',
-            cval=np.nan
+            cval=np.nan,
+            extra_arguments=(self.fwhm_factor, self.fwhm_separation, self.broad_neighbor_fraction)
         ).flatten().astype("bool")
         # TODO: is nanMask masking needed if _mask_out_beyond_pixel_range is set?
         # is_broad_compared_to_other_fit_components_in_spectrum[self.nanMask] = False
