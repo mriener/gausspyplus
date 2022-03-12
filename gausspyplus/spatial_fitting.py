@@ -633,40 +633,31 @@ class SpatialFitting(object):
 
         """
         all_neighbors = False
-        indices_neighbors_all = np.array([])
-        for neighbor in neighbors:
-            indices_neighbors_all = np.append(
-                indices_neighbors_all, np.ravel_multi_index(neighbor, self.shape)).astype('int')
-        indices_neighbors = indices_neighbors_all.copy()
+        indices_neighbors_all = np.array([np.ravel_multi_index(neighbor, self.shape).astype("int")
+                                          for neighbor in neighbors])
 
-        #  check if neighboring pixels were selected for refitting, are masked out, or contain no fits and thus cannot be used
+        # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
+        indices_bad = self.indices_flagged if self.exclude_flagged else self.indices_refit
 
-        #  whether to exclude all flagged neighboring spectra as well that
-        #  were not selected for refitting
-        if self.exclude_flagged:
-            indices_bad = self.indices_flagged
-        else:
-            indices_bad = self.indices_refit
-
-        for idx in indices_neighbors:
-            if (idx in indices_bad) or (idx in self.nanIndices) or (self.decomposition['N_components'][idx] == 0):
-                indices_neighbors = np.delete(indices_neighbors, np.where(indices_neighbors == idx))
+        # Use only neighboring spectra for refitting that are not masked out and have fit components
+        indices_neighbors = np.array([idx for idx in indices_neighbors_all
+                                      if (idx not in indices_bad
+                                          and idx not in self.nanIndices
+                                          and self.decomposition['N_components'][idx] > 0)])
 
         if indices_neighbors.size > 1:
             #  sort neighboring fit solutions according to lowest value of reduced chi-square
             #  TODO: change this so that this gets sorted according to the lowest difference of the reduced chi-square
             #   values to the ideal value of 1 to prevent using fit solutions that 'overfit' the data
-            sort = np.argsort(np.array(self.decomposition['best_fit_rchi2'])[indices_neighbors])
+            sort = np.argsort(np.array(self.decomposition["best_fit_rchi2"])[indices_neighbors])
             indices_neighbors = indices_neighbors[sort]
 
         elif (indices_neighbors.size == 0) or include_flagged:
             #  in case there are no unflagged neighbors, use all flagged neighbors instead
             all_neighbors = True
-            indices_neighbors = indices_neighbors_all.copy()
-            indices_neighbors = np.array([
-                idx for idx in indices_neighbors
-                if (idx not in self.nanIndices) and (self.decomposition['N_components'][idx] != 0)
-            ])
+            indices_neighbors = np.array([idx for idx in indices_neighbors_all
+                                          if (idx not in self.nanIndices)
+                                          and (self.decomposition["N_components"][idx] != 0)])
             sort = np.argsort(self.count_flags[indices_neighbors])
             indices_neighbors = indices_neighbors[sort]
 
