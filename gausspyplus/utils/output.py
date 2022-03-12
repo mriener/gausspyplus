@@ -37,6 +37,7 @@ def check_if_value_is_none(condition, value, varname_condition, varname_value,
 
 def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2,
                                  additional_text=''):
+    # TODO: refactor check_if_all_values_are_none with f strings to avoid repeated variable name
     """Raise error message if both values are 'None'.
 
     Parameters

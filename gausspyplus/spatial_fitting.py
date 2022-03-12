@@ -443,6 +443,7 @@ class SpatialFitting(object):
     def _define_mask_refit(self) -> None:
         """Select spectra to refit in phase 1 of the spatially coherent refitting."""
         mask_refit = np.zeros(self.length).astype('bool')
+        # TODO: The masks are always defined so the if conditions are obsolote and the masks can be summed directly
         if self.refit_blended:
             mask_refit += self.mask_blended
         if self.refit_neg_res_peak:

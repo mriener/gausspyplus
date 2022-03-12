@@ -106,7 +106,7 @@ class GaussPyPrepare(object):
         return fits.PrimaryHDU(data=data, header=header)
 
     @functools.cached_property
-    # TODO: what is the problem here?
+    # TODO: what is the problem here that PyCharm complains about? (Property 'data' cannot be read)?
     def data(self):
         return (np.expand_dims(self.input_object.data[:, self.data_location[0], self.data_location[1]], axis=(1, 2))
                 if self.testing else self.input_object.data)
@@ -284,6 +284,8 @@ class GaussPyPrepare(object):
                                 noise_spike_intervals=noise_spike_ranges,
                                 index=index)
 
+    # TODO: Use Finalize instead to produce the noise map; problem: finalize currently also requires the pickle file
+    #  of the fit results
     def produce_noise_map(self, dtype='float32'):
         comments = ['noise map']
         header = change_header(self.header.copy(), format='pp',
