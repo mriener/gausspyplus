@@ -8,11 +8,10 @@ def weighted_median(data):
     # TODO: what happens at the borders?
     """Adapted from: https://gist.github.com/tinybike/d9ff1dad515b66cc0d87"""
     w_1 = 1
-    w_2 = w_1 / np.sqrt(2)
+    w_2 = 1 / np.sqrt(2)
     weights = np.array([w_2, w_1, w_2, w_1, w_1, w_2, w_1, w_2])
-    central_value = data[4]
     #  Skip if central spectrum was masked out.
-    if np.isnan(central_value):
+    if np.isnan(central_value := data[4]):
         return 0
     data = np.delete(data, 4)
     #  Remove all neighbors that are NaN.
@@ -46,17 +45,14 @@ def number_of_component_jumps(values: np.ndarray, max_jump_comps: int) -> int:
     Number of component jumps.
 
     """
-    central_value = values[4]
-    if np.isnan(central_value):
+    if np.isnan(central_value := values[4]):
         return 0
     values = np.delete(values, 4)
-    counter = 0
-    for value in values:
-        if np.isnan(value):
-            continue
-        if np.abs(central_value - value) > max_jump_comps:
-            counter += 1
-    return counter
+    return sum(
+        not np.isnan(value)
+        and np.abs(central_value - value) > max_jump_comps
+        for value in values
+    )
 
 
 def broad_components(values: np.ndarray,
@@ -82,9 +78,8 @@ def broad_components(values: np.ndarray,
     FWHM value in case of a broad fit component, 0 otherwise.
 
     """
-    central_value = values[4]
     #  Skip if central spectrum was masked out.
-    if np.isnan(central_value):
+    if np.isnan(central_value := values[4]):
         return 0
     values = np.delete(values, 4)
     #  Remove all neighbors that are NaN.
@@ -93,12 +88,10 @@ def broad_components(values: np.ndarray,
     if values.size == 0:
         return 0
     #  Compare the largest FWHM value of the central spectrum with the largest FWHM values of its neighbors.
-    counter = 0
-    for value in values:
-        if np.isnan(value):
-            continue
-        if central_value > value * fwhm_factor and (central_value - value) > fwhm_separation:
-            counter += 1
-    if counter > values.size * broad_neighbor_fraction:
-        return central_value
-    return 0
+    counter = sum(
+        not np.isnan(value)
+        and central_value > value * fwhm_factor
+        and (central_value - value) > fwhm_separation
+        for value in values
+    )
+    return central_value if counter > values.size * broad_neighbor_fraction else 0
