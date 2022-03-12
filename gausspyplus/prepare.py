@@ -17,7 +17,7 @@ from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
 
 
-class GaussPyPrepare(object):
+class GaussPyPrepare:
     def __init__(self, path_to_file=None, hdu=None, filename=None,
                  gpy_dirname=None, config_file=''):
         self.path_to_file = path_to_file

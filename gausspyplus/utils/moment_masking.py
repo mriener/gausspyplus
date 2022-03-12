@@ -51,11 +51,10 @@ class MomentMask(object):
         self.file = os.path.basename(self.path_to_file)
         self.filename, self.file_extension = os.path.splitext(self.file)
 
-        if self.output_directory is not None:
-            if not os.path.exists(self.output_directory):
-                os.makedirs(self.output_directory)
-        else:
+        if self.output_directory is None:
             self.output_directory = os.path.dirname(self.path_to_file)
+        elif not os.path.exists(self.output_directory):
+            os.makedirs(self.output_directory)
 
     def prepare_cube(self):
         # self.check_settings()
@@ -260,7 +259,6 @@ class MomentMask(object):
     def get_path_to_output_file(self, suffix=''):
         if self.output_directory is not None:
             filename = f'{self.filename}{suffix}.fits'
-            path_to_output_file = os.path.join(self.output_directory, filename)
+            return os.path.join(self.output_directory, filename)
         else:
-            path_to_output_file = None
-        return path_to_output_file
+            return None
