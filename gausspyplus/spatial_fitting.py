@@ -668,10 +668,11 @@ class SpatialFitting(object):
         return indices_neighbors, all_neighbors
 
     def _neighbor_indices_including_flagged(self, indices_neighbors: np.ndarray) -> np.ndarray:
-        # TODO: check type hints
-        for idx in indices_neighbors:
-            if (idx in self.nanIndices) or (self.decomposition['N_components'][idx] == 0):
-                indices_neighbors = np.delete(indices_neighbors, np.where(indices_neighbors == idx))
+        indices_neighbors = np.array([
+            idx for idx in indices_neighbors
+            if (idx not in self.nanIndices) and (self.decomposition['N_components'][idx] != 0)
+        ])
+
         #  sort the flagged neighbors according to the least number of flags
         sort = np.argsort(self.count_flags[indices_neighbors])
         return indices_neighbors[sort]
