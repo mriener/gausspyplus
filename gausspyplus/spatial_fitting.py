@@ -663,19 +663,14 @@ class SpatialFitting(object):
             #  in case there are no unflagged neighbors, use all flagged neighbors instead
             all_neighbors = True
             indices_neighbors = indices_neighbors_all.copy()
-            indices_neighbors = self._neighbor_indices_including_flagged(indices_neighbors=indices_neighbors)
+            indices_neighbors = np.array([
+                idx for idx in indices_neighbors
+                if (idx not in self.nanIndices) and (self.decomposition['N_components'][idx] != 0)
+            ])
+            sort = np.argsort(self.count_flags[indices_neighbors])
+            indices_neighbors = indices_neighbors[sort]
 
         return indices_neighbors, all_neighbors
-
-    def _neighbor_indices_including_flagged(self, indices_neighbors: np.ndarray) -> np.ndarray:
-        indices_neighbors = np.array([
-            idx for idx in indices_neighbors
-            if (idx not in self.nanIndices) and (self.decomposition['N_components'][idx] != 0)
-        ])
-
-        #  sort the flagged neighbors according to the least number of flags
-        sort = np.argsort(self.count_flags[indices_neighbors])
-        return indices_neighbors[sort]
 
     def refit_spectrum_phase_1(self, index: int, i: int) -> List:
         """Refit a spectrum based on neighboring unflagged fit solutions.
