@@ -10,7 +10,10 @@ import itertools
 import os
 import socket
 import warnings
+from pathlib import Path
+from typing import Union
 
+import astropy
 import numpy as np
 
 from astropy import units as u
@@ -546,7 +549,10 @@ def get_list_slice_params(path_to_file=None, hdu=None, ncols=1, nrows=1,
     return slices
 
 
-def save_fits(data, header, path_to_file, verbose=True):
+def save_fits(data: np.ndarray,
+              header: astropy.io.fits.Header,
+              path_to_file: Union[str, Path],
+              verbose: bool = True):
     """Save data array and header as FITS file.
 
     Parameters
