@@ -177,7 +177,7 @@ class MomentMask(object):
             mask_v = self.mask_pixels_in_velocity(mask_v)
 
             position_of_spectra_within_n_s = get_neighbors(
-                (ypos, xpos), exclude_p=False, shape=self.data.shape[1:], nNeighbors=self.n_s)
+                location=(ypos, xpos), exclude_location=False, shape=self.data.shape[1:], n_neighbors=self.n_s)
             for pos in position_of_spectra_within_n_s:
                 self.masking_cube[:, pos[0], pos[1]][mask_v] = 1
         pbar.close()

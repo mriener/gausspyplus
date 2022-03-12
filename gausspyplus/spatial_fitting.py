@@ -711,7 +711,7 @@ class SpatialFitting(object):
 
         #  determine all neighbors that should be used for the refitting
 
-        neighbors = get_neighbors(loc, shape=self.shape)
+        neighbors = get_neighbors(location=self.locations_refit[i], shape=self.shape)
         # TODO: Is it okay, that flagged spectra are not included here?
         indices_neighbors, all_neighbors = self._determine_neighbor_indices(neighbors=neighbors, include_flagged=False)
 
@@ -1464,8 +1464,8 @@ class SpatialFitting(object):
         njumps_old = self.ncomps_jumps[index]
 
         loc = self.location[index]
-        indices = get_neighbors(loc, exclude_p=True, shape=self.shape, nNeighbors=1, get_indices=True)
-        mask_indices = get_neighbors(loc, exclude_p=True, shape=self.shape, nNeighbors=1, get_mask=True)
+        indices = get_neighbors(location=loc, exclude_location=True, shape=self.shape, n_neighbors=1, get_indices=True)
+        mask_indices = get_neighbors(location=loc, exclude_location=True, shape=self.shape, n_neighbors=1, get_mask=True)
 
         ncomps = np.ones(8) * np.nan
         ncomps[mask_indices] = self.ncomps[indices]
@@ -2070,10 +2070,10 @@ class SpatialFitting(object):
 
     def _get_indices_and_weights_of_valid_neighbors(self, loc, idx, direction):
         indices_neighbors_and_center = get_neighbors(
-            loc,
-            exclude_p=False,
+            location=loc,
+            exclude_location=False,
             shape=self.shape,
-            nNeighbors=2,
+            n_neighbors=2,
             direction=direction,
             get_indices=True
         )
@@ -2179,10 +2179,10 @@ class SpatialFitting(object):
             indices_neighbors_total = np.array([])
             for direction in ['horizontal', 'vertical', 'diagonal_ul', 'diagonal_ur']:
                 indices_neighbors = get_neighbors(
-                    loc,
-                    exclude_p=True,
+                    location=loc,
+                    exclude_location=True,
                     shape=self.shape,
-                    nNeighbors=2,
+                    n_neighbors=2,
                     direction=direction,
                     get_indices=True
                 )

@@ -1,20 +1,26 @@
 """Functions used for grouping."""
+from typing import Tuple, Optional
 
 import numpy as np
 import networkx
 
 
-def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
-                  get_indices=False, direction=None, get_mask=False):
+def get_neighbors(location: Tuple,
+                  exclude_location: bool = True,
+                  shape: Optional[Tuple] = None,
+                  n_neighbors: int = 1,
+                  get_indices: bool = False,
+                  direction: Optional[str] = None,
+                  get_mask: bool = False) -> np.ndarray:
     """Determine pixel coordinates of neighboring pixels.
 
     Includes also all pixels that neighbor diagonally.
 
     Parameters
     ----------
-    p : tuple
+    location : tuple
         Gives the coordinates (y, x) of the central pixel
-    exclude_p : boolean
+    exclude_location : boolean
         Whether or not to exclude the pixel with position p from the resulting list.
     shape : tuple
         Describes the dimensions of the total array (NAXIS2, NAXIS1).
@@ -29,15 +35,13 @@ def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
     https://stackoverflow.com/questions/34905274/how-to-find-the-neighbors-of-a-cell-in-an-ndarray
 
     """
-    ndim = len(p)
-    n = nNeighbors*2 + 1
+    ndim = len(location)
 
-    # generate an (m, ndims) array containing all combinations of 0, 1, 2
-    offset_idx = np.indices((n,) * ndim).reshape(ndim, -1).T
+    # generate an (m, ndims) array containing all combinations of 0 to n_neighbors
+    offset_idx = np.indices((n_neighbors * 2 + 1,) * ndim).reshape(ndim, -1).T
 
     # use these to index into np.array([-1, 0, 1]) to get offsets
-    lst = list(range(-(nNeighbors), nNeighbors + 1))
-    offsets = np.r_[lst].take(offset_idx)
+    offsets = np.r_[range(-(n_neighbors), n_neighbors + 1)].take(offset_idx)
 
     if direction == 'horizontal':
         indices = np.where(offsets[:, 0] == 0)
@@ -51,11 +55,11 @@ def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
     if direction is not None:
         offsets = offsets[indices]
 
-    # optional: exclude offsets of 0, 0, ..., 0 (i.e. p itself)
-    if exclude_p:
+    # optional: exclude offsets of 0, 0, ..., 0 (i.e. the location itself)
+    if exclude_location:
         offsets = offsets[np.any(offsets, 1)]
 
-    neighbours = p + offsets  # apply offsets to p
+    neighbours = location + offsets  # apply offsets to p
 
     # optional: exclude out-of-bounds indices
     if shape is not None:
@@ -66,11 +70,7 @@ def get_neighbors(p, exclude_p=True, shape=None, nNeighbors=1,
         return valid
 
     if get_indices:
-        indices_neighbours = np.array([])
-        for neighbour in neighbours:
-            indices_neighbours = np.append(
-                indices_neighbours, np.ravel_multi_index(neighbour, shape)).astype('int')
-        return indices_neighbours
+        return np.array([np.ravel_multi_index(neighbour, shape).astype('int') for neighbour in neighbours])
 
     return neighbours
 
