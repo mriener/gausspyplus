@@ -29,16 +29,7 @@ class SpatialFitting(object):
                  path_to_decomp_file: Optional[Union[str, Path]] = None,
                  fin_filename: Optional[Union[str, Path]] = None,
                  config_file: Union[str, Path] = ''):
-        """Class implementing the two phases of spatially coherent refitting discussed in Riener+ 2019.
-
-        Parameters
-        ----------
-        path_to_pickle_file :
-        path_to_decomp_file :
-        fin_filename :
-        config_file :
-
-        """
+        """Class implementing the two phases of spatially coherent refitting discussed in Riener+ 2019."""
         self.path_to_pickle_file = path_to_pickle_file
         self.path_to_decomp_file = path_to_decomp_file
         self.dirpath_gpy = None
@@ -703,7 +694,6 @@ class SpatialFitting(object):
         dictResults = None
         flags = []
 
-        loc = self.locations_refit[i]
         spectrum = self.data[index]
         rms = self.errors[index][0]
         signal_ranges = self.signalRanges[index]
@@ -1457,7 +1447,7 @@ class SpatialFitting(object):
         flag_new : Flag value after the refit.
 
         """
-        flag_old, flag_new = (0 for _ in range(2))
+        flag_old, flag_new = 0, 0
 
         if not self.flag_ncomps:
             return flag_old, flag_new
@@ -1843,7 +1833,6 @@ class SpatialFitting(object):
 
             dictComps[key]['amp_bounds'] = [0., 1.1*amp_max]
             dictComps[key]['mean_bounds'] = [mean_min, mean_max]
-            # dictComps[key]['fwhm_bounds'] = [0., None]
             dictComps[key]['fwhm_bounds'] = [fwhm_min, fwhm_max]
         return dictComps
 
@@ -2178,7 +2167,7 @@ class SpatialFitting(object):
 
         for i, loc in tqdm(zip(self.indices_all, self.locations_all)):
             indices_neighbors_total = np.array([])
-            for direction in ['horizontal', 'vertical', 'diagonal_ul', 'diagonal_ur']:
+            for direction in self.weights.keys():
                 indices_neighbors = get_neighbors(
                     location=loc,
                     exclude_location=True,
@@ -2214,9 +2203,7 @@ class SpatialFitting(object):
         """
         self.refitting_iteration += 1
         say(f'\nthreshold for required components: {self.min_p:.3f}', logger=self.logger)
-
         self.determine_spectra_for_flagging()
-
         self._check_indices_refit()
         self._refitting()
 
