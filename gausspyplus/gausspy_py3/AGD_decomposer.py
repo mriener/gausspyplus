@@ -341,7 +341,7 @@ def AGD(vel: np.ndarray,
             ncomps_fit = 0
             params_fit = []
         #  TODO: check if ncomps_fit should be ncomps_guess_final
-        best_fit_list, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
+        best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
             vel=vel,
             data=data,
             errors=errors,
@@ -352,8 +352,18 @@ def AGD(vel: np.ndarray,
             noise_spike_ranges=noise_spike_ranges
         )
 
-        params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-            rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
+        params_fit = best_fit_info["params_fit"]
+        params_errs = best_fit_info["params_errs"]
+        ncomps_fit = best_fit_info["ncomps_fit"]
+        best_fit_final = best_fit_info["best_fit_final"]
+        residual = best_fit_info["residual"]
+        rchi2 = best_fit_info["rchi2"]
+        aicc = best_fit_info["aicc"]
+        new_fit = best_fit_info["new_fit"]
+        params_min = best_fit_info["params_min"]
+        params_max = best_fit_info["params_max"]
+        pvalue = best_fit_info["pvalue"]
+        quality_control = best_fit_info["quality_control"]
 
         ncomps_guess_final = ncomps_fit
 
@@ -368,7 +378,7 @@ def AGD(vel: np.ndarray,
             best_fit_final = data*0
 
         if dct['improve_fitting']:
-            rchi2 = best_fit_list[5]
+            rchi2 = best_fit_info["rchi2"]
         else:
             #  TODO: define mask from signal_ranges
             rchi2 = goodness_of_fit(data, best_fit_final, errors, ncomps_fit)
