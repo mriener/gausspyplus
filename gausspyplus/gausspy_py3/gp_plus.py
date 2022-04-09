@@ -588,13 +588,13 @@ def get_best_fit(vel: np.ndarray,
                  params_fit: List,
                  dct: Dict,
                  first: bool = False,
-                 best_fit_list: Optional[List] = None,
+                 best_fit_info: Optional[Dict] = None,
                  signal_ranges: Optional[List] = None,
                  signal_mask: Optional[np.ndarray] = None,
                  force_accept: bool = False,
                  params_min: Optional[List] = None,
                  params_max: Optional[List] = None,
-                 noise_spike_mask: Optional[np.ndarray] = None) -> List:
+                 noise_spike_mask: Optional[np.ndarray] = None) -> Dict:
     """Determine new best fit for spectrum.
 
     If this is the first fit iteration for the spectrum a new best fit is assigned and its parameters are returned in best_fit_list.
@@ -635,8 +635,8 @@ def get_best_fit(vel: np.ndarray,
 
     """
     if not first:
-        best_fit_list[7] = False
-        quality_control = best_fit_list[11]
+        best_fit_info["new_fit"] = False
+        quality_control = best_fit_info["quality_control"]
     else:
         quality_control = []
 
@@ -691,33 +691,55 @@ def get_best_fit(vel: np.ndarray,
 
     #  return the list of best fit results if there was no old list of best fit results for comparison
     if first:
-        new_fit = True
-        return [params_fit, params_errs, ncomps_fit, best_fit, residual, rchi2,
-                aicc, new_fit, params_min, params_max, pvalue, quality_control]
+        return {
+            "params_fit": params_fit,
+            "params_errs": params_errs,
+            "ncomps_fit": ncomps_fit,
+            "best_fit_final": best_fit,
+            "residual": residual,
+            "rchi2": rchi2,
+            "aicc": aicc,
+            "new_fit": True,
+            "params_min": params_min,
+            "params_max": params_max,
+            "pvalue": pvalue,
+            "quality_control": quality_control
+        }
 
-    #  return new best_fit_list if the AICc value is smaller
-    aicc_old = best_fit_list[6]
+    #  return new best_fit_info if the AICc value is smaller
+    aicc_old = best_fit_info["aicc"]
     if ((aicc < aicc_old) and not np.isclose(aicc, aicc_old, atol=1e-1)) or force_accept:
-        new_fit = True
-        return [params_fit, params_errs, ncomps_fit, best_fit, residual, rchi2,
-                aicc, new_fit, params_min, params_max, pvalue, quality_control]
+        return {
+            "params_fit": params_fit,
+            "params_errs": params_errs,
+            "ncomps_fit": ncomps_fit,
+            "best_fit_final": best_fit,
+            "residual": residual,
+            "rchi2": rchi2,
+            "aicc": aicc,
+            "new_fit": True,
+            "params_min": params_min,
+            "params_max": params_max,
+            "pvalue": pvalue,
+            "quality_control": quality_control
+        }
 
-    #  return old best_fit_list if the aicc value is higher
-    best_fit_list[7] = False
-    return best_fit_list
+    #  return old best_fit_info if the aicc value is higher
+    best_fit_info["new_fit"] = False
+    return best_fit_info
 
 
 def check_for_negative_residual(vel: np.ndarray,
                                 data: np.ndarray,
                                 errors: np.ndarray,
-                                best_fit_list: List,
+                                best_fit_info: Dict,
                                 dct: Dict,
                                 signal_ranges: Optional[List] = None,
                                 signal_mask: Optional[List] = None,
                                 force_accept: bool = False,
                                 get_count: bool = False,
                                 get_idx: bool = False,
-                                noise_spike_mask: Optional[List] = None) -> Union[int, List]:
+                                noise_spike_mask: Optional[List] = None) -> Union[int, Dict]:
     """Check for negative residual features and try to refit them.
 
     We define negative residual features as negative peaks in the residual that were introduced by the fit. These
@@ -754,17 +776,17 @@ def check_for_negative_residual(vel: np.ndarray,
         {8} params_min, {9} params_max, {10} pvalue]
 
     """
-    params_fit = best_fit_list[0]
-    ncomps_fit = best_fit_list[2]
+    params_fit = best_fit_info["params_fit"]
+    ncomps_fit = best_fit_info["ncomps_fit"]
 
     #  in case a single rms value is given instead of an array
     if not isinstance(errors, np.ndarray):
         errors = np.ones(len(data)) * errors
 
     if ncomps_fit == 0:
-        return 0 if get_count else best_fit_list
+        return 0 if get_count else best_fit_info
 
-    residual = best_fit_list[4]
+    residual = best_fit_info["residual"]
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
@@ -789,7 +811,7 @@ def check_for_negative_residual(vel: np.ndarray,
         return len(amp_guesses)
 
     if len(amp_guesses) == 0:
-        return best_fit_list
+        return best_fit_info
 
     #  in case of multiple negative residual features, sort them in order of increasing amplitude values
     sort = np.argsort(amp_guesses)
@@ -821,36 +843,37 @@ def check_for_negative_residual(vel: np.ndarray,
             offset=offset
         )
 
-        best_fit_list = get_best_fit(
+        best_fit_info = get_best_fit(
             vel=vel,
             data=data,
             errors=errors,
             params_fit=params_fit,
             dct=dct,
             first=False,
-            best_fit_list=best_fit_list,
+            best_fit_info=best_fit_info,
             signal_ranges=signal_ranges,
             signal_mask=signal_mask,
             force_accept=force_accept,
             noise_spike_mask=noise_spike_mask
         )
 
-        params_fit = best_fit_list[0]
-        ncomps_fit = best_fit_list[2]
+        # TODO: What's the purpose of the following three lines?
+        params_fit = best_fit_info["params_fit"]
+        ncomps_fit = best_fit_info["ncomps_fit"]
         amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
-    return best_fit_list
+    return best_fit_info
 
 
 def _try_fit_with_new_components(vel: np.ndarray,
                                  data: np.ndarray,
                                  errors: np.ndarray,
-                                 best_fit_list: List,
+                                 best_fit_info: Dict,
                                  dct: Dict,
                                  exclude_idx: int,
                                  signal_ranges: Optional[List] = None,
                                  signal_mask: Optional[List] = None,
                                  force_accept: bool = False,
-                                 noise_spike_mask: Optional[List] = None) -> List:
+                                 noise_spike_mask: Optional[List] = None) -> Dict:
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we
@@ -881,9 +904,9 @@ def _try_fit_with_new_components(vel: np.ndarray,
         {8} params_min, {9} params_max, {10} pvalue]
 
     """
-    params_fit = best_fit_list[0]
-    ncomps_fit = best_fit_list[2]
-    aicc_old = best_fit_list[6]
+    params_fit = best_fit_info["params_fit"]
+    ncomps_fit = best_fit_info["ncomps_fit"]
+    aicc_old = best_fit_info["aicc"]
     # amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
     # idx_low_residual = max(
@@ -895,14 +918,14 @@ def _try_fit_with_new_components(vel: np.ndarray,
     params_fit_new = remove_components(params_fit, exclude_idx)
 
     #  produce new best fit with excluded components
-    best_fit_list_new = get_best_fit(
+    best_fit_info_new = get_best_fit(
         vel=vel,
         data=data,
         errors=errors,
         params_fit=params_fit_new,
         dct=dct,
         first=True,
-        best_fit_list=None,
+        best_fit_info=None,
         signal_ranges=signal_ranges,
         signal_mask=signal_mask,
         force_accept=force_accept,
@@ -910,13 +933,13 @@ def _try_fit_with_new_components(vel: np.ndarray,
     )
 
     #  return new best fit with excluded component if its AICc value is lower
-    aicc = best_fit_list_new[6]
+    aicc = best_fit_info_new["aicc"]
     if ((aicc < aicc_old) and not np.isclose(aicc, aicc_old, atol=1e-1)):
-        return best_fit_list_new
+        return best_fit_info_new
 
     #  search for new positive residual peaks
-    params_fit = best_fit_list_new[0]
-    ncomps_fit = best_fit_list_new[2]
+    params_fit = best_fit_info_new["params_fit"]
+    ncomps_fit = best_fit_info_new["ncomps_fit"]
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
@@ -927,7 +950,7 @@ def _try_fit_with_new_components(vel: np.ndarray,
 
     #  return original best fit list if there are no guesses for new components to fit in the residual
     if amp_guesses.size == 0:
-        return best_fit_list
+        return best_fit_info
 
     #  get new best fit with additional components guessed from the residual
     amps_fit = list(amps_fit) + list(amp_guesses)
@@ -936,14 +959,14 @@ def _try_fit_with_new_components(vel: np.ndarray,
 
     params_fit_new = amps_fit + fwhms_fit + offsets_fit
 
-    best_fit_list_new = get_best_fit(
+    best_fit_info_new = get_best_fit(
         vel=vel,
         data=data,
         errors=errors,
         params_fit=params_fit_new,
         dct=dct,
         first=False,
-        best_fit_list=best_fit_list_new,
+        best_fit_info=best_fit_info_new,
         signal_ranges=signal_ranges,
         signal_mask=signal_mask,
         force_accept=force_accept,
@@ -951,22 +974,22 @@ def _try_fit_with_new_components(vel: np.ndarray,
     )
 
     #  return new best fit if its AICc value is lower
-    aicc = best_fit_list_new[6]
+    aicc = best_fit_info_new["aicc"]
     if ((aicc < aicc_old) and not np.isclose(aicc, aicc_old, atol=1e-1)):
-        return best_fit_list_new
+        return best_fit_info_new
 
-    return best_fit_list
+    return best_fit_info
 
 
 def _check_for_broad_feature(vel: np.ndarray,
                              data: np.ndarray,
                              errors: np.ndarray,
-                             best_fit_list: List,
+                             best_fit_info: Dict,
                              dct: Dict,
                              signal_ranges: Optional[List] = None,
                              signal_mask: Optional[np.ndarray] = None,
                              force_accept: bool = False,
-                             noise_spike_mask: Optional[np.ndarray] = None) -> List:
+                             noise_spike_mask: Optional[np.ndarray] = None) -> Dict:
     """Check for broad features and try to refit them.
 
     We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the
@@ -1002,18 +1025,18 @@ def _check_for_broad_feature(vel: np.ndarray,
         {8} params_min, {9} params_max, {10} pvalue]
 
     """
-    best_fit_list[7] = False
+    best_fit_info["new_fit"] = False
 
-    params_fit = best_fit_list[0]
-    ncomps_fit = best_fit_list[2]
+    params_fit = best_fit_info["params_fit"]
+    ncomps_fit = best_fit_info["ncomps_fit"]
     if ncomps_fit < 2 and dct['fwhm_factor'] > 0:
-        return best_fit_list
+        return best_fit_info
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
 
     fwhms_sorted = sorted(fwhms_fit)
     if (fwhms_sorted[-1] < dct['fwhm_factor'] * fwhms_sorted[-2]):
-        return best_fit_list
+        return best_fit_info
 
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
@@ -1029,37 +1052,37 @@ def _check_for_broad_feature(vel: np.ndarray,
     )
 
     if len(params_fit) > 0:
-        best_fit_list = get_best_fit(
+        best_fit_info = get_best_fit(
             vel=vel,
             data=data,
             errors=errors,
             params_fit=params_fit,
             dct=dct,
             first=False,
-            best_fit_list=best_fit_list,
+            best_fit_info=best_fit_info,
             signal_ranges=signal_ranges,
             signal_mask=signal_mask,
             force_accept=force_accept,
             noise_spike_mask=noise_spike_mask
         )
 
-    if best_fit_list[7]:
-        return best_fit_list
+    if best_fit_info["new_fit"]:
+        return best_fit_info
 
-    params_fit = best_fit_list[0]
-    ncomps_fit = best_fit_list[2]
+    params_fit = best_fit_info["params_fit"]
+    ncomps_fit = best_fit_info["ncomps_fit"]
     if ncomps_fit == 0:
-        return best_fit_list
+        return best_fit_info
 
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
     exclude_idx = np.argmax(np.array(fwhms_fit))
 
-    best_fit_list = _try_fit_with_new_components(
+    best_fit_info = _try_fit_with_new_components(
         vel=vel,
         data=data,
         errors=errors,
-        best_fit_list=best_fit_list,
+        best_fit_info=best_fit_info,
         dct=dct,
         exclude_idx=exclude_idx,
         signal_ranges=signal_ranges,
@@ -1068,18 +1091,18 @@ def _check_for_broad_feature(vel: np.ndarray,
         noise_spike_mask=noise_spike_mask
     )
 
-    return best_fit_list
+    return best_fit_info
 
 
 def _check_for_blended_feature(vel: np.ndarray,
                                data: np.ndarray,
                                errors: np.ndarray,
-                               best_fit_list: List,
+                               best_fit_info: Dict,
                                dct: Dict,
                                signal_ranges: Optional[List] = None,
                                signal_mask: Optional[np.ndarray] = None,
                                force_accept: bool = False,
-                               noise_spike_mask: Optional[np.ndarray] = None) -> List:
+                               noise_spike_mask: Optional[np.ndarray] = None) -> Dict:
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard
@@ -1113,10 +1136,10 @@ def _check_for_blended_feature(vel: np.ndarray,
         {8} params_min, {9} params_max, {10} pvalue]
 
     """
-    params_fit = best_fit_list[0]
-    ncomps_fit = best_fit_list[2]
+    params_fit = best_fit_info["params_fit"]
+    ncomps_fit = best_fit_info["ncomps_fit"]
     if ncomps_fit < 2:
-        return best_fit_list
+        return best_fit_info
 
     exclude_indices = get_fully_blended_gaussians(
         params_fit=params_fit,
@@ -1126,14 +1149,14 @@ def _check_for_blended_feature(vel: np.ndarray,
 
     #  skip if there are no blended features
     if exclude_indices.size == 0:
-        return best_fit_list
+        return best_fit_info
 
     for exclude_idx in exclude_indices:
-        best_fit_list = _try_fit_with_new_components(
+        best_fit_info = _try_fit_with_new_components(
             vel=vel,
             data=data,
             errors=errors,
-            best_fit_list=best_fit_list,
+            best_fit_info=best_fit_info,
             dct=dct,
             exclude_idx=exclude_idx,
             signal_ranges=signal_ranges,
@@ -1141,10 +1164,10 @@ def _check_for_blended_feature(vel: np.ndarray,
             force_accept=force_accept,
             noise_spike_mask=noise_spike_mask
         )
-        if best_fit_list[7]:
+        if best_fit_info["new_fit"]:
             break
 
-    return best_fit_list
+    return best_fit_info
 
 
 def _quality_check(vel: np.ndarray,
@@ -1157,7 +1180,7 @@ def _quality_check(vel: np.ndarray,
                    signal_mask: Optional[np.ndarray] = None,
                    params_min: Optional[List] = None,
                    params_max: Optional[List] = None,
-                   noise_spike_mask: Optional[np.ndarray] = None) -> List:
+                   noise_spike_mask: Optional[np.ndarray] = None) -> Dict:
     """Quality check for GaussPy best fit results.
 
     All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
@@ -1187,10 +1210,7 @@ def _quality_check(vel: np.ndarray,
 
     """
     if ncomps_fit == 0:
-        new_fit = False
         best_fit_final = data*0
-        residual = data
-        params_fit, params_errs = [], []
 
         rchi2, aicc = goodness_of_fit(
             data=data,
@@ -1208,34 +1228,38 @@ def _quality_check(vel: np.ndarray,
             noise_spike_mask=noise_spike_mask
         )
 
-        quality_control = []
+        return {
+            "params_fit": [],
+            "params_errs": [],
+            "ncomps_fit": ncomps_fit,
+            "best_fit_final": best_fit_final,
+            "residual": data,
+            "rchi2": rchi2,
+            "aicc": aicc,
+            "new_fit": False,
+            "params_min": params_min,
+            "params_max": params_max,
+            "pvalue": pvalue,
+            "quality_control": []
+        }
 
-        best_fit_list = [params_fit, params_errs, ncomps_fit, best_fit_final,
-                         residual, rchi2, aicc, new_fit, params_min,
-                         params_max, pvalue, quality_control]
-
-        return best_fit_list
-
-    best_fit_list = get_best_fit(
+    return get_best_fit(
         vel=vel,
         data=data,
         errors=errors,
         params_fit=params_fit,
         dct=dct,
         first=True,
-        best_fit_list=None,
+        best_fit_info=None,
         signal_ranges=signal_ranges,
         signal_mask=signal_mask,
         noise_spike_mask=noise_spike_mask
     )
 
-    return best_fit_list
-
-
 def check_for_peaks_in_residual(vel: np.ndarray,
                                 data: np.ndarray,
                                 errors: np.ndarray,
-                                best_fit_list: List,
+                                best_fit_info: Dict,
                                 dct: Dict,
                                 fitted_residual_peaks: List,
                                 signal_ranges: Optional[List] = None,
@@ -1243,7 +1267,7 @@ def check_for_peaks_in_residual(vel: np.ndarray,
                                 force_accept: bool = False,
                                 params_min: Optional[List] = None,
                                 params_max: Optional[List] = None,
-                                noise_spike_mask: Optional[np.ndarray] = None) -> Tuple[List, List]:
+                                noise_spike_mask: Optional[np.ndarray] = None) -> Tuple[Dict, List]:
     """Try fit by adding new components, whose initial parameters were determined from residual peaks.
 
     Parameters
@@ -1277,9 +1301,9 @@ def check_for_peaks_in_residual(vel: np.ndarray,
 
     """
     #  TODO: remove params_min and params_max keywords
-    params_fit = best_fit_list[0]
-    ncomps_fit = best_fit_list[2]
-    residual = best_fit_list[4]
+    params_fit = best_fit_info["params_fit"]
+    ncomps_fit = best_fit_info["ncomps_fit"]
+    residual = best_fit_info["residual"]
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
 
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
@@ -1287,11 +1311,11 @@ def check_for_peaks_in_residual(vel: np.ndarray,
         peak='positive')
 
     if amp_guesses.size == 0:
-        best_fit_list[7] = False
-        return best_fit_list, fitted_residual_peaks
+        best_fit_info["new_fit"] = False
+        return best_fit_info, fitted_residual_peaks
     if list(offset_guesses) in fitted_residual_peaks:
-        best_fit_list[7] = False
-        return best_fit_list, fitted_residual_peaks
+        best_fit_info["new_fit"] = False
+        return best_fit_info, fitted_residual_peaks
 
     fitted_residual_peaks.append(list(offset_guesses))
 
@@ -1301,14 +1325,14 @@ def check_for_peaks_in_residual(vel: np.ndarray,
 
     params_fit = amps_fit + fwhms_fit + offsets_fit
 
-    best_fit_list = get_best_fit(
+    best_fit_info = get_best_fit(
         vel=vel,
         data=data,
         errors=errors,
         params_fit=params_fit,
         dct=dct,
         first=False,
-        best_fit_list=best_fit_list,
+        best_fit_info=best_fit_info,
         signal_ranges=signal_ranges,
         signal_mask=signal_mask,
         force_accept=force_accept,
@@ -1317,7 +1341,7 @@ def check_for_peaks_in_residual(vel: np.ndarray,
         noise_spike_mask=noise_spike_mask
     )
 
-    return best_fit_list, fitted_residual_peaks
+    return best_fit_info, fitted_residual_peaks
 
 
 def _log_new_fit(new_fit: bool,
@@ -1352,7 +1376,7 @@ def try_to_improve_fitting(vel: np.ndarray,
                            ncomps_fit: int,
                            dct: Dict,
                            signal_ranges: Optional[List] = None,
-                           noise_spike_ranges: Optional[List] = None) -> Tuple[List, int, int, List]:
+                           noise_spike_ranges: Optional[List] = None) -> Tuple[Dict, int, int, List]:
     """Short summary.
 
     Parameters
@@ -1401,7 +1425,7 @@ def try_to_improve_fitting(vel: np.ndarray,
         noise_spike_mask = None
 
     #  Check the quality of the final fit from GaussPy
-    best_fit_list = _quality_check(
+    best_fit_info: Dict = _quality_check(
         vel=vel,
         data=data,
         errors=errors,
@@ -1413,8 +1437,8 @@ def try_to_improve_fitting(vel: np.ndarray,
         noise_spike_mask=noise_spike_mask
     )
 
-    params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
-        rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
+    # params_fit, params_errs, ncomps_fit, best_fit_final, residual,\
+    #     rchi2, aicc, new_fit, params_min, params_max, pvalue, quality_control = best_fit_list
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
@@ -1422,25 +1446,25 @@ def try_to_improve_fitting(vel: np.ndarray,
     log_gplus = []
 
     # while (rchi2 > dct['rchi2_limit']) or first_run:
-    while (best_fit_list[10] < dct['min_pvalue']) or first_run:
+    while (best_fit_info["pvalue"] < dct['min_pvalue']) or first_run:
         new_fit = True
         new_peaks = False
 
         count_old = len(fitted_residual_peaks)
         while new_fit:
-            best_fit_list[7] = False
-            best_fit_list, fitted_residual_peaks = check_for_peaks_in_residual(
+            best_fit_info["new_fit"] = False
+            best_fit_info, fitted_residual_peaks = check_for_peaks_in_residual(
                 vel=vel,
                 data=data,
                 errors=errors,
-                best_fit_list=best_fit_list,
+                best_fit_info=best_fit_info,
                 dct=dct,
                 fitted_residual_peaks=fitted_residual_peaks,
                 signal_ranges=signal_ranges,
                 signal_mask=signal_mask,
                 noise_spike_mask=noise_spike_mask
             )
-            new_fit = best_fit_list[7]
+            new_fit = best_fit_info["new_fit"]
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
         count_new = len(fitted_residual_peaks)
 
@@ -1448,58 +1472,58 @@ def try_to_improve_fitting(vel: np.ndarray,
             new_peaks = True
 
         #  stop refitting loop if no new peaks were fit from the residual
-        if (not first_run and not new_peaks) or (best_fit_list[2] == 0):
+        if (not first_run and not new_peaks) or (best_fit_info["ncomps_fit"] == 0):
             break
 
         #  try to refit negative residual feature
         if dct['neg_res_peak']:
-            best_fit_list = check_for_negative_residual(
+            best_fit_info = check_for_negative_residual(
                 vel=vel,
                 data=data,
                 errors=errors,
-                best_fit_list=best_fit_list,
+                best_fit_info=best_fit_info,
                 dct=dct,
                 signal_ranges=signal_ranges,
                 signal_mask=signal_mask,
                 noise_spike_mask=noise_spike_mask
             )
-            new_fit = best_fit_list[7]
+            new_fit = best_fit_info["new_fit"]
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
         if dct['broad']:
             new_fit = True
             while new_fit:
-                best_fit_list[7] = False
-                best_fit_list = _check_for_broad_feature(
+                best_fit_info["new_fit"] = False
+                best_fit_info = _check_for_broad_feature(
                     vel=vel,
                     data=data,
                     errors=errors,
-                    best_fit_list=best_fit_list,
+                    best_fit_info=best_fit_info,
                     dct=dct,
                     signal_ranges=signal_ranges,
                     signal_mask=signal_mask,
                     noise_spike_mask=noise_spike_mask
                 )
-                new_fit = best_fit_list[7]
+                new_fit = best_fit_info["new_fit"]
                 log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='broad')
 
         #  try to refit blended Gaussian components
         if dct['blended']:
             new_fit = True
             while new_fit:
-                best_fit_list[7] = False
-                best_fit_list = _check_for_blended_feature(
+                best_fit_info["new_fit"] = False
+                best_fit_info = _check_for_blended_feature(
                     vel=vel,
                     data=data,
                     errors=errors,
-                    best_fit_list=best_fit_list,
+                    best_fit_info=best_fit_info,
                     dct=dct,
                     signal_ranges=signal_ranges,
                     signal_mask=signal_mask,
                     noise_spike_mask=noise_spike_mask
                 )
-                new_fit = best_fit_list[7]
+                new_fit = best_fit_info["new_fit"]
                 log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='blended')
 
         if not first_run:
@@ -1510,18 +1534,18 @@ def try_to_improve_fitting(vel: np.ndarray,
         vel=vel,
         data=data,
         errors=errors,
-        best_fit_list=best_fit_list,
+        best_fit_info=best_fit_info,
         dct=dct,
         signal_ranges=signal_ranges,
         signal_mask=signal_mask,
         get_count=True
     )
 
-    params_fit = best_fit_list[0]
+    params_fit = best_fit_info["params_fit"]
     N_blended = get_fully_blended_gaussians(
         params_fit=params_fit,
         get_count=True,
         separation_factor=dct['separation_factor']
     )
 
-    return best_fit_list, N_neg_res_peak, N_blended, log_gplus
+    return best_fit_info, N_neg_res_peak, N_blended, log_gplus

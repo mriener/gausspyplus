@@ -997,18 +997,27 @@ class SpatialFitting(object):
         elif flag == 'residual':
             dct = self.decomposition['improve_fit_settings'].copy()
 
-            best_fit_list = [None for _ in range(10)]
-            best_fit_list[0] = amps + fwhms + means
-            best_fit_list[2] = len(amps)
-            residual = spectrum - combined_gaussian(amps=amps, fwhms=fwhms, means=means, x=self.channels)
-            best_fit_list[4] = residual
+            best_fit_info = {
+                "params_fit": amps + fwhms + means,
+                "params_errs": None,
+                "ncomps_fit": len(amps),
+                "best_fit_final": None,
+                "residual": spectrum - combined_gaussian(amps=amps, fwhms=fwhms, means=means, x=self.channels),
+                "rchi2": None,
+                "aicc": None,
+                "new_fit": None,
+                "params_min": None,
+                "params_max": None,
+                "pvalue": None,
+                "quality_control": None
+            }
 
             #  TODO: What if multiple negative residual features occur in one spectrum?
             idx = check_for_negative_residual(
                 vel=self.channels,
                 data=spectrum,
                 errors=rms,
-                best_fit_list=best_fit_list,
+                best_fit_info=best_fit_info,
                 dct=dct,
                 get_idx=True
             )
@@ -1883,7 +1892,7 @@ class SpatialFitting(object):
                 params_max.append(dictComps[nr][f'{key}_bounds'][1])
 
         #  get new best fit
-        best_fit_list = get_best_fit(
+        best_fit_info = get_best_fit(
             vel=channels,
             data=spectrum,
             errors=errors,
@@ -1898,9 +1907,9 @@ class SpatialFitting(object):
         )
 
         # #  get a new best fit that is unconstrained
-        # params = best_fit_list[0]
+        # params = best_fit_info["params_fit"]
         #
-        # best_fit_list = get_best_fit(
+        # best_fit_info = get_best_fit(
         #     self.channels, spectrum, errors, params, dct, first=True,
         #     signal_ranges=signal_ranges, signal_mask=signal_mask)
 
@@ -1910,28 +1919,28 @@ class SpatialFitting(object):
         new_fit = True
 
         while new_fit:
-            best_fit_list[7] = False
-            best_fit_list, fitted_residual_peaks = check_for_peaks_in_residual(
+            best_fit_info["new_fit"] = False
+            best_fit_info, fitted_residual_peaks = check_for_peaks_in_residual(
                 vel=channels,
                 data=spectrum,
                 errors=errors,
-                best_fit_list=best_fit_list,
+                best_fit_info=best_fit_info,
                 dct=dct,
                 fitted_residual_peaks=fitted_residual_peaks,
                 signal_ranges=signal_ranges,
                 signal_mask=signal_mask,
                 noise_spike_mask=noise_spike_mask
             )
-            new_fit = best_fit_list[7]
+            new_fit = best_fit_info["new_fit"]
 
-        params = best_fit_list[0]
-        params_errs = best_fit_list[1]
-        ncomps = best_fit_list[2]
-        best_fit = best_fit_list[3]
-        residual_signal_mask = best_fit_list[4][signal_mask]
-        rchi2 = best_fit_list[5]
-        aicc = best_fit_list[6]
-        pvalue = best_fit_list[10]
+        params = best_fit_info["params_fit"]
+        params_errs = best_fit_info["params_errs"]
+        ncomps = best_fit_info["ncomps_fit"]
+        best_fit = best_fit_info["best_fit_final"]
+        residual_signal_mask = best_fit_info["residual"][signal_mask]
+        rchi2 = best_fit_info["rchi2"]
+        aicc = best_fit_info["aicc"]
+        pvalue = best_fit_info["pvalue"]
 
         if ncomps == 0:
             return None
@@ -1963,7 +1972,7 @@ class SpatialFitting(object):
             vel=channels,
             data=spectrum,
             errors=rms,
-            best_fit_list=best_fit_list,
+            best_fit_info=best_fit_info,
             dct=dct,
             get_count=True)
 
