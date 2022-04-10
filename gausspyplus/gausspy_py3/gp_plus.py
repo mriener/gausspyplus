@@ -1,5 +1,7 @@
+import functools
 import itertools
 from collections import namedtuple
+from dataclasses import dataclass
 from typing import Optional, List, Union, Any, Tuple, Literal, Dict
 
 import numpy as np
@@ -19,7 +21,6 @@ from gausspyplus.utils.gaussian_functions import (
     paramvec_to_lmfit
 )
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
-from gausspyplus.definitions import Spectrum
 
 
 def _perform_least_squares_fit(spectrum: namedtuple,
@@ -1011,9 +1012,10 @@ def _check_for_blended_feature(spectrum: namedtuple,
 
 
 def _quality_check(spectrum: namedtuple,
+                   fit,
                    dct: Dict,
-                   params_fit,
-                   ncomps_fit,
+                   # params_fit,
+                   # ncomps_fit,
                    params_min: Optional[List] = None,
                    params_max: Optional[List] = None,
                    ) -> Dict:
@@ -1039,14 +1041,14 @@ def _quality_check(spectrum: namedtuple,
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
 
     """
-    if ncomps_fit == 0:
+    if fit.n_components == 0:
         best_fit_final = spectrum.intensity_values * 0
 
         rchi2, aicc = goodness_of_fit(
             data=spectrum.intensity_values,
             best_fit_final=best_fit_final,
             errors=spectrum.noise_values,
-            ncomps_fit=ncomps_fit,
+            ncomps_fit=fit.n_components,
             mask=spectrum.signal_mask,
             get_aicc=True
         )
@@ -1061,7 +1063,7 @@ def _quality_check(spectrum: namedtuple,
         return {
             "params_fit": [],
             "params_errs": [],
-            "ncomps_fit": ncomps_fit,
+            "ncomps_fit": fit.n_components,
             "best_fit_final": best_fit_final,
             "residual": spectrum.intensity_values,
             "rchi2": rchi2,
@@ -1075,7 +1077,7 @@ def _quality_check(spectrum: namedtuple,
 
     return get_best_fit(
         spectrum=spectrum,
-        params_fit=params_fit,
+        params_fit=fit.parameters,
         dct=dct,
         first=True,
         best_fit_info=None,
@@ -1174,6 +1176,79 @@ def _log_new_fit(new_fit: bool,
     return log_gplus
 
 
+@dataclass
+class Fit:
+    _parameters: List = None
+    _n_components: int = 0
+    _amps: List = None
+    _fwhms: List = None
+    _means: List = None
+
+    @property
+    def parameters(self) -> List:
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, values: List) -> None:
+        self._parameters = values
+        if len(self._parameters) % 3 != 0:
+            raise Exception("One or more fit parameters are missing")
+        ncomps = number_of_gaussian_components(params=values)
+        self._amps, self._fwhms, self._means = split_params(params=values, ncomps=ncomps)
+        self._n_components = ncomps
+
+    @property
+    def n_components(self) -> int:
+        return self._n_components
+
+    @property
+    def amps(self) -> List:
+        return self._amps
+
+    @property
+    def fwhms(self) -> List:
+        return self._fwhms
+
+    @property
+    def means(self) -> List:
+        return self._means
+
+
+@dataclass
+class Spectrum:
+    intensity_values: np.ndarray
+    channels: np.ndarray
+    rms_noise: float
+    signal_intervals: Optional[List] = None
+    noise_spike_intervals: Optional[List] = None
+
+    @functools.cached_property
+    def n_channels(self):
+        return len(self.intensity_values)
+
+    @functools.cached_property
+    def noise_values(self):
+        return np.ones(self.n_channels) * self.rms_noise
+
+    @functools.cached_property
+    def signal_mask(self):
+        return None if not self.signal_intervals else mask_channels(
+            n_channels=self.n_channels,
+            ranges=self.signal_intervals,
+            pad_channels=None,
+            remove_intervals=self.noise_spike_intervals
+        )
+
+    @functools.cached_property
+    def noise_spike_mask(self):
+        return None if not self.noise_spike_intervals else mask_channels(
+            n_channels=self.n_channels,
+            ranges=[[0, self.n_channels]],
+            pad_channels=None,
+            remove_intervals=self.noise_spike_intervals
+        )
+
+
 def try_to_improve_fitting(vel: np.ndarray,
                            data: np.ndarray,
                            errors: np.ndarray,
@@ -1206,35 +1281,18 @@ def try_to_improve_fitting(vel: np.ndarray,
     log_gplus : Log of all successful refits of the spectrum.
 
     """
-    n_channels = len(data)
-    spectrum: namedtuple = Spectrum(
+    spectrum = Spectrum(
         intensity_values=data,
         channels=vel,
         rms_noise=errors[0],
-        noise_values=errors,
         signal_intervals=signal_ranges,
-        signal_mask=None if not signal_ranges else mask_channels(
-            n_channels=n_channels,
-            ranges=signal_ranges,
-            pad_channels=None,
-            remove_intervals=noise_spike_ranges
-        ),
-        noise_spike_intervals=noise_spike_ranges,
-        noise_spike_mask=None if not noise_spike_ranges else mask_channels(
-            n_channels=n_channels,
-            ranges=[[0, n_channels]],
-            pad_channels=None,
-            remove_intervals=noise_spike_ranges
-        )
+        noise_spike_intervals=noise_spike_ranges
     )
+    fit = Fit()
+    fit.parameters = params_fit
 
     #  Check the quality of the final fit from GaussPy
-    best_fit_info: Dict = _quality_check(
-        spectrum=spectrum,
-        params_fit=params_fit,
-        ncomps_fit=ncomps_fit,
-        dct=dct,
-    )
+    best_fit_info: Dict = _quality_check(spectrum=spectrum, fit=fit, dct=dct)
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
@@ -1321,3 +1379,9 @@ def try_to_improve_fitting(vel: np.ndarray,
     )
 
     return best_fit_info, N_neg_res_peak, N_blended, log_gplus
+
+
+if __name__ == "__main__":
+    fit = Fit()
+    fit.parameters = [1, 10, 20]
+    pass
