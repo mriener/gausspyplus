@@ -8,6 +8,8 @@ import numpy as np
 
 from lmfit import minimize as lmfit_minimize
 
+from gausspyplus.model import Model
+from gausspyplus.spectrum import Spectrum
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
 from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, check_residual_for_normality
 from gausspyplus.utils.gaussian_functions import (
@@ -1011,77 +1013,38 @@ def _check_for_blended_feature(spectrum: namedtuple,
     return best_fit_info
 
 
-def _quality_check(spectrum: namedtuple,
-                   fit,
-                   dct: Dict,
-                   # params_fit,
-                   # ncomps_fit,
-                   params_min: Optional[List] = None,
-                   params_max: Optional[List] = None,
-                   ) -> Dict:
+def _get_dictionary_from_model(model):
+    """Return best_fit_info dictionary from Model dataclass"""
+    return {
+        "params_fit": model.parameters,
+        "params_errs": model.parameter_uncertainties,
+        "ncomps_fit": model.n_components,
+        "best_fit_final": model.modelled_intensity_values,
+        "residual": model.residual,
+        "rchi2": model.rchi2,
+        "aicc": model.aicc,
+        "new_fit": model.new_best_fit,
+        "params_min": model.parameters_min_values,
+        "params_max": model.parameters_max_values,
+        "pvalue": model.pvalue,
+        "quality_control": model.quality_control
+    }
+
+
+def _quality_check(spectrum: namedtuple, model, dct: Dict) -> Dict:
     """Quality check for GaussPy best fit results.
 
-    # TODO: Should the params_min and params_max parameters be removed?
-
     All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
-
-    Parameters
-    ----------
-    dct : Dictionary containing parameter settings for the improved fitting.
-    params_fit : Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN]. Corresponds
-        to the final best fit results of the GaussPy decomposition.
-    ncomps_fit : Number of fitted Gaussian components.
-    params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
-        min_mean1, ..., min_meanN]
-    params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
-        max_mean1, ..., max_meanN]
-
-    Returns
-    -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
-
+    A dictionary containing parameters of the chosen best fit for the spectrum is returned.
     """
-    if fit.n_components == 0:
-        best_fit_final = spectrum.intensity_values * 0
-
-        rchi2, aicc = goodness_of_fit(
-            data=spectrum.intensity_values,
-            best_fit_final=best_fit_final,
-            errors=spectrum.noise_values,
-            ncomps_fit=fit.n_components,
-            mask=spectrum.signal_mask,
-            get_aicc=True
-        )
-
-        pvalue = check_residual_for_normality(
-            data=spectrum.intensity_values,
-            errors=spectrum.noise_values,
-            mask=spectrum.signal_mask,
-            noise_spike_mask=spectrum.noise_spike_mask
-        )
-
-        return {
-            "params_fit": [],
-            "params_errs": [],
-            "ncomps_fit": fit.n_components,
-            "best_fit_final": best_fit_final,
-            "residual": spectrum.intensity_values,
-            "rchi2": rchi2,
-            "aicc": aicc,
-            "new_fit": False,
-            "params_min": params_min,
-            "params_max": params_max,
-            "pvalue": pvalue,
-            "quality_control": []
-        }
-
-    return get_best_fit(
+    return _get_dictionary_from_model(model) if model.n_components == 0 else get_best_fit(
         spectrum=spectrum,
-        params_fit=fit.parameters,
+        params_fit=model.parameters,
         dct=dct,
         first=True,
         best_fit_info=None,
     )
+
 
 def check_for_peaks_in_residual(spectrum: namedtuple,
                                 best_fit_info: Dict,
@@ -1176,79 +1139,6 @@ def _log_new_fit(new_fit: bool,
     return log_gplus
 
 
-@dataclass
-class Fit:
-    _parameters: List = None
-    _n_components: int = 0
-    _amps: List = None
-    _fwhms: List = None
-    _means: List = None
-
-    @property
-    def parameters(self) -> List:
-        return self._parameters
-
-    @parameters.setter
-    def parameters(self, values: List) -> None:
-        self._parameters = values
-        if len(self._parameters) % 3 != 0:
-            raise Exception("One or more fit parameters are missing")
-        ncomps = number_of_gaussian_components(params=values)
-        self._amps, self._fwhms, self._means = split_params(params=values, ncomps=ncomps)
-        self._n_components = ncomps
-
-    @property
-    def n_components(self) -> int:
-        return self._n_components
-
-    @property
-    def amps(self) -> List:
-        return self._amps
-
-    @property
-    def fwhms(self) -> List:
-        return self._fwhms
-
-    @property
-    def means(self) -> List:
-        return self._means
-
-
-@dataclass
-class Spectrum:
-    intensity_values: np.ndarray
-    channels: np.ndarray
-    rms_noise: float
-    signal_intervals: Optional[List] = None
-    noise_spike_intervals: Optional[List] = None
-
-    @functools.cached_property
-    def n_channels(self):
-        return len(self.intensity_values)
-
-    @functools.cached_property
-    def noise_values(self):
-        return np.ones(self.n_channels) * self.rms_noise
-
-    @functools.cached_property
-    def signal_mask(self):
-        return None if not self.signal_intervals else mask_channels(
-            n_channels=self.n_channels,
-            ranges=self.signal_intervals,
-            pad_channels=None,
-            remove_intervals=self.noise_spike_intervals
-        )
-
-    @functools.cached_property
-    def noise_spike_mask(self):
-        return None if not self.noise_spike_intervals else mask_channels(
-            n_channels=self.n_channels,
-            ranges=[[0, self.n_channels]],
-            pad_channels=None,
-            remove_intervals=self.noise_spike_intervals
-        )
-
-
 def try_to_improve_fitting(vel: np.ndarray,
                            data: np.ndarray,
                            errors: np.ndarray,
@@ -1288,11 +1178,11 @@ def try_to_improve_fitting(vel: np.ndarray,
         signal_intervals=signal_ranges,
         noise_spike_intervals=noise_spike_ranges
     )
-    fit = Fit()
-    fit.parameters = params_fit
+    model = Model(spectrum=spectrum)
+    model.parameters = params_fit
 
     #  Check the quality of the final fit from GaussPy
-    best_fit_info: Dict = _quality_check(spectrum=spectrum, fit=fit, dct=dct)
+    best_fit_info: Dict = _quality_check(spectrum=spectrum, model=model, dct=dct)
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
@@ -1382,6 +1272,6 @@ def try_to_improve_fitting(vel: np.ndarray,
 
 
 if __name__ == "__main__":
-    fit = Fit()
-    fit.parameters = [1, 10, 20]
+    model = Model()
+    model.parameters = [1, 10, 20]
     pass
