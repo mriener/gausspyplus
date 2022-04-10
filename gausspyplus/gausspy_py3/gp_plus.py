@@ -685,6 +685,68 @@ def get_best_fit(spectrum: namedtuple,
     return best_fit_info
 
 
+def get_best_fit_model(model: Model,  # model is a new instance of Model
+                       params_fit: List,
+                       dct: Dict,
+                       params_min: Optional[List] = None,
+                       params_max: Optional[List] = None,
+                       ) -> Model:
+    """Determine new best fit for spectrum.
+
+    If this is the first fit iteration for the spectrum a new best fit is assigned and its parameters are returned in best_fit_info.
+
+    If it is not the first fit iteration, the new fit is compared to the current best fit supplied in best_fit_info. If the new fit is preferred (decided via the AICc criterion), the parameters of the new fit are returned in best_fit_info. Otherwise, the old best_fit_info is returned.
+
+    Parameters
+    ----------
+    params_fit : list
+        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
+    dct : dict
+        Dictionary containing parameter settings for the improved fitting.
+    force_accept : bool
+        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
+    params_min : list
+        List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
+    params_max : list
+        List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
+
+    Returns
+    -------
+    model : Best fit model
+
+    """
+
+    quality_control = model.quality_control
+
+    params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
+        spectrum=model.spectrum,
+        params_fit=params_fit,
+        dct=dct,
+        params_min=params_min,
+        params_max=params_max
+    )
+
+    #  check if fit components satisfy mandatory criteria
+    if ncomps_fit > 0:
+        refit = True
+        while refit:
+            params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = _check_params_fit(
+                spectrum=model.spectrum,
+                params_fit=params_fit,
+                params_errs=params_errs,
+                dct=dct,
+                quality_control=quality_control,
+            )
+
+    model.parameters = params_fit
+    model.parameter_uncertainties = params_errs
+    model.parameters_min_values = params_min
+    model.parameters_max_values = params_max
+    model.quality_control = quality_control
+    model.new_best_fit = True
+    return model
+
+
 def check_for_negative_residual(spectrum: namedtuple,
                                 best_fit_info: Dict,
                                 dct: Dict,
@@ -1031,18 +1093,16 @@ def _get_dictionary_from_model(model):
     }
 
 
-def _quality_check(spectrum: namedtuple, model, dct: Dict) -> Dict:
+def _quality_check(model: Model, dct: Dict) -> Model:
     """Quality check for GaussPy best fit results.
 
     All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
     A dictionary containing parameters of the chosen best fit for the spectrum is returned.
     """
-    return _get_dictionary_from_model(model) if model.n_components == 0 else get_best_fit(
-        spectrum=spectrum,
+    return model if model.n_components == 0 else get_best_fit_model(
+        model=Model(spectrum=model.spectrum),
         params_fit=model.parameters,
-        dct=dct,
-        first=True,
-        best_fit_info=None,
+        dct=dct
     )
 
 
@@ -1182,7 +1242,8 @@ def try_to_improve_fitting(vel: np.ndarray,
     model.parameters = params_fit
 
     #  Check the quality of the final fit from GaussPy
-    best_fit_info: Dict = _quality_check(spectrum=spectrum, model=model, dct=dct)
+    model = _quality_check(model=model, dct=dct)
+    best_fit_info = _get_dictionary_from_model(model)
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
@@ -1191,10 +1252,8 @@ def try_to_improve_fitting(vel: np.ndarray,
 
     # while (rchi2 > dct['rchi2_limit']) or first_run:
     while (best_fit_info["pvalue"] < dct['min_pvalue']) or first_run:
-        new_fit = True
-        new_peaks = False
-
         count_old = len(fitted_residual_peaks)
+        new_fit = True
         while new_fit:
             best_fit_info["new_fit"] = False
             best_fit_info, fitted_residual_peaks = check_for_peaks_in_residual(
@@ -1207,9 +1266,7 @@ def try_to_improve_fitting(vel: np.ndarray,
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
         count_new = len(fitted_residual_peaks)
 
-        if count_old != count_new:
-            new_peaks = True
-
+        new_peaks = count_old != count_new
         #  stop refitting loop if no new peaks were fit from the residual
         if (not first_run and not new_peaks) or (best_fit_info["ncomps_fit"] == 0):
             break

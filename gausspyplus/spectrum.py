@@ -41,12 +41,3 @@ class Spectrum:
             pad_channels=None,
             remove_intervals=self.noise_spike_intervals
         )
-
-    @functools.cached_property
-    def pvalue(self):
-        return check_residual_for_normality(
-            data=self.intensity_values,
-            errors=self.noise_values,
-            mask=self.signal_mask,
-            noise_spike_mask=self.noise_spike_mask
-        )

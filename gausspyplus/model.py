@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 
 from gausspyplus.spectrum import Spectrum
-from gausspyplus.utils.fit_quality_checks import goodness_of_fit
+from gausspyplus.utils.fit_quality_checks import goodness_of_fit, check_residual_for_normality
 from gausspyplus.utils.gaussian_functions import number_of_gaussian_components, split_params, combined_gaussian
 
 
@@ -54,10 +54,20 @@ class Model:
             mask=self.spectrum.signal_mask,
             get_aicc=True
         )
+        self._pvalue = check_residual_for_normality(
+            data=self._residual,
+            errors=self.spectrum.noise_values,
+            mask=self.spectrum.signal_mask,
+            noise_spike_mask=self.spectrum.noise_spike_mask
+        )
 
     @property
     def parameter_uncertainties(self) -> List:
         return [] if self._parameter_uncertainties is None else self._parameter_uncertainties
+
+    @parameter_uncertainties.setter
+    def parameter_uncertainties(self, values: List) -> None:
+        self._parameter_uncertainties = values
 
     @property
     def n_components(self) -> int:
@@ -93,12 +103,13 @@ class Model:
 
     @property
     def pvalue(self):
-        return self.spectrum.pvalue
+        return self._pvalue
 
     @property
     def quality_control(self) -> List:
-        return [] if self._quality_control is None else self._quality_control
+        self._quality_control = [] if self._quality_control is None else self._quality_control
+        return self._quality_control
 
     @quality_control.setter
-    def quality_control(self, value: int) -> List:
-        self._quality_control.append(value)
+    def quality_control(self, value: List):
+        self._quality_control = value
