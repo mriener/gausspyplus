@@ -14,6 +14,7 @@ from networkx.algorithms.components.connected import connected_components
 from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.definitions import Spectrum
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
 from gausspyplus.utils.determine_intervals import merge_overlapping_intervals
 from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
@@ -1014,9 +1015,12 @@ class SpatialFitting(object):
 
             #  TODO: What if multiple negative residual features occur in one spectrum?
             idx = check_for_negative_residual(
-                vel=self.channels,
-                data=spectrum,
-                errors=rms,
+                spectrum=Spectrum(intensity_values=spectrum,
+                                  channels=self.channels,
+                                  rms_noise=rms),
+                # vel=self.channels,
+                # data=spectrum,
+                # errors=rms,
                 best_fit_info=best_fit_info,
                 dct=dct,
                 get_idx=True
@@ -1893,17 +1897,24 @@ class SpatialFitting(object):
 
         #  get new best fit
         best_fit_info = get_best_fit(
-            vel=channels,
-            data=spectrum,
-            errors=errors,
+            spectrum=Spectrum(intensity_values=spectrum,
+                              channels=channels,
+                              rms_noise=rms,
+                              noise_values=errors,
+                              signal_intervals=signal_ranges,
+                              signal_mask=signal_mask,
+                              noise_spike_mask=noise_spike_mask),
+            # vel=channels,
+            # data=spectrum,
+            # errors=errors,
             params_fit=params,
             dct=dct,
             first=True,
-            signal_ranges=signal_ranges,
-            signal_mask=signal_mask,
+            # signal_ranges=signal_ranges,
+            # signal_mask=signal_mask,
             params_min=params_min,
             params_max=params_max,
-            noise_spike_mask=noise_spike_mask
+            # noise_spike_mask=noise_spike_mask
         )
 
         # #  get a new best fit that is unconstrained
@@ -1921,15 +1932,23 @@ class SpatialFitting(object):
         while new_fit:
             best_fit_info["new_fit"] = False
             best_fit_info, fitted_residual_peaks = check_for_peaks_in_residual(
-                vel=channels,
-                data=spectrum,
-                errors=errors,
+                spectrum=Spectrum(intensity_values=spectrum,
+                                  channels=channels,
+                                  rms_noise=rms,
+                                  noise_values=errors,
+                                  signal_intervals=signal_ranges,
+                                  signal_mask=signal_mask,
+                                  noise_spike_mask=noise_spike_mask
+                                  ),
+                # vel=channels,
+                # data=spectrum,
+                # errors=errors,
                 best_fit_info=best_fit_info,
                 dct=dct,
                 fitted_residual_peaks=fitted_residual_peaks,
-                signal_ranges=signal_ranges,
-                signal_mask=signal_mask,
-                noise_spike_mask=noise_spike_mask
+                # signal_ranges=signal_ranges,
+                # signal_mask=signal_mask,
+                # noise_spike_mask=noise_spike_mask
             )
             new_fit = best_fit_info["new_fit"]
 
@@ -1969,9 +1988,12 @@ class SpatialFitting(object):
             separation_factor=self.decomposition['improve_fit_settings']['separation_factor']
         )
         N_neg_res_peak = check_for_negative_residual(
-            vel=channels,
-            data=spectrum,
-            errors=rms,
+            spectrum=Spectrum(intensity_values=spectrum,
+                              channels=channels,
+                              rms_noise=rms),
+            # vel=channels,
+            # data=spectrum,
+            # errors=rms,
             best_fit_info=best_fit_info,
             dct=dct,
             get_count=True)
