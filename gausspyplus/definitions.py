@@ -21,10 +21,15 @@ PreparedSpectrum = namedtuple('PreparedSpectrum', ["intensity_values",
 fields = [
     "index",
     "intensity_values",
+    "channels",
+    "n_channels",
     "position_yx",
     "rms_noise",
+    "noise_values",
     "signal_intervals",
+    "signal_mask",
     "noise_spike_intervals",
+    "noise_spike_mask",
     "n_fit_components",
     "amplitude_values",
     "mean_values",
@@ -33,4 +38,6 @@ fields = [
 ]
 defaults = [None for field in fields]
 
+# TODO: Spectrum is used in gp_plus, spatial_fitting and plotting but not all fields are used everywhere. Maybe define
+#  multiple different Spectrum namedtuples?
 Spectrum = namedtuple('Spectrum', fields, defaults=defaults)
