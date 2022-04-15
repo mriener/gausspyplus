@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
-from .gp_plus import try_to_improve_fitting, goodness_of_fit
+from gausspyplus.gausspy_py3.gp_plus import try_to_improve_fitting
+from gausspyplus.utils.fit_quality_checks import goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
     errs_vec_from_lmfit,
