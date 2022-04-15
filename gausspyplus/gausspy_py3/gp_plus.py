@@ -892,19 +892,6 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
     return model
 
 
-def _quality_check(model: Model, dct: Dict) -> Model:
-    """Quality check for GaussPy best fit results.
-
-    All Gaussian fit components that are not satisfying the mandatory quality criteria get discarded from the fit.
-    A dictionary containing parameters of the chosen best fit for the spectrum is returned.
-    """
-    return model if model.n_components == 0 else get_best_fit_model(
-        model=Model(spectrum=model.spectrum),
-        params_fit=model.parameters,
-        dct=dct
-    )
-
-
 def check_for_peaks_in_residual(model: Model,
                                 dct: Dict,
                                 fitted_residual_peaks: List,
@@ -1005,7 +992,12 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
     """
 
     #  Check the quality of the final fit from GaussPy
-    model = _quality_check(model=model, dct=dct)
+    if model.n_components > 0:
+        model = get_best_fit_model(
+            model=Model(spectrum=model.spectrum),
+            params_fit=model.parameters,
+            dct=dct
+        )
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
