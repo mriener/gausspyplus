@@ -482,21 +482,16 @@ def get_fully_blended_gaussians(params_fit: List,
     """
     ncomps_fit = number_of_gaussian_components(params_fit)
     amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
-    # stddevs_fit = list(np.array(fwhms_fit) / CONVERSION_STD_TO_FWHM)
     indices_blended = np.array([])
-    blended_pairs = []
-    items = list(range(ncomps_fit))
 
     N_blended = 0
 
-    for idx1, idx2 in itertools.combinations(items, 2):
-        min_separation = min(
-            fwhms_fit[idx1], fwhms_fit[idx2]) * separation_factor
+    for idx1, idx2 in itertools.combinations(range(ncomps_fit), 2):
+        min_separation = min(fwhms_fit[idx1], fwhms_fit[idx2]) * separation_factor
         separation = abs(offsets_fit[idx1] - offsets_fit[idx2])
 
         if separation < min_separation:
             indices_blended = np.append(indices_blended, np.array([idx1, idx2]))
-            blended_pairs.append([idx1, idx2])
             N_blended += 1
 
     if get_count:
