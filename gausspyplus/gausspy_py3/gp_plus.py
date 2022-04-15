@@ -859,18 +859,11 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
     model : Best fit model
 
     """
-    if model.n_components < 2:
-        return model
-
     exclude_indices = get_fully_blended_gaussians(
         params_fit=model.parameters,
         get_count=False,
         separation_factor=dct['separation_factor']
     )
-
-    #  skip if there are no blended features
-    if exclude_indices.size == 0:
-        return model
 
     for exclude_idx in exclude_indices:
         model = _try_fit_with_new_components(
@@ -1027,7 +1020,7 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
                 break
 
         #  try to refit blended Gaussian components
-        while dct['blended']:
+        while dct['blended'] and model.n_components > 1:
             model = _check_for_blended_feature(model=model, dct=dct)
             log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='blended')
             if not model.new_best_fit:
