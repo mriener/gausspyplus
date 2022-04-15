@@ -7,7 +7,7 @@ import numpy as np
 from lmfit import minimize as lmfit_minimize
 
 from gausspyplus.model import Model
-from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
+from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal, get_slice_indices_for_interval
 from gausspyplus.utils.fit_quality_checks import determine_significance
 from gausspyplus.utils.gaussian_functions import (
     combined_gaussian, 
@@ -223,8 +223,7 @@ def _check_params_fit(spectrum: namedtuple,
 
         if spectrum.signal_intervals:
             if not any(low <= offset <= upp for low, upp in spectrum.signal_intervals):
-                low = max(0, int(offset - fwhm))
-                upp = int(offset + fwhm) + 2
+                low, upp = get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
 
                 if not check_if_intervals_contain_signal(
                         spectrum=spectrum.intensity_values,
@@ -309,21 +308,18 @@ def _check_which_gaussian_contains_feature(idx_low: int,
     index : Index of Gaussian component contained within the spectral range.
 
     """
-    lower = [int(offset - fwhm) for fwhm, offset in zip(fwhms_fit, offsets_fit)]
-    lower = np.array([max(x, 0) for x in lower])
-    upper = np.array([int(offset + fwhm) + 2 for fwhm, offset in zip(fwhms_fit, offsets_fit)])
+    interval_bounds = [get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
+                       for offset, fwhm in zip(offsets_fit, fwhms_fit)]
+    indices_of_contained_intervals = [idx for idx, (lower, upper) in enumerate(interval_bounds)
+                                      if (lower <= idx_low and upper >= idx_upp)]
 
-    indices = np.arange(len(fwhms_fit))
-    conditions = np.logical_and(lower <= idx_low, upper >= idx_upp)
-
-    if np.count_nonzero(conditions) == 0:
-        return None
-    elif np.count_nonzero(conditions) == 1:
-        return int(indices[conditions])
+    if not indices_of_contained_intervals:
+        return
+    elif len(indices_of_contained_intervals) == 1:
+        return indices_of_contained_intervals[0]
     else:
-        remaining_indices = indices[conditions]
-        select = np.argmax(np.array(fwhms_fit)[remaining_indices])
-        return int(remaining_indices[select])
+        idx_largest_interval = np.argmax(np.array(fwhms_fit)[indices_of_contained_intervals])
+        return indices_of_contained_intervals[idx_largest_interval]
 
 
 def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
@@ -357,8 +353,10 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
 
     #  remove the broad Gaussian component from the fit parameter list and determine new residual
 
-    idx_low_residual = max(0, int(offsets_fit[exclude_idx] - fwhms_fit[exclude_idx]))
-    idx_upp_residual = int(offsets_fit[exclude_idx] + fwhms_fit[exclude_idx]) + 2
+    idx_low_residual, idx_upp_residual = get_slice_indices_for_interval(
+        interval_center=offsets_fit[exclude_idx],
+        interval_half_width=fwhms_fit[exclude_idx]
+    )
 
     amps_fit.pop(exclude_idx)
     fwhms_fit.pop(exclude_idx)
@@ -681,9 +679,10 @@ def check_for_negative_residual(model: Model,
     offset_guesses = np.array(offset_guesses)[sort]
 
     for amp, fwhm, offset in zip(amp_guesses, fwhm_guesses, offset_guesses):
+        idx_low, idx_up = get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
         exclude_idx = _check_which_gaussian_contains_feature(
-            idx_low=max(0, int(offset - fwhm)),
-            idx_upp=int(offset + fwhm) + 2,
+            idx_low=idx_low,
+            idx_upp=idx_up,
             fwhms_fit=model.fwhms,
             offsets_fit=model.means)
         if get_idx:
