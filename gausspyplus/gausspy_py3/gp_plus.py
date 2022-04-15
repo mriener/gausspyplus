@@ -1035,20 +1035,18 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
-        if dct['broad']:
-            new_fit = True
-            while new_fit:
-                model = _check_for_broad_feature(model=model, dct=dct)
-                new_fit = model.new_best_fit
-                log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='broad')
+        while dct['broad']:
+            model = _check_for_broad_feature(model=model, dct=dct)
+            log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='broad')
+            if not model.new_best_fit:
+                break
 
         #  try to refit blended Gaussian components
-        if dct['blended']:
-            new_fit = True
-            while new_fit:
-                model = _check_for_blended_feature(model=model, dct=dct)
-                new_fit = model.new_best_fit
-                log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='blended')
+        while dct['blended']:
+            model = _check_for_blended_feature(model=model, dct=dct)
+            log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='blended')
+            if not model.new_best_fit:
+                break
 
         if not first_run:
             break
