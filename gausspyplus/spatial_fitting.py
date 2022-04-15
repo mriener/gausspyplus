@@ -14,10 +14,12 @@ from networkx.algorithms.components.connected import connected_components
 from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
-from gausspyplus.definitions import Spectrum
-from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, get_best_fit, check_for_negative_residual, remove_components_from_sublists
+from gausspyplus.spectrum import Spectrum
+from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, \
+    check_for_negative_residual, remove_components_from_sublists, get_best_fit_model
+from gausspyplus.model import Model
 from gausspyplus.utils.determine_intervals import merge_overlapping_intervals
-from gausspyplus.utils.gaussian_functions import combined_gaussian, split_params, CONVERSION_STD_TO_FWHM
+from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
 from gausspyplus.utils.ndimage_functions import weighted_median, number_of_component_jumps, broad_components
 from gausspyplus.utils.noise_estimation import mask_channels
@@ -998,30 +1000,14 @@ class SpatialFitting(object):
         elif flag == 'residual':
             dct = self.decomposition['improve_fit_settings'].copy()
 
-            best_fit_info = {
-                "params_fit": amps + fwhms + means,
-                "params_errs": None,
-                "ncomps_fit": len(amps),
-                "best_fit_final": None,
-                "residual": spectrum - combined_gaussian(amps=amps, fwhms=fwhms, means=means, x=self.channels),
-                "rchi2": None,
-                "aicc": None,
-                "new_fit": None,
-                "params_min": None,
-                "params_max": None,
-                "pvalue": None,
-                "quality_control": None
-            }
-
             #  TODO: What if multiple negative residual features occur in one spectrum?
             idx = check_for_negative_residual(
-                spectrum=Spectrum(intensity_values=spectrum,
-                                  channels=self.channels,
-                                  rms_noise=rms),
-                # vel=self.channels,
-                # data=spectrum,
-                # errors=rms,
-                best_fit_info=best_fit_info,
+                model=Model(
+                    spectrum=Spectrum(
+                        intensity_values=spectrum,
+                        channels=self.channels,
+                        rms_noise=rms
+                    )),
                 dct=dct,
                 get_idx=True
             )
@@ -1109,7 +1095,7 @@ class SpatialFitting(object):
         indices, interval = self._components_in_interval(fwhms=fwhms_new, means=means_new, interval=interval)
 
         if len(indices) == 0:
-            return None
+            return
 
         #  discard all neighboring fit components not overlappting with the interval containing the flagged feature(s)
         remove_indices = np.delete(np.arange(len(amps_new)), indices)
@@ -1121,7 +1107,7 @@ class SpatialFitting(object):
         )
 
         if len(amps_new) == 0:
-            return None
+            return
 
         #  get best fit with new fit solution(s) for only the interval that contained the removed components
 
@@ -1153,7 +1139,7 @@ class SpatialFitting(object):
         )
 
         if dictFit is None:
-            return None
+            return
 
         #  create new dictionary of fit solution(s) by combining new fit component(s) taken from neighboring spectrum with the remaining fit component(s) outside the flagged interval
 
@@ -1867,28 +1853,14 @@ class SpatialFitting(object):
 
         """
         if channels is None:
-            n_channels = self.n_channels
             channels = self.channels
-        else:
-            n_channels = len(channels)
-
-        if noise_spike_ranges:
-            noise_spike_mask = mask_channels(
-                n_channels=n_channels,
-                ranges=[[0, n_channels]],
-                remove_intervals=noise_spike_ranges
-            )
-        else:
-            noise_spike_mask = None
-
-        errors = np.ones(n_channels)*rms
 
         #  correct dictionary key
         dct = self.decomposition['improve_fit_settings'].copy()
         dct['max_amp'] = dct['max_amp_factor'] * np.max(spectrum)
 
         #  set limits for fit parameters
-        params, params_min, params_max = ([] for _ in range(3))
+        params, params_min, params_max = [], [], []
         for key in ['amp', 'fwhm', 'mean']:
             for nr in dictComps.keys():
                 params.append(dictComps[nr][f'{key}_ini'])
@@ -1896,33 +1868,21 @@ class SpatialFitting(object):
                 params_max.append(dictComps[nr][f'{key}_bounds'][1])
 
         #  get new best fit
-        best_fit_info = get_best_fit(
-            spectrum=Spectrum(intensity_values=spectrum,
-                              channels=channels,
-                              rms_noise=rms,
-                              noise_values=errors,
-                              signal_intervals=signal_ranges,
-                              signal_mask=signal_mask,
-                              noise_spike_mask=noise_spike_mask),
-            # vel=channels,
-            # data=spectrum,
-            # errors=errors,
+        model = get_best_fit_model(
+            model=Model(
+                spectrum=Spectrum(
+                    intensity_values=spectrum,
+                    channels=channels,
+                    rms_noise=rms,
+                    signal_intervals=signal_ranges,
+                    noise_spike_intervals=noise_spike_ranges
+                )
+            ),
             params_fit=params,
             dct=dct,
-            first=True,
-            # signal_ranges=signal_ranges,
-            # signal_mask=signal_mask,
             params_min=params_min,
             params_max=params_max,
-            # noise_spike_mask=noise_spike_mask
         )
-
-        # #  get a new best fit that is unconstrained
-        # params = best_fit_info["params_fit"]
-        #
-        # best_fit_info = get_best_fit(
-        #     self.channels, spectrum, errors, params, dct, first=True,
-        #     signal_ranges=signal_ranges, signal_mask=signal_mask)
 
         #  check for unfit residual peaks
         #  TODO: set fitted_residual_peaks to input offset positions??
@@ -1930,47 +1890,24 @@ class SpatialFitting(object):
         new_fit = True
 
         while new_fit:
-            best_fit_info["new_fit"] = False
-            best_fit_info, fitted_residual_peaks = check_for_peaks_in_residual(
-                spectrum=Spectrum(intensity_values=spectrum,
-                                  channels=channels,
-                                  rms_noise=rms,
-                                  noise_values=errors,
-                                  signal_intervals=signal_ranges,
-                                  signal_mask=signal_mask,
-                                  noise_spike_mask=noise_spike_mask
-                                  ),
-                # vel=channels,
-                # data=spectrum,
-                # errors=errors,
-                best_fit_info=best_fit_info,
+            model, fitted_residual_peaks = check_for_peaks_in_residual(
+                model=model,
                 dct=dct,
                 fitted_residual_peaks=fitted_residual_peaks,
-                # signal_ranges=signal_ranges,
-                # signal_mask=signal_mask,
-                # noise_spike_mask=noise_spike_mask
             )
-            new_fit = best_fit_info["new_fit"]
+            new_fit = model.new_best_fit
 
-        params = best_fit_info["params_fit"]
-        params_errs = best_fit_info["params_errs"]
-        ncomps = best_fit_info["ncomps_fit"]
-        best_fit = best_fit_info["best_fit_final"]
-        residual_signal_mask = best_fit_info["residual"][signal_mask]
-        rchi2 = best_fit_info["rchi2"]
-        aicc = best_fit_info["aicc"]
-        pvalue = best_fit_info["pvalue"]
+        if model.n_components == 0:
+            return
 
-        if ncomps == 0:
-            return None
-
-        amps, fwhms, means = split_params(params=params, ncomps=ncomps)
-        amps_errs, fwhms_errs, means_errs = split_params(params=params_errs, ncomps=ncomps)
-
-        keys = ['amplitudes_fit', 'fwhms_fit', 'means_fit',
-                'amplitudes_fit_err', 'fwhms_fit_err', 'means_fit_err']
-        vals = [amps, fwhms, means, amps_errs, fwhms_errs, means_errs]
-        dictResults = dict(zip(keys, vals))
+        dictResults = {
+            'amplitudes_fit': model.amps,
+            'fwhms_fit': model.fwhms,
+            'means_fit': model.means,
+            'amplitudes_fit_err': model.amps_uncertainties,
+            'fwhms_fit_err': model.fwhms_uncertainties,
+            'means_fit_err': model.means_uncertainties
+        }
 
         if params_only:
             return dictResults
@@ -1983,31 +1920,28 @@ class SpatialFitting(object):
         rchi2_gauss, aicc_gauss = None, None
 
         N_blended = get_fully_blended_gaussians(
-            params_fit=params,
+            params_fit=model.parameters,
             get_count=True,
             separation_factor=self.decomposition['improve_fit_settings']['separation_factor']
         )
         N_neg_res_peak = check_for_negative_residual(
-            spectrum=Spectrum(intensity_values=spectrum,
-                              channels=channels,
-                              rms_noise=rms),
-            # vel=channels,
-            # data=spectrum,
-            # errors=rms,
-            best_fit_info=best_fit_info,
+            model=model,
             dct=dct,
             get_count=True)
 
-        keys = ["best_fit_rchi2", "best_fit_aicc", "residual_signal_mask",
-                "gaussians_rchi2", "gaussians_aicc", "pvalue",
-                "N_components", "N_blended", "N_neg_res_peak"]
-        values = [rchi2, aicc, residual_signal_mask,
-                  rchi2_gauss, aicc_gauss, pvalue,
-                  ncomps, N_blended, N_neg_res_peak]
-        for key, val in zip(keys, values):
-            dictResults[key] = val
-
-        return dictResults
+        return {
+            **dictResults,
+            **{"best_fit_rchi2": model.rchi2,
+               "best_fit_aicc": model.aicc,
+               "residual_signal_mask": model.residual[signal_mask],
+               "gaussians_rchi2": rchi2_gauss,
+               "gaussians_aicc": aicc_gauss,
+               "pvalue": model.pvalue,
+               "N_components": model.n_components,
+               "N_blended": N_blended,
+               "N_neg_res_peak": N_neg_res_peak
+               }
+        }
 
     def _save_final_results(self) -> None:
         """Save the results of the spatially coherent refitting iterations."""

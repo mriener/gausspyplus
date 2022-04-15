@@ -1,7 +1,5 @@
-import functools
 import itertools
 from collections import namedtuple
-from dataclasses import dataclass
 from typing import Optional, List, Union, Any, Tuple, Literal, Dict
 
 import numpy as np
@@ -11,7 +9,7 @@ from lmfit import minimize as lmfit_minimize
 from gausspyplus.model import Model
 from gausspyplus.spectrum import Spectrum
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
-from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit, check_residual_for_normality
+from gausspyplus.utils.fit_quality_checks import determine_significance
 from gausspyplus.utils.gaussian_functions import (
     combined_gaussian, 
     area_of_gaussian, 
@@ -22,7 +20,7 @@ from gausspyplus.utils.gaussian_functions import (
     errs_vec_from_lmfit,
     paramvec_to_lmfit
 )
-from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels
+from gausspyplus.utils.noise_estimation import determine_peaks
 
 
 def _perform_least_squares_fit(spectrum: namedtuple,
@@ -366,9 +364,9 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
         offsets_fit[exclude_idx] + fwhms_fit[exclude_idx]) + 2
 
     mask = np.arange(len(amps_fit)) == exclude_idx
-    amps_fit = np.array(amps_fit)[~mask]
-    fwhms_fit = np.array(fwhms_fit)[~mask]
-    offsets_fit = np.array(offsets_fit)[~mask]
+    amps_fit = list(np.array(amps_fit)[~mask])
+    fwhms_fit = list(np.array(fwhms_fit)[~mask])
+    offsets_fit = list(np.array(offsets_fit)[~mask])
 
     residual = spectrum.intensity_values - combined_gaussian(amps=amps_fit,
                                                              fwhms=fwhms_fit,
@@ -561,130 +559,6 @@ def remove_components(params_fit: List,
     return amps_fit + fwhms_fit + offsets_fit
 
 
-def get_best_fit(spectrum: namedtuple,
-                 params_fit: List,
-                 dct: Dict,
-                 first: bool = False,
-                 best_fit_info: Optional[Dict] = None,
-                 force_accept: bool = False,
-                 params_min: Optional[List] = None,
-                 params_max: Optional[List] = None,
-                 ) -> Dict:
-    """Determine new best fit for spectrum.
-
-    If this is the first fit iteration for the spectrum a new best fit is assigned and its parameters are returned in best_fit_info.
-
-    If it is not the first fit iteration, the new fit is compared to the current best fit supplied in best_fit_info. If the new fit is preferred (decided via the AICc criterion), the parameters of the new fit are returned in best_fit_info. Otherwise, the old best_fit_info is returned.
-
-    Parameters
-    ----------
-    params_fit : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
-    first : bool
-        Default is 'False'. If set to 'True', the new fit will be assigned as best fit and returned in best_fit_info.
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
-    params_min : list
-        List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
-    params_max : list
-        List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN, max_mean1, ..., max_meanN]
-
-    Returns
-    -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
-
-    """
-    if not first:
-        best_fit_info["new_fit"] = False
-        quality_control = best_fit_info["quality_control"]
-    else:
-        quality_control = []
-
-    params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
-        spectrum=spectrum,
-        params_fit=params_fit,
-        dct=dct,
-        params_min=params_min,
-        params_max=params_max
-    )
-
-    #  check if fit components satisfy mandatory criteria
-    if ncomps_fit > 0:
-        refit = True
-        while refit:
-            params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = _check_params_fit(
-                spectrum=spectrum,
-                params_fit=params_fit,
-                params_errs=params_errs,
-                dct=dct,
-                quality_control=quality_control,
-            )
-
-        best_fit = multi_component_gaussian_model(spectrum.channels, *params_fit).ravel()
-    else:
-        best_fit = spectrum.intensity_values * 0
-
-    rchi2, aicc = goodness_of_fit(
-        data=spectrum.intensity_values,
-        best_fit_final=best_fit,
-        errors=spectrum.noise_values,
-        ncomps_fit=ncomps_fit,
-        mask=spectrum.signal_mask,
-        get_aicc=True
-    )
-
-    residual = spectrum.intensity_values - best_fit
-
-    pvalue = check_residual_for_normality(
-        data=residual,
-        errors=spectrum.noise_values,
-        mask=spectrum.signal_mask,
-        noise_spike_mask=spectrum.noise_spike_mask
-    )
-
-    #  return the list of best fit results if there was no old list of best fit results for comparison
-    if first:
-        return {
-            "params_fit": params_fit,
-            "params_errs": params_errs,
-            "ncomps_fit": ncomps_fit,
-            "best_fit_final": best_fit,
-            "residual": residual,
-            "rchi2": rchi2,
-            "aicc": aicc,
-            "new_fit": True,
-            "params_min": params_min,
-            "params_max": params_max,
-            "pvalue": pvalue,
-            "quality_control": quality_control
-        }
-
-    #  return new best_fit_info if the AICc value is smaller
-    aicc_old = best_fit_info["aicc"]
-    if ((aicc < aicc_old) and not np.isclose(aicc, aicc_old, atol=1e-1)) or force_accept:
-        return {
-            "params_fit": params_fit,
-            "params_errs": params_errs,
-            "ncomps_fit": ncomps_fit,
-            "best_fit_final": best_fit,
-            "residual": residual,
-            "rchi2": rchi2,
-            "aicc": aicc,
-            "new_fit": True,
-            "params_min": params_min,
-            "params_max": params_max,
-            "pvalue": pvalue,
-            "quality_control": quality_control
-        }
-
-    #  return old best_fit_info if the aicc value is higher
-    best_fit_info["new_fit"] = False
-    return best_fit_info
-
-
 def get_best_fit_model(model: Model,  # model is a new instance of Model
                        params_fit: List,
                        dct: Dict,
@@ -747,13 +621,23 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
     return model
 
 
-def check_for_negative_residual(spectrum: namedtuple,
-                                best_fit_info: Dict,
+def choose_better_model_based_on_aicc(old_model: Model, new_model: Model) -> Model:
+    if (new_model.aicc < old_model.aicc) and not np.isclose(new_model.aicc, old_model.aicc, atol=1e-1):
+        new_model.new_best_fit = True
+        new_model.quality_control = old_model.quality_control + new_model.quality_control
+        return new_model
+    else:
+        old_model.new_best_fit = False
+        old_model.quality_control = old_model.quality_control + new_model.quality_control
+        return old_model
+
+
+def check_for_negative_residual(model: Model,
                                 dct: Dict,
                                 force_accept: bool = False,
                                 get_count: bool = False,
                                 get_idx: bool = False,
-                                ) -> Union[int, Dict]:
+                                ) -> Union[int, Model]:
     """Check for negative residual features and try to refit them.
 
     We define negative residual features as negative peaks in the residual that were introduced by the fit. These
@@ -780,19 +664,13 @@ def check_for_negative_residual(spectrum: namedtuple,
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
 
     """
-    if best_fit_info["ncomps_fit"] == 0:
-        return 0 if get_count else best_fit_info
-
-    residual = best_fit_info["residual"]
-
-    amps_fit, fwhms_fit, offsets_fit = split_params(
-        params=best_fit_info["params_fit"],
-        ncomps=best_fit_info["ncomps_fit"]
-    )
+    model.new_best_fit = False
+    if model.n_components == 0:
+        return 0 if get_count else model
 
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
-        residual=residual,
-        rms=spectrum.rms_noise,
+        residual=model.residual,
+        rms=model.spectrum.rms_noise,
         snr=dct['snr_negative'],
         significance=dct['significance'],
         peak='negative',
@@ -800,8 +678,10 @@ def check_for_negative_residual(spectrum: namedtuple,
     )
 
     #  check if negative residual feature was already present in the data
-    remove_indices = [i for i, offset in enumerate(offset_guesses)
-                      if residual[offset] > (spectrum.intensity_values[offset] - dct['snr'] * spectrum.rms_noise)]
+    remove_indices = [
+        i for i, offset in enumerate(offset_guesses)
+        if model.residual[offset] > (model.spectrum.intensity_values[offset] - dct['snr'] * model.spectrum.rms_noise)
+    ]
 
     if remove_indices:
         amp_guesses, fwhm_guesses, offset_guesses = remove_components_from_sublists(
@@ -811,7 +691,7 @@ def check_for_negative_residual(spectrum: namedtuple,
         return len(amp_guesses)
 
     if len(amp_guesses) == 0:
-        return best_fit_info
+        return model
 
     #  in case of multiple negative residual features, sort them in order of increasing amplitude values
     sort = np.argsort(amp_guesses)
@@ -823,44 +703,40 @@ def check_for_negative_residual(spectrum: namedtuple,
         exclude_idx = _check_which_gaussian_contains_feature(
             idx_low=max(0, int(offset - fwhm)),
             idx_upp=int(offset + fwhm) + 2,
-            fwhms_fit=fwhms_fit,
-            offsets_fit=offsets_fit)
+            fwhms_fit=model.fwhms,
+            offsets_fit=model.means)
         if get_idx:
             return exclude_idx
         if exclude_idx is None:
             continue
 
         params_fit = _replace_gaussian_with_two_new_ones(
-            spectrum=spectrum,
+            spectrum=model.spectrum,
             snr=dct['snr'],
             significance=dct['significance'],
-            params_fit=best_fit_info["params_fit"],
+            params_fit=model.parameters,
             exclude_idx=exclude_idx,
             offset=offset
         )
 
-        best_fit_info = get_best_fit(
-            spectrum=spectrum,
+        new_model = get_best_fit_model(
+            model=Model(spectrum=model.spectrum),
             params_fit=params_fit,
-            dct=dct,
-            first=False,
-            best_fit_info=best_fit_info,
-            force_accept=force_accept,
+            dct=dct
         )
 
-        # TODO: What's the purpose of the following three lines?
-        params_fit = best_fit_info["params_fit"]
-        ncomps_fit = best_fit_info["ncomps_fit"]
-        amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
-    return best_fit_info
+        model = new_model if force_accept else choose_better_model_based_on_aicc(
+            old_model=model,
+            new_model=new_model
+        )
+    return model
 
 
-def _try_fit_with_new_components(spectrum: namedtuple,
-                                 best_fit_info: Dict,
+def _try_fit_with_new_components(model: Model,
                                  dct: Dict,
                                  exclude_idx: int,
                                  force_accept: bool = False,
-                                 ) -> Dict:
+                                 ) -> Model:
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we
@@ -881,31 +757,31 @@ def _try_fit_with_new_components(spectrum: namedtuple,
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
 
     """
+    spectrum = model.spectrum
+
     #  produce new best fit with excluded components
-    best_fit_info_new = get_best_fit(
-        spectrum=spectrum,
-        # exclude component from parameter list of components
-        params_fit=remove_components(params_fit=best_fit_info["params_fit"], remove_indices=exclude_idx),
-        dct=dct,
-        first=True,
-        best_fit_info=None,
-        force_accept=force_accept,
+    new_model = get_best_fit_model(
+        model=Model(spectrum=model.spectrum),
+        params_fit=remove_components(params_fit=model.parameters, remove_indices=exclude_idx),
+        dct=dct
     )
 
-    #  return new best fit with excluded component if its AICc value is lower
-    if ((best_fit_info_new["aicc"] < best_fit_info["aicc"]) and
-            not np.isclose(best_fit_info_new["aicc"], best_fit_info["aicc"], atol=1e-1)):
-        return best_fit_info_new
+    model = new_model if force_accept else choose_better_model_based_on_aicc(
+        old_model=model,
+        new_model=new_model
+    )
+    if model.new_best_fit:
+        return model
 
     #  search for new positive residual peaks
 
-    amps_fit, fwhms_fit, offsets_fit = split_params(
-        params=best_fit_info_new["params_fit"],
-        ncomps=best_fit_info_new["ncomps_fit"]
-    )
-
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
-        residual=spectrum.intensity_values - combined_gaussian(amps_fit, fwhms_fit, offsets_fit, spectrum.channels),
+        residual=spectrum.intensity_values - combined_gaussian(
+            new_model.amps,
+            new_model.fwhms,
+            new_model.means,
+            spectrum.channels
+        ),
         rms=spectrum.rms_noise,
         snr=dct['snr'],
         significance=dct['significance'],
@@ -914,37 +790,29 @@ def _try_fit_with_new_components(spectrum: namedtuple,
 
     #  return original best fit list if there are no guesses for new components to fit in the residual
     if amp_guesses.size == 0:
-        return best_fit_info
+        return model
 
     #  get new best fit with additional components guessed from the residual
-    amps_fit = list(amps_fit) + list(amp_guesses)
-    fwhms_fit = list(fwhms_fit) + list(fwhm_guesses)
-    offsets_fit = list(offsets_fit) + list(offset_guesses)
 
-    params_fit_new = amps_fit + fwhms_fit + offsets_fit
-
-    best_fit_info_new = get_best_fit(
-        spectrum=spectrum,
-        params_fit=params_fit_new,
-        dct=dct,
-        first=False,
-        best_fit_info=best_fit_info_new,
-        force_accept=force_accept,
+    new_model = get_best_fit_model(
+        model=Model(spectrum=model.spectrum),
+        params_fit=(new_model.amps + list(amp_guesses) +
+                    new_model.fwhms + list(fwhm_guesses) +
+                    new_model.means + list(offset_guesses)),
+        dct=dct
     )
 
-    #  return new best fit if its AICc value is lower
-    if ((best_fit_info_new["aicc"] < best_fit_info["aicc"]) and
-            not np.isclose(best_fit_info_new["aicc"], best_fit_info["aicc"], atol=1e-1)):
-        return best_fit_info_new
+    model = new_model if force_accept else choose_better_model_based_on_aicc(
+        old_model=model,
+        new_model=new_model
+    )
+    return model
 
-    return best_fit_info
 
-
-def _check_for_broad_feature(spectrum: namedtuple,
-                             best_fit_info: Dict,
+def _check_for_broad_feature(model: Model,
                              dct: Dict,
                              force_accept: bool = False,
-                             ) -> Dict:
+                             ) -> Model:
     """Check for broad features and try to refit them.
 
     We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the
@@ -970,61 +838,53 @@ def _check_for_broad_feature(spectrum: namedtuple,
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
 
     """
-    best_fit_info["new_fit"] = False
+    model.new_best_fit = False
 
-    if best_fit_info["ncomps_fit"] < 2 and dct['fwhm_factor'] > 0:
-        return best_fit_info
+    if model.n_components < 2 and dct['fwhm_factor'] > 0:
+        return model
 
-    fwhms_fit, offsets_fit = split_params(
-        params=best_fit_info["params_fit"], ncomps=best_fit_info["ncomps_fit"])[1:]
+    fwhms_sorted = sorted(model.fwhms)
+    if fwhms_sorted[-1] < dct['fwhm_factor'] * fwhms_sorted[-2]:
+        return model
 
-    fwhms_sorted = sorted(fwhms_fit)
-    if (fwhms_sorted[-1] < dct['fwhm_factor'] * fwhms_sorted[-2]):
-        return best_fit_info
-
-    exclude_idx = np.argmax(np.array(fwhms_fit))
+    exclude_idx = np.argmax(model.fwhms)
 
     params_fit = _replace_gaussian_with_two_new_ones(
-        spectrum=spectrum,
+        spectrum=model.spectrum,
         snr=dct['snr'],
         significance=dct['significance'],
-        params_fit=best_fit_info["params_fit"],
+        params_fit=model.parameters,
         exclude_idx=exclude_idx,
-        offset=offsets_fit[exclude_idx]
+        offset=model.means[exclude_idx]
     )
 
     if len(params_fit) > 0:
-        best_fit_info = get_best_fit(
-            spectrum=spectrum,
+        new_model = get_best_fit_model(
+            model=Model(spectrum=model.spectrum),
             params_fit=params_fit,
-            dct=dct,
-            first=False,
-            best_fit_info=best_fit_info,
-            force_accept=force_accept,
+            dct=dct
         )
 
-    if best_fit_info["new_fit"]:
-        return best_fit_info
+        model = new_model if force_accept else choose_better_model_based_on_aicc(
+            old_model=model,
+            new_model=new_model
+        )
 
-    if best_fit_info["ncomps_fit"] == 0:
-        return best_fit_info
-
-    fwhms_fit = split_params(params=best_fit_info["params_fit"], ncomps=best_fit_info["ncomps_fit"])[1]
+    if model.new_best_fit or model.n_components == 0:
+        return model
 
     return _try_fit_with_new_components(
-        spectrum=spectrum,
-        best_fit_info=best_fit_info,
+        model=model,
         dct=dct,
-        exclude_idx=np.argmax(np.array(fwhms_fit)),
+        exclude_idx=np.argmax(model.fwhms),
         force_accept=force_accept,
     )
 
 
-def _check_for_blended_feature(spectrum: namedtuple,
-                               best_fit_info: Dict,
+def _check_for_blended_feature(model: Model,
                                dct: Dict,
                                force_accept: bool = False,
-                               ) -> Dict:
+                               ) -> Model:
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard
@@ -1048,31 +908,30 @@ def _check_for_blended_feature(spectrum: namedtuple,
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
 
     """
-    if best_fit_info["ncomps_fit"] < 2:
-        return best_fit_info
+    if model.n_components < 2:
+        return model
 
     exclude_indices = get_fully_blended_gaussians(
-        params_fit=best_fit_info["params_fit"],
+        params_fit=model.parameters,
         get_count=False,
         separation_factor=dct['separation_factor']
     )
 
     #  skip if there are no blended features
     if exclude_indices.size == 0:
-        return best_fit_info
+        return model
 
     for exclude_idx in exclude_indices:
-        best_fit_info = _try_fit_with_new_components(
-            spectrum=spectrum,
-            best_fit_info=best_fit_info,
+        model = _try_fit_with_new_components(
+            model=model,
             dct=dct,
             exclude_idx=exclude_idx,
             force_accept=force_accept,
         )
-        if best_fit_info["new_fit"]:
+        if model.new_best_fit:
             break
 
-    return best_fit_info
+    return model
 
 
 def _get_dictionary_from_model(model):
@@ -1106,8 +965,7 @@ def _quality_check(model: Model, dct: Dict) -> Model:
     )
 
 
-def check_for_peaks_in_residual(spectrum: namedtuple,
-                                best_fit_info: Dict,
+def check_for_peaks_in_residual(model: Model,
                                 dct: Dict,
                                 fitted_residual_peaks: List,
                                 force_accept: bool = False,
@@ -1136,42 +994,38 @@ def check_for_peaks_in_residual(spectrum: namedtuple,
         residual peaks.
 
     """
-    #  TODO: remove params_min and params_max keywords
-    amps_fit, fwhms_fit, offsets_fit = split_params(
-        params=best_fit_info["params_fit"],
-        ncomps=best_fit_info["ncomps_fit"]
-    )
-
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
-        residual=best_fit_info["residual"],
-        rms=spectrum.rms_noise,
+        residual=model.residual,
+        rms=model.spectrum.rms_noise,
         snr=dct['snr'],
         significance=dct['significance'],
         peak='positive'
     )
 
     if (amp_guesses.size == 0) or (list(offset_guesses) in fitted_residual_peaks):
-        best_fit_info["new_fit"] = False
-        return best_fit_info, fitted_residual_peaks
+        model.new_best_fit = False
+        return model, fitted_residual_peaks
+
+    amps_fit = model.amps + list(amp_guesses)
+    fwhms_fit = model.fwhms + list(fwhm_guesses)
+    offsets_fit = model.means + list(offset_guesses)
 
     fitted_residual_peaks.append(list(offset_guesses))
 
-    amps_fit = list(amps_fit) + list(amp_guesses)
-    fwhms_fit = list(fwhms_fit) + list(fwhm_guesses)
-    offsets_fit = list(offsets_fit) + list(offset_guesses)
-
-    best_fit_info = get_best_fit(
-        spectrum=spectrum,
+    new_model = get_best_fit_model(
+        model=Model(spectrum=model.spectrum),
         params_fit=amps_fit + fwhms_fit + offsets_fit,
         dct=dct,
-        first=False,
-        best_fit_info=best_fit_info,
-        force_accept=force_accept,
         params_min=params_min,
         params_max=params_max,
     )
 
-    return best_fit_info, fitted_residual_peaks
+    chosen_model = new_model if force_accept else choose_better_model_based_on_aicc(
+        old_model=model,
+        new_model=new_model
+    )
+
+    return chosen_model, fitted_residual_peaks
 
 
 def _log_new_fit(new_fit: bool,
@@ -1255,77 +1109,52 @@ def try_to_improve_fitting(vel: np.ndarray,
         count_old = len(fitted_residual_peaks)
         new_fit = True
         while new_fit:
-            best_fit_info["new_fit"] = False
-            best_fit_info, fitted_residual_peaks = check_for_peaks_in_residual(
-                spectrum=spectrum,
-                best_fit_info=best_fit_info,
-                dct=dct,
-                fitted_residual_peaks=fitted_residual_peaks,
-            )
-            new_fit = best_fit_info["new_fit"]
+            model.new_best_fit = False
+            model, fitted_residual_peaks = check_for_peaks_in_residual(model, dct, fitted_residual_peaks)
+            new_fit = model.new_best_fit
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
         count_new = len(fitted_residual_peaks)
 
         new_peaks = count_old != count_new
         #  stop refitting loop if no new peaks were fit from the residual
-        if (not first_run and not new_peaks) or (best_fit_info["ncomps_fit"] == 0):
+        if (not first_run and not new_peaks) or (model.n_components == 0):
             break
 
         #  try to refit negative residual feature
         if dct['neg_res_peak']:
-            best_fit_info = check_for_negative_residual(
-                spectrum=spectrum,
-                best_fit_info=best_fit_info,
-                dct=dct,
-            )
-            new_fit = best_fit_info["new_fit"]
+            model = check_for_negative_residual(model=model, dct=dct)
+            new_fit = model.new_best_fit
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
         if dct['broad']:
             new_fit = True
             while new_fit:
-                best_fit_info["new_fit"] = False
-                best_fit_info = _check_for_broad_feature(
-                    spectrum=spectrum,
-                    best_fit_info=best_fit_info,
-                    dct=dct,
-                )
-                new_fit = best_fit_info["new_fit"]
+                model = _check_for_broad_feature(model=model, dct=dct)
+                new_fit = model.new_best_fit
                 log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='broad')
 
         #  try to refit blended Gaussian components
         if dct['blended']:
             new_fit = True
             while new_fit:
-                best_fit_info["new_fit"] = False
-                best_fit_info = _check_for_blended_feature(
-                    spectrum=spectrum,
-                    best_fit_info=best_fit_info,
-                    dct=dct,
-                )
-                new_fit = best_fit_info["new_fit"]
+                model = _check_for_blended_feature(model=model, dct=dct)
+                new_fit = model.new_best_fit
                 log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='blended')
 
         if not first_run:
             break
         first_run = False
 
-    N_neg_res_peak = check_for_negative_residual(
-        spectrum=spectrum,
-        best_fit_info=best_fit_info,
-        dct=dct,
-        get_count=True
-    )
+    N_neg_res_peak = check_for_negative_residual(model=model, dct=dct, get_count=True)
 
-    params_fit = best_fit_info["params_fit"]
     N_blended = get_fully_blended_gaussians(
-        params_fit=params_fit,
+        params_fit=model.parameters,
         get_count=True,
         separation_factor=dct['separation_factor']
     )
 
-    return best_fit_info, N_neg_res_peak, N_blended, log_gplus
+    return _get_dictionary_from_model(model), N_neg_res_peak, N_blended, log_gplus
 
 
 if __name__ == "__main__":

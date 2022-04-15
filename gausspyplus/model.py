@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 
@@ -16,6 +16,9 @@ class Model:
     _amps: List = None
     _fwhms: List = None
     _means: List = None
+    _amps_uncertainties: List = None
+    _fwhms_uncertainties: List = None
+    _means_uncertainties: List = None
     _parameter_uncertainties: List = None  # "params_errs"
     _modelled_intensity_values: np.ndarray = None  # best_fit_final
     _residual: np.ndarray = None  # residual
@@ -67,7 +70,12 @@ class Model:
 
     @parameter_uncertainties.setter
     def parameter_uncertainties(self, values: List) -> None:
+        if len(values) % 3 != 0:
+            raise Exception("One or more fit uncertainty parameters are missing")
         self._parameter_uncertainties = values
+        ncomps = number_of_gaussian_components(params=values)
+        self._amps_uncertainties, self._fwhms_uncertainties, self._means_uncertainties = split_params(
+            params=values, ncomps=ncomps)
 
     @property
     def n_components(self) -> int:
@@ -84,6 +92,18 @@ class Model:
     @property
     def means(self) -> List:
         return self._means
+
+    @property
+    def amps_uncertainties(self) -> List:
+        return self._amps_uncertainties
+
+    @property
+    def fwhms_uncertainties(self) -> List:
+        return self._fwhms_uncertainties
+
+    @property
+    def means_uncertainties(self) -> List:
+        return self._means_uncertainties
 
     @property
     def modelled_intensity_values(self) -> np.ndarray:
@@ -113,3 +133,21 @@ class Model:
     @quality_control.setter
     def quality_control(self, value: List):
         self._quality_control = value
+
+    @property
+    def best_fit_info(self) -> Dict:
+        """Return best_fit_info dictionary from Model dataclass"""
+        return {
+            "params_fit": self.parameters,
+            "params_errs": self.parameter_uncertainties,
+            "ncomps_fit": self.n_components,
+            "best_fit_final": self.modelled_intensity_values,
+            "residual": self.residual,
+            "rchi2": self.rchi2,
+            "aicc": self.aicc,
+            "new_fit": self.new_best_fit,
+            "params_min": self.parameters_min_values,
+            "params_max": self.parameters_max_values,
+            "pvalue": self.pvalue,
+            "quality_control": self.quality_control
+        }
