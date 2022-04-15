@@ -987,29 +987,13 @@ def _log_new_fit(new_fit: bool,
     return log_gplus
 
 
-def try_to_improve_fitting(vel: np.ndarray,
-                           data: np.ndarray,
-                           errors: np.ndarray,
-                           params_fit: List,
-                           ncomps_fit: int,
-                           dct: Dict,
-                           signal_ranges: Optional[List] = None,
-                           noise_spike_ranges: Optional[List] = None) -> Tuple[Dict, int, int, List]:
+def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, List]:
     """Short summary.
 
     Parameters
     ----------
-    vel : Velocity channels (unitless).
-    data : Original data of spectrum.
-    errors : Root-mean-square noise values.
-    params_fit : Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN]. Corresponds
-        to the final best fit results of the GaussPy decomposition.
-    ncomps_fit : Number of fitted Gaussian components.
+    model
     dct : Dictionary containing parameter settings for the improved fitting.
-    signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal. The
-        goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-    noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain noise
-        spike features. These will get masked out from goodness-of-fit calculations.
 
     Returns
     -------
@@ -1019,15 +1003,6 @@ def try_to_improve_fitting(vel: np.ndarray,
     log_gplus : Log of all successful refits of the spectrum.
 
     """
-    spectrum = Spectrum(
-        intensity_values=data,
-        channels=vel,
-        rms_noise=errors[0],
-        signal_intervals=signal_ranges,
-        noise_spike_intervals=noise_spike_ranges
-    )
-    model = Model(spectrum=spectrum)
-    model.parameters = params_fit
 
     #  Check the quality of the final fit from GaussPy
     model = _quality_check(model=model, dct=dct)
