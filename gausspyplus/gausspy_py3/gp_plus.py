@@ -1014,18 +1014,19 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
 
     # while (rchi2 > dct['rchi2_limit']) or first_run:
     while (model.pvalue < dct['min_pvalue']) or first_run:
-        count_old = len(fitted_residual_peaks)
+        n_fitted_residual_peaks_before_check = len(fitted_residual_peaks)
         new_fit = True
         while new_fit:
             model.new_best_fit = False
             model, fitted_residual_peaks = check_for_peaks_in_residual(model, dct, fitted_residual_peaks)
             new_fit = model.new_best_fit
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
-        count_new = len(fitted_residual_peaks)
+        n_fitted_residual_peaks_after_check = len(fitted_residual_peaks)
 
-        new_peaks = count_old != count_new
+        # new_peaks = n_fitted_residual_peaks_before_check != n_fitted_residual_peaks_after_check
         #  stop refitting loop if no new peaks were fit from the residual
-        if (not first_run and not new_peaks) or (model.n_components == 0):
+        # TODO: should the following two conditions be switched to use short-circuiting for the or?
+        if (not first_run and n_fitted_residual_peaks_before_check == n_fitted_residual_peaks_after_check) or (model.n_components == 0):
             break
 
         #  try to refit negative residual feature
