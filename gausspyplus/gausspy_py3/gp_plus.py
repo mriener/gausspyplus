@@ -577,8 +577,6 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
         Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
     dct : dict
         Dictionary containing parameter settings for the improved fitting.
-    force_accept : bool
-        Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the best fit.
     params_min : list
         List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
     params_max : list
@@ -634,7 +632,6 @@ def choose_better_model_based_on_aicc(old_model: Model, new_model: Model) -> Mod
 
 def check_for_negative_residual(model: Model,
                                 dct: Dict,
-                                force_accept: bool = False,
                                 get_count: bool = False,
                                 get_idx: bool = False,
                                 ) -> Union[int, Model]:
@@ -651,8 +648,6 @@ def check_for_negative_residual(model: Model,
     ----------
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
     dct : Dictionary containing parameter settings for the improved fitting.
-    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
-        best fit.
     get_count : Default is 'False'. If set to 'True', only the number of occurring negative residual features will be
         returned.
     get_idx : Default is 'False'. If set to 'True', the index of the Gaussian fit component causing the negative
@@ -724,19 +719,10 @@ def check_for_negative_residual(model: Model,
             params_fit=params_fit,
             dct=dct
         )
-
-        model = new_model if force_accept else choose_better_model_based_on_aicc(
-            old_model=model,
-            new_model=new_model
-        )
-    return model
+    return choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
 
-def _try_fit_with_new_components(model: Model,
-                                 dct: Dict,
-                                 exclude_idx: int,
-                                 force_accept: bool = False,
-                                 ) -> Model:
+def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> Model:
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we
@@ -749,8 +735,6 @@ def _try_fit_with_new_components(model: Model,
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
     dct : Dictionary containing parameter settings for the improved fitting.
     exclude_idx : Index of Gaussian fit component that will be removed.
-    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the b
-        est fit.
 
     Returns
     -------
@@ -766,10 +750,7 @@ def _try_fit_with_new_components(model: Model,
         dct=dct
     )
 
-    model = new_model if force_accept else choose_better_model_based_on_aicc(
-        old_model=model,
-        new_model=new_model
-    )
+    model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
     if model.new_best_fit:
         return model
 
@@ -802,17 +783,10 @@ def _try_fit_with_new_components(model: Model,
         dct=dct
     )
 
-    model = new_model if force_accept else choose_better_model_based_on_aicc(
-        old_model=model,
-        new_model=new_model
-    )
-    return model
+    return choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
 
-def _check_for_broad_feature(model: Model,
-                             dct: Dict,
-                             force_accept: bool = False,
-                             ) -> Model:
+def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
     """Check for broad features and try to refit them.
 
     We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the
@@ -830,8 +804,6 @@ def _check_for_broad_feature(model: Model,
     ----------
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
     dct : Dictionary containing parameter settings for the improved fitting.
-    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
-        best fit.
 
     Returns
     -------
@@ -865,10 +837,7 @@ def _check_for_broad_feature(model: Model,
             dct=dct
         )
 
-        model = new_model if force_accept else choose_better_model_based_on_aicc(
-            old_model=model,
-            new_model=new_model
-        )
+        model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
     if model.new_best_fit or model.n_components == 0:
         return model
@@ -877,14 +846,10 @@ def _check_for_broad_feature(model: Model,
         model=model,
         dct=dct,
         exclude_idx=np.argmax(model.fwhms),
-        force_accept=force_accept,
     )
 
 
-def _check_for_blended_feature(model: Model,
-                               dct: Dict,
-                               force_accept: bool = False,
-                               ) -> Model:
+def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard
@@ -900,8 +865,6 @@ def _check_for_blended_feature(model: Model,
     ----------
     best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
     dct : Dictionary containing parameter settings for the improved fitting.
-    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
-        best fit.
 
     Returns
     -------
@@ -926,7 +889,6 @@ def _check_for_blended_feature(model: Model,
             model=model,
             dct=dct,
             exclude_idx=exclude_idx,
-            force_accept=force_accept,
         )
         if model.new_best_fit:
             break
@@ -968,7 +930,6 @@ def _quality_check(model: Model, dct: Dict) -> Model:
 def check_for_peaks_in_residual(model: Model,
                                 dct: Dict,
                                 fitted_residual_peaks: List,
-                                force_accept: bool = False,
                                 params_min: Optional[List] = None,
                                 params_max: Optional[List] = None,
                                 ) -> Tuple[Dict, List]:
@@ -980,8 +941,6 @@ def check_for_peaks_in_residual(model: Model,
     dct : Dictionary containing parameter settings for the improved fitting.
     fitted_residual_peaks : List of initial mean position guesses for new fit components determined from residual peaks
         that were already tried in previous iterations.
-    force_accept : Experimental feature. Default is 'False'. If set to 'True', the new fit will be forced to become the
-        best fit.
     params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
         min_mean1, ..., min_meanN]
     params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
@@ -1020,10 +979,7 @@ def check_for_peaks_in_residual(model: Model,
         params_max=params_max,
     )
 
-    chosen_model = new_model if force_accept else choose_better_model_based_on_aicc(
-        old_model=model,
-        new_model=new_model
-    )
+    chosen_model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
     return chosen_model, fitted_residual_peaks
 
