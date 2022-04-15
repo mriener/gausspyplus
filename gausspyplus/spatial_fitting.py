@@ -18,7 +18,7 @@ from gausspyplus.spectrum import Spectrum
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, \
     check_for_negative_residual, remove_components_from_sublists, get_best_fit_model
 from gausspyplus.model import Model
-from gausspyplus.utils.determine_intervals import merge_overlapping_intervals
+from gausspyplus.utils.determine_intervals import merge_overlapping_intervals, get_slice_indices_for_interval
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
 from gausspyplus.utils.ndimage_functions import weighted_median, number_of_component_jumps, broad_components
@@ -1208,8 +1208,7 @@ class SpatialFitting(object):
     # TODO: move this to another general module
     def upper_limit_for_amplitude(spectrum: np.ndarray, mean: float, fwhm: float, buffer_factor: float = 1.) -> float:
         stddev = fwhm / CONVERSION_STD_TO_FWHM
-        idx_low = max(0, int(mean - stddev))
-        idx_upp = int(mean + stddev) + 2
+        idx_low, idx_upp = get_slice_indices_for_interval(interval_center=mean, interval_half_width=stddev)
         return buffer_factor * np.max(spectrum[idx_low:idx_upp])
 
     def _add_initial_value_to_dict(self,
