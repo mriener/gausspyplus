@@ -357,25 +357,18 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
 
     #  remove the broad Gaussian component from the fit parameter list and determine new residual
 
-    idx_low_residual = max(0, int(
-        offsets_fit[exclude_idx] - fwhms_fit[exclude_idx]))
-    idx_upp_residual = int(
-        offsets_fit[exclude_idx] + fwhms_fit[exclude_idx]) + 2
+    idx_low_residual = max(0, int(offsets_fit[exclude_idx] - fwhms_fit[exclude_idx]))
+    idx_upp_residual = int(offsets_fit[exclude_idx] + fwhms_fit[exclude_idx]) + 2
 
-    mask = np.arange(len(amps_fit)) == exclude_idx
-    amps_fit = list(np.array(amps_fit)[~mask])
-    fwhms_fit = list(np.array(fwhms_fit)[~mask])
-    offsets_fit = list(np.array(offsets_fit)[~mask])
+    amps_fit.pop(exclude_idx)
+    fwhms_fit.pop(exclude_idx)
+    offsets_fit.pop(exclude_idx)
 
-    residual = spectrum.intensity_values - combined_gaussian(amps=amps_fit,
-                                                             fwhms=fwhms_fit,
-                                                             means=offsets_fit,
-                                                             x=spectrum.channels)
+    residual = spectrum.intensity_values - combined_gaussian(amps_fit, fwhms_fit, offsets_fit, spectrum.channels)
 
     #  search for residual peaks in new residual
 
-    for low, upp in zip([idx_low_residual, int(offset)],
-                        [int(offset), idx_upp_residual]):
+    for low, upp in zip([idx_low_residual, int(offset)], [int(offset), idx_upp_residual]):
         amp_guess, fwhm_guess, offset_guess = _get_initial_guesses(
             residual=residual[low:upp],
             rms=spectrum.rms_noise,
@@ -387,8 +380,6 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
 
         if amp_guess.size == 0:
             continue
-
-        amps_fit, fwhms_fit, offsets_fit = list(amps_fit), list(fwhms_fit), list(offsets_fit)
 
         amps_fit.append(amp_guess)
         fwhms_fit.append(fwhm_guess)
