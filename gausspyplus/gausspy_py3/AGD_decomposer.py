@@ -19,6 +19,8 @@ from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
 from gausspyplus.gausspy_py3.gp_plus import try_to_improve_fitting
+from gausspyplus.model import Model
+from gausspyplus.spectrum import Spectrum
 from gausspyplus.utils.fit_quality_checks import goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
@@ -342,16 +344,17 @@ def AGD(vel: np.ndarray,
             ncomps_fit = 0
             params_fit = []
         #  TODO: check if ncomps_fit should be ncomps_guess_final
-        best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
-            vel=vel,
-            data=data,
-            errors=errors,
-            params_fit=params_fit,
-            ncomps_fit=ncomps_fit,
-            dct=dct,
-            signal_ranges=signal_ranges,
-            noise_spike_ranges=noise_spike_ranges
+        model = Model(
+            spectrum=Spectrum(
+                intensity_values=data,
+                channels=vel,
+                rms_noise=errors[0],
+                signal_intervals=signal_ranges,
+                noise_spike_intervals=noise_spike_ranges
+            )
         )
+        model.parameters = params_fit
+        best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(model=model, dct=dct)
 
         params_fit = best_fit_info["params_fit"]
         params_errs = best_fit_info["params_errs"]
