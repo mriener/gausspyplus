@@ -567,10 +567,6 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
                        ) -> Model:
     """Determine new best fit for spectrum.
 
-    If this is the first fit iteration for the spectrum a new best fit is assigned and its parameters are returned in best_fit_info.
-
-    If it is not the first fit iteration, the new fit is compared to the current best fit supplied in best_fit_info. If the new fit is preferred (decided via the AICc criterion), the parameters of the new fit are returned in best_fit_info. Otherwise, the old best_fit_info is returned.
-
     Parameters
     ----------
     params_fit : list
@@ -646,7 +642,7 @@ def check_for_negative_residual(model: Model,
 
     Parameters
     ----------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Current best fit model
     dct : Dictionary containing parameter settings for the improved fitting.
     get_count : Default is 'False'. If set to 'True', only the number of occurring negative residual features will be
         returned.
@@ -656,7 +652,7 @@ def check_for_negative_residual(model: Model,
 
     Returns
     -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Best fit model
 
     """
     model.new_best_fit = False
@@ -732,13 +728,13 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
 
     Parameters
     ----------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model
     dct : Dictionary containing parameter settings for the improved fitting.
     exclude_idx : Index of Gaussian fit component that will be removed.
 
     Returns
     -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Best fit model
 
     """
     spectrum = model.spectrum
@@ -802,12 +798,12 @@ def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
 
     Parameters
     ----------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model
     dct : Dictionary containing parameter settings for the improved fitting.
 
     Returns
     -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Best fit model
 
     """
     model.new_best_fit = False
@@ -863,12 +859,12 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
 
     Parameters
     ----------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model
     dct : Dictionary containing parameter settings for the improved fitting.
 
     Returns
     -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Best fit model
 
     """
     if model.n_components < 2:
@@ -896,24 +892,6 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
     return model
 
 
-def _get_dictionary_from_model(model):
-    """Return best_fit_info dictionary from Model dataclass"""
-    return {
-        "params_fit": model.parameters,
-        "params_errs": model.parameter_uncertainties,
-        "ncomps_fit": model.n_components,
-        "best_fit_final": model.modelled_intensity_values,
-        "residual": model.residual,
-        "rchi2": model.rchi2,
-        "aicc": model.aicc,
-        "new_fit": model.new_best_fit,
-        "params_min": model.parameters_min_values,
-        "params_max": model.parameters_max_values,
-        "pvalue": model.pvalue,
-        "quality_control": model.quality_control
-    }
-
-
 def _quality_check(model: Model, dct: Dict) -> Model:
     """Quality check for GaussPy best fit results.
 
@@ -937,7 +915,7 @@ def check_for_peaks_in_residual(model: Model,
 
     Parameters
     ----------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model
     dct : Dictionary containing parameter settings for the improved fitting.
     fitted_residual_peaks : List of initial mean position guesses for new fit components determined from residual peaks
         that were already tried in previous iterations.
@@ -948,7 +926,7 @@ def check_for_peaks_in_residual(model: Model,
 
     Returns
     -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Best fit model
     fitted_residual_peaks : Updated list of initial mean position guesses for new fit components determined from
         residual peaks.
 
@@ -1035,7 +1013,7 @@ def try_to_improve_fitting(vel: np.ndarray,
 
     Returns
     -------
-    best_fit_info : Dictionary containing parameters of the chosen best fit for the spectrum.
+    model : Best fit model
     N_neg_res_peak : Number of negative residual features that occur in the best fit of the spectrum.
     N_blended : Number of blended Gaussian components that occur in the best fit of the spectrum.
     log_gplus : Log of all successful refits of the spectrum.
@@ -1053,7 +1031,6 @@ def try_to_improve_fitting(vel: np.ndarray,
 
     #  Check the quality of the final fit from GaussPy
     model = _quality_check(model=model, dct=dct)
-    best_fit_info = _get_dictionary_from_model(model)
 
     #  Try to improve fit by searching for peaks in the residual
     first_run = True
@@ -1061,7 +1038,7 @@ def try_to_improve_fitting(vel: np.ndarray,
     log_gplus = []
 
     # while (rchi2 > dct['rchi2_limit']) or first_run:
-    while (best_fit_info["pvalue"] < dct['min_pvalue']) or first_run:
+    while (model.pvalue < dct['min_pvalue']) or first_run:
         count_old = len(fitted_residual_peaks)
         new_fit = True
         while new_fit:
@@ -1110,7 +1087,7 @@ def try_to_improve_fitting(vel: np.ndarray,
         separation_factor=dct['separation_factor']
     )
 
-    return _get_dictionary_from_model(model), N_neg_res_peak, N_blended, log_gplus
+    return model.best_fit_info, N_neg_res_peak, N_blended, log_gplus
 
 
 if __name__ == "__main__":
