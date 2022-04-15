@@ -7,7 +7,6 @@ import numpy as np
 from lmfit import minimize as lmfit_minimize
 
 from gausspyplus.model import Model
-from gausspyplus.spectrum import Spectrum
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal
 from gausspyplus.utils.fit_quality_checks import determine_significance
 from gausspyplus.utils.gaussian_functions import (
@@ -737,8 +736,6 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
     model : Best fit model
 
     """
-    spectrum = model.spectrum
-
     #  produce new best fit with excluded components
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
@@ -753,13 +750,8 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
     #  search for new positive residual peaks
 
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
-        residual=spectrum.intensity_values - combined_gaussian(
-            new_model.amps,
-            new_model.fwhms,
-            new_model.means,
-            spectrum.channels
-        ),
-        rms=spectrum.rms_noise,
+        residual=new_model.residual,
+        rms=new_model.spectrum.rms_noise,
         snr=dct['snr'],
         significance=dct['significance'],
         peak='positive'
