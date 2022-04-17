@@ -367,21 +367,22 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
     #  search for residual peaks in new residual
 
     for low, upp in zip([idx_low_residual, int(offset)], [int(offset), idx_upp_residual]):
-        amp_guess, fwhm_guess, offset_guess = _get_initial_guesses(
+        amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
             residual=residual[low:upp],
             rms=spectrum.rms_noise,
             snr=snr,
             significance=significance,
             peak='positive',
-            maximum=True
         )
 
-        if amp_guess.size == 0:
+        if amp_guesses.size == 0:
             continue
 
-        amps_fit.append(amp_guess)
-        fwhms_fit.append(fwhm_guess)
-        offsets_fit.append(offset_guess + low)
+        # Use only the guess with the highest amplitude value.
+        idx_max = np.argmax(amp_guesses)
+        amps_fit.append(amp_guesses[idx_max])
+        fwhms_fit.append(fwhm_guesses[idx_max])
+        offsets_fit.append(offset_guesses[idx_max] + low)
 
     return amps_fit + fwhms_fit + offsets_fit
 
@@ -390,8 +391,8 @@ def _get_initial_guesses(residual: np.ndarray,
                          rms: float,
                          snr: float,
                          significance: float,
-                         peak: Literal['positive', 'negative'] = 'positive',
-                         maximum: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                         peak: Literal['positive', 'negative'] = 'positive'
+                         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Get initial guesses of Gaussian fit parameters for residual peaks.
 
     Parameters
@@ -401,8 +402,6 @@ def _get_initial_guesses(residual: np.ndarray,
     snr : Required minimum signal-to-noise ratio for data peak.
     significance : Required minimum value for significance criterion.
     peak : Whether to search for positive (default) or negative peaks in the residual.
-    maximum : Default is 'False'. If set to 'True', only the input parameter guesses for a single Gaussian fit
-        component -- the one with the highest guessed amplitude value -- are returned.
 
     Returns
     -------
@@ -415,8 +414,6 @@ def _get_initial_guesses(residual: np.ndarray,
 
     if amp_guesses.size == 0:
         return np.array([]), np.array([]), np.array([])
-
-    amp_guesses = amp_guesses
 
     sort = np.argsort(ranges[:, 0])
     amp_guesses = amp_guesses[sort]
@@ -439,6 +436,7 @@ def _get_initial_guesses(residual: np.ndarray,
     if amp_guesses.size == 0:
         return np.array([]), np.array([]), np.array([])
 
+    # TODO: np.in1d check could be a problem if residual contains two values that are equal to amp_guesses
     amp_guesses_position_mask = np.in1d(residual, amp_guesses)
     offset_guesses = np.where(amp_guesses_position_mask == True)[0]
 
@@ -446,6 +444,7 @@ def _get_initial_guesses(residual: np.ndarray,
     # TODO: Where does this magic factor come from?
     fwhm_guesses = (significance_vals*rms / (amp_guesses * 0.75269184778925247))**2
 
+    return amp_guesses, fwhm_guesses, offset_guesses
     if maximum:
         idx_max = np.argmax(amp_guesses)
         amp_guesses = amp_guesses[idx_max]
@@ -647,8 +646,7 @@ def check_for_negative_residual(model: Model,
         rms=model.spectrum.rms_noise,
         snr=dct['snr_negative'],
         significance=dct['significance'],
-        peak='negative',
-        maximum=False
+        peak='negative'
     )
 
     #  check if negative residual feature was already present in the data
