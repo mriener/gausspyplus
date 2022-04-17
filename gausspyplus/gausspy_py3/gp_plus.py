@@ -410,48 +410,29 @@ def _get_initial_guesses(residual: np.ndarray,
     offset_guesses : Initial guesses for mean positions of Gaussian fit parameters for residual peaks.
 
     """
-    amp_guesses, ranges = determine_peaks(spectrum=residual, peak=peak, amp_threshold=snr*rms)
+    amp_vals_of_peaks, peak_intervals = determine_peaks(spectrum=residual, peak=peak, amp_threshold=snr * rms)
 
-    if amp_guesses.size == 0:
+    if amp_vals_of_peaks.size == 0:
         return np.array([]), np.array([]), np.array([])
 
-    sort = np.argsort(ranges[:, 0])
-    amp_guesses = amp_guesses[sort]
-    ranges = ranges[sort]
+    sort = np.argsort(peak_intervals[:, 0])
+    amp_vals_of_peaks = amp_vals_of_peaks[sort]
+    peak_intervals = peak_intervals[sort]
 
-    #  determine whether identified residual peaks satisfy the significance criterion for signal peaks
-    keep_indices = np.array([])
-    significance_vals = np.array([])
-    for i, (lower, upper) in enumerate(ranges):
-        significance_val = np.sum(
-            np.abs(residual[lower:upper])) / (np.sqrt(upper - lower)*rms)
-        significance_vals = np.append(significance_vals, significance_val)
-        if significance_val > significance:
-            keep_indices = np.append(keep_indices, i)
+    significance_values = np.array([np.sum(np.abs(residual[lower:upper])) / (np.sqrt(upper - lower) * rms)
+                                    for lower, upper in peak_intervals])
+    is_valid_peak = significance_values > significance
 
-    keep_indices = keep_indices.astype('int')
-    amp_guesses = amp_guesses[keep_indices]
-    significance_vals = significance_vals[keep_indices]
-
-    if amp_guesses.size == 0:
+    if not any(is_valid_peak):
         return np.array([]), np.array([]), np.array([])
 
-    # TODO: np.in1d check could be a problem if residual contains two values that are equal to amp_guesses
-    amp_guesses_position_mask = np.in1d(residual, amp_guesses)
-    offset_guesses = np.where(amp_guesses_position_mask == True)[0]
-
+    peak_positions = np.flatnonzero(np.in1d(residual, amp_vals_of_peaks[is_valid_peak]))
     #  we use the determined significance values to get input guesses for the FWHM values
     # TODO: Where does this magic factor come from?
-    fwhm_guesses = (significance_vals*rms / (amp_guesses * 0.75269184778925247))**2
+    fwhm_guesses_for_peaks = (significance_values[is_valid_peak] * rms /
+                              (amp_vals_of_peaks[is_valid_peak] * 0.75269184778925247)) ** 2
 
-    return amp_guesses, fwhm_guesses, offset_guesses
-    if maximum:
-        idx_max = np.argmax(amp_guesses)
-        amp_guesses = amp_guesses[idx_max]
-        fwhm_guesses = fwhm_guesses[idx_max]
-        offset_guesses = offset_guesses[idx_max]
-
-    return amp_guesses, fwhm_guesses, offset_guesses
+    return amp_vals_of_peaks[is_valid_peak], fwhm_guesses_for_peaks, peak_positions
 
 
 def get_fully_blended_gaussians(params_fit: List,
