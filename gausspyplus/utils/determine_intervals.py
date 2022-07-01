@@ -11,6 +11,12 @@ import sys
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
 
 
+def get_slice_indices_for_interval(interval_center, interval_half_width):
+    return (
+        max(0, int(interval_center - interval_half_width)),  # index for lower bound
+        int(interval_center + interval_half_width) + 2 # index for upper bound
+    )
+
 def merge_overlapping_intervals(intervals: List[List]) -> List[List]:
     """Merge overlapping intervals (Credit: https://stackoverflow.com/a/43600953)."""
     intervals.sort(key=lambda interval: interval[0])
