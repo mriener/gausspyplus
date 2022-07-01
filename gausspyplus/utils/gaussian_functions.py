@@ -58,16 +58,10 @@ def combined_gaussian(amps: Union[List, np.ndarray],
     combined_gauss : Combination of N Gaussian functions.
 
     """
-    if len(amps) > 0.:
-        for i in range(len(amps)):
-            gauss = gaussian(amps[i], fwhms[i], means[i], x)
-            if i == 0:
-                combined_gauss = gauss
-            else:
-                combined_gauss += gauss
-    else:
-        combined_gauss = np.zeros(len(x))
-    return combined_gauss
+    modelled_spectrum = x * 0.
+    for amp, fwhm, mean in zip(amps, fwhms, means):
+        modelled_spectrum += gaussian(amp, fwhm, mean, x)
+    return modelled_spectrum
 
 
 def split_params(params: List, ncomps: int) -> Tuple[List, List, List]:
