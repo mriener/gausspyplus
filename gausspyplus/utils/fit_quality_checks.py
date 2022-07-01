@@ -20,6 +20,11 @@ def determine_significance(amp, fwhm, rms):
 
     significance = area_gauss / (np.sqrt(2*fwhm) * rms)
 
+    area_gauss = amp * fwhm / ( 2*np.sqrt(np.log(2) / np.pi) )
+
+    significance = amp * np.sqrt(fwhm) / (2 * np.sqrt(2 * np.log(2) / np.pi) * rms )
+
+
     combining all constants yields a factor of 0.75269184778925247
 
     Parameters
