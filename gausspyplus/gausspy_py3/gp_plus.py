@@ -615,7 +615,6 @@ def check_for_negative_residual(model: Model,
     model : Best fit model
 
     """
-    model.new_best_fit = False
     if model.n_components == 0:
         return 0 if get_count else model
 
