@@ -366,12 +366,11 @@ class SpatialFitting(object):
         ncomps_2d[nanmask_2d] = np.nan
 
         mask_neighbor = np.zeros(self.length)
-        footprint = np.ones((3, 3))
 
         ncomps_wmedian = ndimage.generic_filter(
             input=ncomps_2d,
             function=weighted_median,
-            footprint=footprint,
+            footprint=np.ones((3, 3)),
             mode='constant',
             cval=np.nan
         ).flatten()
@@ -380,7 +379,7 @@ class SpatialFitting(object):
         ncomps_jumps = ndimage.generic_filter(
             input=ncomps_2d,
             function=number_of_component_jumps,
-            footprint=footprint,
+            footprint=np.ones((3, 3)),
             mode='reflect',
             cval=np.nan,
             extra_arguments=(self.max_jump_comps,)
@@ -555,11 +554,10 @@ class SpatialFitting(object):
         gausspyplus.parallel_processing.init([self.indices_refit, [self]])
 
         #  try to refit spectra via the multiprocessing routine
-
-        if self.phase_two:
-            results_list = gausspyplus.parallel_processing.func(use_ncpus=self.use_ncpus, function='refit_phase_2')
-        else:
-            results_list = gausspyplus.parallel_processing.func(use_ncpus=self.use_ncpus, function='refit_phase_1')
+        results_list = gausspyplus.parallel_processing.func(
+            use_ncpus=self.use_ncpus,
+            function='refit_phase_2' if self.phase_two else 'refit_phase_1'
+        )
         print('SUCCESS')
 
         if self._finalize:
@@ -1437,8 +1435,6 @@ class SpatialFitting(object):
         if not self.flag_ncomps:
             return flag_old, flag_new
 
-        njumps_old = self.ncomps_jumps[index]
-
         loc = self.location[index]
         indices = get_neighbors(location=loc, exclude_location=True, shape=self.shape, n_neighbors=1, get_indices=True)
         mask_indices = get_neighbors(location=loc, exclude_location=True, shape=self.shape, n_neighbors=1, get_mask=True)
@@ -1453,6 +1449,7 @@ class SpatialFitting(object):
         ndiff_old = abs(ncomps_wmedian - self.ncomps[index])
         ndiff_new = abs(ncomps_wmedian - ncomps_central)
 
+        njumps_old = self.ncomps_jumps[index]
         if (njumps_old > self.n_max_jump_comps) or (ndiff_old > self.max_diff_comps):
             flag_old = 1
         if (njumps_new > self.n_max_jump_comps) or (ndiff_new > self.max_diff_comps):
@@ -1674,9 +1671,7 @@ class SpatialFitting(object):
 
         """
         #  group with regards to mean positions only
-        means_diff = np.append(np.array([0.]), means_tot[1:] - means_tot[:-1])
-
-        split_indices = np.where(means_diff > self.mean_separation)[0]
+        split_indices = np.flatnonzero(np.ediff1d(means_tot, to_begin=0) > self.mean_separation)
         split_means_tot = np.split(means_tot, split_indices)
         split_fwhms_tot = np.split(fwhms_tot, split_indices)
         split_amps_tot = np.split(amps_tot, split_indices)

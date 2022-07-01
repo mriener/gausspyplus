@@ -184,19 +184,16 @@ def _check_params_fit(spectrum: namedtuple,
     #  check if Gaussian components satisfy quality criteria
 
     remove_indices = []
-    for i, (amp, fwhm, offset) in enumerate(
-            zip(amps_fit, fwhms_fit, offsets_fit)):
-        if dct['max_fwhm'] is not None:
-            if fwhm > dct['max_fwhm']:
-                remove_indices.append(i)
-                quality_control.append(0)
-                continue
+    for i, (amp, fwhm, offset) in enumerate(zip(amps_fit, fwhms_fit, offsets_fit)):
+        if dct['max_fwhm'] is not None and fwhm > dct['max_fwhm']:
+            remove_indices.append(i)
+            quality_control.append(0)
+            continue
 
-        if dct['min_fwhm'] is not None:
-            if fwhm < dct['min_fwhm']:
-                remove_indices.append(i)
-                quality_control.append(1)
-                continue
+        if dct['min_fwhm'] is not None and fwhm < dct['min_fwhm']:
+            remove_indices.append(i)
+            quality_control.append(1)
+            continue
 
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
         if amp < dct['snr_fit'] * spectrum.rms_noise:
@@ -221,19 +218,17 @@ def _check_params_fit(spectrum: namedtuple,
             quality_control.append(4)
             continue
 
-        if spectrum.signal_intervals:
-            if not any(low <= offset <= upp for low, upp in spectrum.signal_intervals):
-                low, upp = get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
+        if spectrum.signal_intervals and not any(low <= offset <= upp for low, upp in spectrum.signal_intervals):
+            low, upp = get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
 
-                if not check_if_intervals_contain_signal(
+            if not check_if_intervals_contain_signal(
                         spectrum=spectrum.intensity_values,
                         rms=spectrum.rms_noise,
                         ranges=[(low, upp)],
                         snr=dct['snr'],
                         significance=dct['significance']):
-                    remove_indices.append(i)
-                    quality_control.append(5)
-                    continue
+                remove_indices.append(i)
+                quality_control.append(5)
 
     if dct['max_ncomps'] is not None:
         remove_indices, quality_control = _remove_components_above_max_ncomps(
@@ -244,11 +239,9 @@ def _check_params_fit(spectrum: namedtuple,
             quality_control=quality_control
         )
 
-    remove_indices = list(set(remove_indices))
-
     refit = False
 
-    if len(remove_indices) > 0:
+    if remove_indices := list(set(remove_indices)):
         amps_fit, fwhms_fit, offsets_fit = remove_components_from_sublists(
             lst=[amps_fit, fwhms_fit, offsets_fit],
             remove_indices=remove_indices)
@@ -915,11 +908,11 @@ def _log_new_fit(new_fit: bool,
     log_gplus : Updated log of successful refits of the spectrum.
 
     """
-    if not new_fit:
-        return log_gplus
-
-    modes = {'positive_residual_peak': 1, 'negative_residual_peak': 2, 'broad': 3, 'blended': 4}
-    log_gplus.append(modes[mode])
+    if new_fit:
+        log_gplus.append({'positive_residual_peak': 1,
+                          'negative_residual_peak': 2,
+                          'broad': 3,
+                          'blended': 4}[mode])
     return log_gplus
 
 
@@ -1008,4 +1001,3 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
 if __name__ == "__main__":
     model = Model()
     model.parameters = [1, 10, 20]
-    pass
