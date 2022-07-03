@@ -37,7 +37,7 @@ def determine_significance(amp, fwhm, rms):
         Root-mean-square noise of the spectrum.
 
     """
-    return amp * np.sqrt(fwhm) * 0.75269184778925247 / rms
+    return amp * np.sqrt(fwhm) / (np.sqrt(8 * np.log(2) / np.pi) * rms)
 
 
 def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None,
