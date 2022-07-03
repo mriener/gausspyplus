@@ -216,11 +216,8 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
         filename = f'{self.filename_in}{"" if self.suffix is None else self.suffix}_fit_ini.pickle'
         pathname = os.path.join(self.decomp_dirname, filename)
 
-        dct_initial_guesses = {}
-
-        for key in ["N_components_initial", "amplitudes_initial",
-                    "fwhms_initial", "means_initial"]:
-            dct_initial_guesses[key] = self.decomposition[key]
+        dct_initial_guesses = {key: self.decomposition[key] for key in
+                               ["N_components_initial", "amplitudes_initial", "fwhms_initial", "means_initial"]}
 
         pickle.dump(dct_initial_guesses, open(pathname, 'wb'), protocol=2)
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
