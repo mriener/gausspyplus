@@ -1257,7 +1257,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         flag_new : Count of flagged features present in spectrum after refit.
 
         """
-        flag_old, flag_new = (0 for _ in range(2))
+        flag_old, flag_new = 0, 0
 
         if not flag:
             return flag_old, flag_new
@@ -1294,7 +1294,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         flag_new : Flag value after the refit.
 
         """
-        flag_old, flag_new = (0 for _ in range(2))
+        flag_old, flag_new = 0, 0
 
         if not self.flag_rchi2:
             return flag_old, flag_new
@@ -1584,10 +1584,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         # residual_signal_mask = dictResults['residual_signal_mask']
         pvalue = dictResults['pvalue']
 
-        if (aicc_new > aicc_old) and (pvalue < self.min_pvalue):
-            return False
-
-        return True
+        return (aicc_new <= aicc_old) or (pvalue >= self.min_pvalue)
 
     def _get_values_for_indices(self, indices: np.ndarray, key: str) -> np.ndarray:
         # sum(tuple_of_lists, []) makes a flat list out of the tuple of lists
