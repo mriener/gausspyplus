@@ -18,13 +18,13 @@ from gausspyplus.utils.fit_quality_checks import determine_significance, goodnes
 from gausspyplus.utils.gaussian_functions import combined_gaussian, CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
-from gausspyplus.definitions import FitResults
+from gausspyplus.definitions import FitResults, SettingsDefault, SettingsTraining
 
 
 optimizers.DEFAULT_MAXITER = 1000  # set maximum iterations for SLSQPLSQFitter
 
 
-class GaussPyTrainingSet(object):
+class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
     def __init__(self, config_file=''):
         self.path_to_file = None
         self.path_to_noise_map = None
@@ -32,29 +32,11 @@ class GaussPyTrainingSet(object):
         self.dirpath_gpy = None
         self.filename_out = None
 
-        self.n_spectra = 5
-        self.order = 6
-        self.snr = 3
-        self.significance = 5
-        self.min_fwhm = 1.
-        self.max_fwhm = None
-        self.p_limit = 0.02
-        self.signal_mask = True
-        self.pad_channels = 5
-        self.min_channels = 100
-        self.snr_noise_spike = 5.
         # TODO: also define lower limit for rchi2 to prevent overfitting?
-        self.rchi2_limit = 1.5
-        self.use_all = False
+        # self.rchi2_limit = 1.5
         self.save_all = False
-        self.mask_out_ranges = []
 
         self.amp_threshold = None
-
-        self.verbose = True
-        self.suffix = ''
-        self.use_ncpus = None
-        self.random_seed = 111
 
         if config_file:
             get_values_from_config_file(
@@ -145,7 +127,8 @@ class GaussPyTrainingSet(object):
     def _save_as_pickled_file(self, data):
         (dirpath_out := Path(self.dirpath, 'gpy_training')).mkdir(exist_ok=True, parents=True)
         filename = (self.filename_out if self.filename_out is not None
-                    else f'{self.filename_in}-training_set-{self.n_spectra}_spectra{self.suffix}.pickle')
+                    else f'{self.filename_in}-training_set-{self.n_spectra}_spectra'
+                         f'{"" if self.suffix is None else self.suffix}.pickle')
         if not filename.endswith('.pickle'):
             filename += '.pickle'
 
@@ -183,7 +166,7 @@ class GaussPyTrainingSet(object):
             spectrum = self.data[:, y_position, x_position].copy()
         else:
             spectrum = self.data[index].copy()
-        if self.mask_out_ranges:
+        if self.mask_out_ranges is not None:
             nan_mask = mask_channels(self.n_channels, self.mask_out_ranges)
             spectrum[nan_mask] = np.nan
         return spectrum
@@ -211,7 +194,7 @@ class GaussPyTrainingSet(object):
         spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms_noise
 
         noise_spike_ranges = get_noise_spike_ranges(spectrum, rms_noise, snr_noise_spike=self.snr_noise_spike)
-        if self.mask_out_ranges:
+        if self.mask_out_ranges is not None:
             noise_spike_ranges += self.mask_out_ranges
 
         signal_ranges = get_signal_ranges(spectrum,

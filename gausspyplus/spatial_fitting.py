@@ -24,9 +24,10 @@ from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
 from gausspyplus.utils.ndimage_functions import weighted_median, number_of_component_jumps, broad_components
 from gausspyplus.utils.noise_estimation import mask_channels
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
+from gausspyplus.definitions import SettingsDefault, SettingsSpatialFitting
 
 
-class SpatialFitting(object):
+class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
     def __init__(self,
                  path_to_pickle_file: Optional[Union[str, Path]] = None,
                  path_to_decomp_file: Optional[Union[str, Path]] = None,
@@ -38,44 +39,7 @@ class SpatialFitting(object):
         self.dirpath_gpy = None
         self.fin_filename = fin_filename
 
-        self.exclude_flagged = False
-        self.max_fwhm = None
-        self.rchi2_limit = None
-        self.rchi2_limit_refit = None
-        self.max_diff_comps = 1
-        self.max_jump_comps = 2
-        self.n_max_jump_comps = 1
-        self.max_refitting_iteration = 30
-
-        self.use_all_neighors = False
-        self.flag_blended = None
-        self.flag_neg_res_peak = None
-        self.flag_rchi2 = None
-        self.flag_residual = None
-        self.flag_broad = None
-        self.flag_ncomps = None
-        self.refit_blended = False
-        self.refit_neg_res_peak = False
-        self.refit_rchi2 = False
-        self.refit_residual = False
-        self.refit_broad = False
-        self.refit_ncomps = False
-
-        self.mean_separation = 2.  # minimum distance between peaks in channels
-        self.fwhm_separation = 4.
         self.constrain_fwhm = False
-        self.snr = 3.
-        self.fwhm_factor = 2.
-        self.fwhm_factor_refit = None
-        self.broad_neighbor_fraction = 0.5
-        self.min_weight = 0.5
-        self.weight_factor = 2
-        self.min_pvalue = 0.01
-        self.use_ncpus = None
-        self.verbose = True
-        self.suffix = ''
-        self.log_output = True
-        self.only_print_flags = False
         self.pixel_range = None
         self._w_start = 1.
         self._finalize = False
@@ -96,13 +60,13 @@ class SpatialFitting(object):
 
         if self.fin_filename is None:
             suffix = '_sf-p1'
-            self.fin_filename = self.filename + suffix + self.suffix
+            self.fin_filename = self.filename + suffix + ("" if self.suffix is None else self.suffix)
             if self.phase_two:
                 suffix = '_sf-p2'
                 if self.filename.endswith('_sf-p1'):
-                    self.fin_filename = self.filename.replace('_sf-p1', '_sf-p2') + self.suffix
+                    self.fin_filename = self.filename.replace('_sf-p1', '_sf-p2') + ("" if self.suffix is None else self.suffix)
                 else:
-                    self.fin_filename = self.filename + suffix + self.suffix
+                    self.fin_filename = self.filename + suffix + ("" if self.suffix is None else self.suffix)
 
         if self.dirpath_gpy is None:
             self.dirpath_gpy = os.path.dirname(self.decomp_dirname)

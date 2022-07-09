@@ -10,47 +10,20 @@ from astropy.wcs import WCS
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.utils.spectral_cube_functions import correct_header
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
+from gausspyplus.definitions import SettingsDefault, SettingsDecomposition
 
 
-class GaussPyDecompose:
+class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
     """Decompose spectra with GaussPy+."""
 
     def __init__(self, path_to_pickle_file=None, config_file=''):
         self.path_to_pickle_file = path_to_pickle_file
         self.dirpath_gpy = None
-
-        self.two_phase_decomposition = True
-        self.save_initial_guesses = False
-        self.alpha1 = None
-        self.alpha2 = None
-        self.snr_thresh = None
-        self.snr2_thresh = None
-
-        self.improve_fitting = True
-        self.exclude_means_outside_channel_range = True
-        self.min_fwhm = 1.
-        self.max_fwhm = None
-        self.snr = 3.
-        self.snr_fit = None
-        self.significance = 5.
-        self.snr_negative = None
         self.rchi2_limit = None
-        self.max_amp_factor = 1.1
-        self.refit_neg_res_peak = True
-        self.refit_broad = True
-        self.refit_blended = True
-        self.separation_factor = 0.8493218
-        self.fwhm_factor = 2.
-        self.min_pvalue = 0.01
-        self.max_ncomps = None
 
-        self.main_beam_efficiency = None
-        self.vel_unit = u.km / u.s
-        self.testing = False
-        self.verbose = True
-        self.suffix = ''
-        self.log_output = True
-        self.use_ncpus = None
+        # TODO: this needs work
+        # self.vel_unit = u.km / u.s
+        # self.suffix = ''
 
         self.single_prepared_spectrum = None
 
@@ -108,7 +81,8 @@ class GaussPyDecompose:
 
     @functools.cached_property
     def velocity_increment(self):
-        return None if self.header is None else (self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2]).to(self.vel_unit).value
+        return None if self.header is None else (self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2]).to(
+            u.Unit(self.vel_unit) if isinstance(self.vel_unit, str) else self.vel_unit).value
 
     @functools.cached_property
     def location(self):
@@ -160,7 +134,7 @@ class GaussPyDecompose:
         if self.main_beam_efficiency is None:
             warnings.warn('assuming intensities are already corrected for main beam efficiency')
 
-        warnings.warn(f"converting velocity values to {self.vel_unit}")
+        warnings.warn(f"converting velocity values to {u.Unit(self.vel_unit) if isinstance(self.vel_unit, str) else self.vel_unit}")
 
     def decompose(self):
         if self.single_prepared_spectrum:
@@ -239,7 +213,7 @@ class GaussPyDecompose:
     def save_initial_guesses(self):
         say('\npickle dump GaussPy initial guesses...', logger=self.logger)
 
-        filename = f'{self.filename_in}{self.suffix}_fit_ini.pickle'
+        filename = f'{self.filename_in}{"" if self.suffix is None else self.suffix}_fit_ini.pickle'
         pathname = os.path.join(self.decomp_dirname, filename)
 
         dct_initial_guesses = {}
@@ -288,7 +262,7 @@ class GaussPyDecompose:
 
         dct_final_guesses["improve_fit_settings"] = self.fitting
 
-        filename = f'{self.filename_in}{self.suffix}_fit_fin.pickle'
+        filename = f'{self.filename_in}{"" if self.suffix is None else self.suffix}_fit_fin.pickle'
         pathname = os.path.join(self.decomp_dirname, filename)
         pickle.dump(dct_final_guesses, open(pathname, 'wb'), protocol=2)
         say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(

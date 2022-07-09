@@ -9,24 +9,15 @@ from pathlib import Path
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3 import gp as gp
 from gausspyplus.utils.output import format_warning, set_up_logger, say, make_pretty_header
+from gausspyplus.definitions import SettingsDefault, SettingsTraining
 
 warnings.showwarning = format_warning
 
 
-class GaussPyTraining(object):
+class GaussPyTraining(SettingsDefault, SettingsTraining):
     def __init__(self, config_file=''):
         self.path_to_training_set = None
         self.gpy_dirpath = None
-
-        self.two_phase_decomposition = True
-        self.snr = 3.
-        self.alpha1_initial = None
-        self.alpha2_initial = None
-        self.snr_thresh = None
-        self.snr2_thresh = None
-
-        self.log_output = True
-        self.verbose = True
 
         if config_file:
             get_values_from_config_file(
