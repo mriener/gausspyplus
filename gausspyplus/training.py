@@ -20,8 +20,7 @@ class GaussPyTraining(SettingsDefault, SettingsTraining):
         self.gpy_dirpath = None
 
         if config_file:
-            get_values_from_config_file(
-                self, config_file, config_key='training')
+            get_values_from_config_file(self, config_file, config_key='training')
 
     @functools.cached_property
     def logger(self):

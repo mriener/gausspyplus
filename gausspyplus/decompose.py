@@ -28,8 +28,7 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
         self.single_prepared_spectrum = None
 
         if config_file:
-            get_values_from_config_file(
-                self, config_file, config_key='decomposition')
+            get_values_from_config_file(self, config_file, config_key='decomposition')
 
     @functools.cached_property
     def dirpath(self):
@@ -176,8 +175,7 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
             raise Exception("Need to specify 'alpha1' for decomposition.")
 
         if self.two_phase_decomposition and (self.alpha2 is None):
-            raise Exception(
-                "Need to specify 'alpha2' for 'two_phase_decomposition'.")
+            raise Exception("Need to specify 'alpha2' for 'two_phase_decomposition'.")
 
         self.decomposition_settings()
         say('\ndecomposing data...', logger=self.logger)

@@ -27,8 +27,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation):
         self.dirpath_gpy = gpy_dirname
 
         if config_file:
-            get_values_from_config_file(
-                self, config_file, config_key='preparation')
+            get_values_from_config_file(self, config_file, config_key='preparation')
 
     def check_settings(self):
         text = "specify 'data_location' as (y, x) for 'testing'"
@@ -274,7 +273,3 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation):
         save_fits(self.errors.astype(dtype), header, path_to_file, verbose=False)
         #  TODO: put the color coding as an additional keyword in say?
         say(f"\n'{filename}' in '{os.path.dirname(path_to_file)}'", task="save", logger=self.logger)
-
-
-if __name__ == '__main__':
-    pass

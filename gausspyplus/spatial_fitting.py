@@ -45,8 +45,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         self._finalize = False
 
         if config_file:
-            get_values_from_config_file(
-                self, config_file, config_key='spatial fitting')
+            get_values_from_config_file(self, config_file, config_key='spatial fitting')
 
     def _check_settings(self) -> None:
         """Check user settings and raise error messages or apply corrections."""
@@ -1768,13 +1767,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 upper_interval = max(abs(fwhm_ini - np.max(fwhms)), self.fwhm_separation)
                 fwhm_max = fwhm_ini + upper_interval
 
-            dictComps[key]['amp_ini'] = amp_ini
-            dictComps[key]['mean_ini'] = mean_ini
-            dictComps[key]['fwhm_ini'] = fwhm_ini
-
-            dictComps[key]['amp_bounds'] = [0., 1.1*amp_max]
-            dictComps[key]['mean_bounds'] = [mean_min, mean_max]
-            dictComps[key]['fwhm_bounds'] = [fwhm_min, fwhm_max]
+            dictComps[key].update({
+                'amp_ini': amp_ini,
+                'mean_ini': mean_ini,
+                'fwhm_ini': fwhm_ini,
+                'amp_bounds': [0., 1.1*amp_max],
+                'mean_bounds': [mean_min, mean_max],
+                'fwhm_bounds': [fwhm_min, fwhm_max]
+            })
         return dictComps
 
     def _gaussian_fitting(self,

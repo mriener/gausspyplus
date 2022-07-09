@@ -39,8 +39,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
         self.amp_threshold = None
 
         if config_file:
-            get_values_from_config_file(
-                self, config_file, config_key='training')
+            get_values_from_config_file(self, config_file, config_key='training')
 
     @functools.cached_property
     def min_stddev(self):

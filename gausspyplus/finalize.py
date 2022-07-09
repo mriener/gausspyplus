@@ -54,8 +54,7 @@ class Finalize(object):
         self.initialized_state = False
 
         if config_file:
-            get_values_from_config_file(
-                self, config_file, config_key='DEFAULT')
+            get_values_from_config_file(self, config_file, config_key='DEFAULT')
 
     def check_settings(self):
         """Check user settings and raise error messages or apply corrections."""
