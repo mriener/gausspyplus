@@ -9,7 +9,7 @@ import numpy as np
 from astropy.io import fits
 
 from gausspyplus.config_file import get_values_from_config_file
-from gausspyplus.definitions import PreparedSpectrum
+from gausspyplus.definitions import PreparedSpectrum, SettingsDefault, SettingsPreparation
 from gausspyplus.utils.determine_intervals import get_signal_ranges, get_noise_spike_ranges
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, mask_channels, determine_noise, calculate_average_rms_noise
 from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none, check_if_value_is_none, say, \
@@ -17,7 +17,7 @@ from gausspyplus.utils.output import set_up_logger, check_if_all_values_are_none
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes, add_noise, change_header, save_fits
 
 
-class GaussPyPrepare:
+class GaussPyPrepare(SettingsDefault, SettingsPreparation):
     def __init__(self, path_to_file=None, hdu=None, filename=None,
                  gpy_dirname=None, config_file=''):
         self.path_to_file = path_to_file
@@ -25,31 +25,6 @@ class GaussPyPrepare:
         self.hdu = hdu
         self.filename = filename
         self.dirpath_gpy = gpy_dirname
-
-        self.gausspy_pickle = True
-        self.testing = False
-        self.data_location = None
-        self.simulation = False
-
-        self.rms_from_data = True
-        self.average_rms = None
-        self.n_spectra_rms = 1000
-        self.p_limit = 0.02
-        self.pad_channels = 5
-        self.signal_mask = True
-        self.min_channels = 100
-        self.mask_out_ranges = []
-
-        self.snr = 3.
-        self.significance = 5.
-        self.snr_noise_spike = 5.
-
-        self.suffix = ''
-        self.use_ncpus = None
-        self.log_output = True
-        self.verbose = True
-        self.overwrite = True
-        self.random_seed = 111
 
         if config_file:
             get_values_from_config_file(
@@ -191,7 +166,8 @@ class GaussPyPrepare:
 
     def _save_as_pickled_file(self, results):
         say("\npickle dump dictionary...", logger=self.logger)
-        suffix = f'_test_Y{self.data_location[0]}X{self.data_location[1]}' if self.testing else self.suffix
+        suffix = f'_test_Y{self.data_location[0]}X{self.data_location[1]}' if self.testing else (
+            "" if self.suffix is None else self.suffix)
         path_to_file = self.dirpath_pickle / f'{self.filename_in}'
         with open(f'{path_to_file}{suffix}.pickle', 'wb') as file:
             pickle.dump(results, file, protocol=2)
@@ -230,7 +206,7 @@ class GaussPyPrepare:
     def _get_spectrum(self, index):
         y_position, x_position = self.locations[index]
         spectrum = self.data[:, y_position, x_position].copy()
-        if self.mask_out_ranges:
+        if self.mask_out_ranges is not None:
             nan_mask = mask_channels(self.n_channels, self.mask_out_ranges)
             spectrum[nan_mask] = np.nan
         return spectrum
@@ -291,7 +267,7 @@ class GaussPyPrepare:
         header = change_header(self.header.copy(), format='pp',
                                comments=comments)
 
-        filename = f"{self.filename_in}{self.suffix}_noise_map.fits"
+        filename = f"{self.filename_in}{'' if self.suffix is None else self.suffix}_noise_map.fits"
         path_to_file = os.path.join(
             os.path.dirname(self.dirpath_pickle), 'gpy_maps', filename)
 
