@@ -7,7 +7,6 @@
 import os
 import logging
 import sys
-import time
 from datetime import datetime
 from typing import Literal, Optional
 
@@ -110,30 +109,3 @@ def say(message: str,
 def format_warning(message, category, filename, lineno, file=None, line=None):
     sys.stderr.write("\n\033[93mWARNING:\033[0m {}: {}\n".format(
         category.__name__, message))
-
-
-def timer(mode='start', start_time=None):
-    """Time the duration of a process.
-
-    Parameters
-    ----------
-    mode : 'start' (default) or 'stop'
-        Determines whether the starting or stopping time should be determined.
-    start_time : float
-        Start time of the process. Has to be supplied if 'mode' is 'stop'
-
-    Returns
-    -------
-    time : float
-        Starting time of the process or its total duration.
-
-    """
-    if mode == 'start':
-        return time.time()
-    elif mode == 'stop':
-        print(f'\nrequired run time: {time.time() - start_time:.4f} s')
-
-
-def add_suffix_to_filename(filename, suffix=''):
-    filename, fileExtension = os.path.splitext(filename)
-    return f"{filename}{suffix}{fileExtension}"
