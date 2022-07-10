@@ -11,7 +11,7 @@ import os
 import socket
 import warnings
 from pathlib import Path
-from typing import Union
+from typing import Union, Tuple, Optional, List, Literal, Dict
 
 import astropy
 import numpy as np
@@ -29,7 +29,7 @@ from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_cha
 warnings.showwarning = format_warning
 
 
-def _transform_header_from_crota_to_pc(header):
+def _transform_header_from_crota_to_pc(header: fits.Header) -> fits.Header:
     """Replace CROTA* keywords with PC*_* keywords."""
     cdelt1 = header['CDELT1']
     cdelt2 = header['CDELT2']
@@ -55,7 +55,7 @@ def _transform_header_from_crota_to_pc(header):
     return header
 
 
-def _correct_header_velocity(header):
+def _correct_header_velocity(header: fits.Header) -> fits.Header:
     """Check and correct spectral axis entries of FITS header."""
     if header['CTYPE3'] == 'VELOCITY':
         warnings.warn("Changed header keyword CTYPE3 from VELOCITY to VELO-LSR")
@@ -83,9 +83,9 @@ def _correct_header_velocity(header):
     return header
 
 
-def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
-                                           'CUNIT2': 'deg', 'CUNIT3': 'm/s'},
-                   keep_only_wcs_keywords=False):
+def correct_header(header: fits.Header,
+                   check_keywords: Optional[Dict] = None,
+                   keep_only_wcs_keywords: bool = False) -> fits.Header:
     """Correct FITS header by checking keywords or removing unnecessary keywords.
 
     If 'CROTA*' keywords are present they either get deleted (if their value is 0.) or they are transformed to 'PC*-*' keywords.
@@ -105,6 +105,13 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
         Corrected FITS header.
 
     """
+    if check_keywords is None:
+        check_keywords = {
+            'BUNIT': 'K',
+            'CUNIT1': 'deg',
+            'CUNIT2': 'deg',
+            'CUNIT3': 'm/s'
+        }
     for keyword, value in check_keywords.items():
         if keyword not in list(header.keys()):
             warnings.warn("{a} keyword not found in header. Assuming {a}={b}".format(a=keyword, b=value), stacklevel=2)
@@ -133,8 +140,13 @@ def correct_header(header, check_keywords={'BUNIT': 'K', 'CUNIT1': 'deg',
     return header
 
 
-def update_header(header, comments=[], remove_keywords=[], update_keywords={},
-                  remove_old_comments=False, write_meta=True, add_keywords={}):
+def update_header(header: fits.Header,
+                  comments: Optional[List] = None,
+                  remove_keywords: Optional[List] = None,
+                  update_keywords: Optional[Dict] = None,
+                  remove_old_comments: bool = False,
+                  write_meta: bool = True,
+                  add_keywords: Optional[Dict] = None) -> fits.Header:
     """Update FITS header.
 
     Parameters
@@ -167,28 +179,34 @@ def update_header(header, comments=[], remove_keywords=[], update_keywords={},
             else:
                 break
 
-    for keyword in remove_keywords:
-        if keyword in header.keys():
-            header.remove(keyword)
+    if remove_keywords is not None:
+        for keyword in remove_keywords:
+            if keyword in header.keys():
+                header.remove(keyword)
 
-    for keyword, value in update_keywords.items():
-        header[keyword] = value[0][1]
+    if update_keywords is not None:
+        for keyword, value in update_keywords.items():
+            header[keyword] = value[0][1]
 
-    for key, val in add_keywords.items():
-        header[key] = val
+    if add_keywords is not None:
+        for key, val in add_keywords.items():
+            header[key] = val
 
     if write_meta:
         header['AUTHOR'] = getpass.getuser()
         header['ORIGIN'] = socket.gethostname()
         header['DATE'] = (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '(GMT)')
 
-    for comment in comments:
-        header['COMMENT'] = comment
+    if comments is not None:
+        for comment in comments:
+            header['COMMENT'] = comment
 
     return header
 
 
-def _change_wcs_header_reproject(header, header_new, ppv=True):
+def _change_wcs_header_reproject(header: fits.Header,
+                                 header_new: fits.Header,
+                                 ppv: bool = True) -> fits.Header:
     """Change the WCS information of a header for reprojection purposes."""
     wcs_new = WCS(correct_header(header_new))
     while wcs_new.wcs.naxis > 2:
@@ -221,8 +239,10 @@ def _change_wcs_header_reproject(header, header_new, ppv=True):
     return header
 
 
-def remove_additional_axes(data, header, max_dim=3,
-                           keep_only_wcs_keywords=False):
+def remove_additional_axes(data: np.ndarray,
+                           header: fits.Header,
+                           max_dim: int = 3,
+                           keep_only_wcs_keywords: bool = False) -> Tuple[np.ndarray, fits.Header]:
     """Remove additional axes (Stokes, etc.) from spectral cube.
 
     The old name of the function was 'remove_stokes'.
@@ -285,7 +305,9 @@ def remove_additional_axes(data, header, max_dim=3,
     return data, header
 
 
-def swap_axes(data, header, new_order):
+def swap_axes(data: np.ndarray,
+              header: fits.Header,
+              new_order: Tuple) -> Tuple[np.ndarray, fits.Header]:
     """Swap the axes of a FITS cube.
 
     Parameters
@@ -330,7 +352,11 @@ def swap_axes(data, header, new_order):
     return data, header
 
 
-def _get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
+def _get_axis(header: Optional[fits.Header] = None,
+              channels: Optional[np.ndarray] = None,
+              wcs: Optional[WCS] = None,
+              to_unit: Optional[u.Quantity] = None,
+              axis: int = 3) -> np.ndarray:
     """Return the axis of a Spectral cube in physical values.
 
     Parameters
@@ -376,7 +402,10 @@ def _get_axis(header=None, channels=None, wcs=None, to_unit=None, axis=3):
     return channels_wcs
 
 
-def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
+def get_spectral_axis(header: Optional[fits.Header] = None,
+                      channels: Optional[np.ndarray] = None,
+                      wcs: Optional[WCS] = None,
+                      to_unit: Optional[u.Quantity] = None) -> np.ndarray:
     """Return the spectral axis of a Spectral cube in physical values.
 
     Parameters
@@ -402,10 +431,17 @@ def get_spectral_axis(header=None, channels=None, wcs=None, to_unit=None):
 
 
 # TODO: The following function is not in use anywhere in the project
-def get_slice_parameters(path_to_file=None, header=None, wcs=None,
-                         range_x_wcs=[None, None], range_y_wcs=[None, None], range_z_wcs=[None, None],
-                         x_unit=None, y_unit=None, z_unit=None,
-                         include_max_val=True, _get_slices=True):
+def get_slice_parameters(path_to_file: Optional[Union[Path, str]] = None,
+                         header: Optional[fits.Header] = None,
+                         wcs: Optional[WCS] = None,
+                         range_x_wcs=[None, None],
+                         range_y_wcs=[None, None],
+                         range_z_wcs=[None, None],
+                         x_unit: Optional[u.Quantity] = None,
+                         y_unit: Optional[u.Quantity] = None,
+                         z_unit: Optional[u.Quantity] = None,
+                         include_max_val: bool = True,
+                         _get_slices: bool = True) -> Tuple:
     """Get slice parameters in pixels for given coordinate ranges.
 
     Parameters
@@ -489,7 +525,7 @@ def get_slice_parameters(path_to_file=None, header=None, wcs=None,
     return (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
 
 
-def _get_slices(size, n):
+def _get_slices(size: int, n: int) -> List:
     """Calculate slices in individual direction."""
     limits, slices = ([] for _ in range(2))
 
@@ -503,8 +539,11 @@ def _get_slices(size, n):
     return slices
 
 
-def get_list_slice_params(path_to_file=None, hdu=None, ncols=1, nrows=1,
-                          velocity_slice=slice(None, None)):
+def get_list_slice_params(path_to_file: Optional[Union[Path, str]] = None,
+                          hdu: Optional[fits.HDUList] = None,
+                          ncols: int = 1,
+                          nrows: int = 1,
+                          velocity_slice: slice = slice(None, None)) -> List[slice]:
     """Calculate required slices to split a PPV cube into chosen number of subcubes.
 
     The total number of subcubes is ncols * nrows.
@@ -552,7 +591,7 @@ def get_list_slice_params(path_to_file=None, hdu=None, ncols=1, nrows=1,
 def save_fits(data: np.ndarray,
               header: astropy.io.fits.Header,
               path_to_file: Union[str, Path],
-              verbose: bool = True):
+              verbose: bool = True) -> None:
     """Save data array and header as FITS file.
 
     Parameters
@@ -574,7 +613,11 @@ def save_fits(data: np.ndarray,
         say(f"'{os.path.basename(path_to_file)}' in '{os.path.dirname(path_to_file)}'", task="save")
 
 
-def return_hdu_options(hdu, get_hdu=False, get_data=False, get_header=False):
+def return_hdu_options(hdu: fits.HDUList,
+                       get_hdu: bool = False,
+                       get_data: bool = False,
+                       get_header: bool = False
+                       ) -> Optional[Union[fits.HDUList, np.ndarray, fits.Header, Tuple[np.ndarray, fits.Header]]]:
     """Short summary.
 
     Parameters
@@ -606,8 +649,13 @@ def return_hdu_options(hdu, get_hdu=False, get_data=False, get_header=False):
         return (None)
 
 
-def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
-                   remove_stokes=True, check_wcs=True):
+def open_fits_file(path_to_file: Union[str, Path],
+                   get_hdu: bool = False,
+                   get_data: bool = True,
+                   get_header: bool = True,
+                   remove_stokes: bool = True,
+                   check_wcs: bool = True
+                   ) -> Optional[Union[fits.HDUList, np.ndarray, fits.Header, Tuple[np.ndarray, fits.Header]]]:
     """Open a FITS file and return the HDU or data and/or header.
 
     Parameters
@@ -643,7 +691,10 @@ def open_fits_file(path_to_file, get_hdu=False, get_data=True, get_header=True,
         fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
-def _reproject_data(input_data, output_projection, shape_out, flux_factor):
+def _reproject_data(input_data,
+                    output_projection: WCS,
+                    shape_out: Tuple,
+                    flux_factor: float):
     """Reproject data to a different projection.
 
     Parameters
@@ -668,8 +719,10 @@ def _reproject_data(input_data, output_projection, shape_out, flux_factor):
     return data_reprojected * flux_factor
 
 
-def _get_reproject_params(pixel_scale_input, header_projection, reproject=False,
-                         preserve_flux=True):
+def _get_reproject_params(pixel_scale_input: u.Quantity,
+                          header_projection: fits.Header,
+                          reproject: bool = False,
+                          preserve_flux: bool = True):
     """Determine parameters for reprojection.
 
     Parameters
@@ -717,11 +770,18 @@ def _get_reproject_params(pixel_scale_input, header_projection, reproject=False,
     return output_projection, shape_out, flux_factor, comment
 
 
-def spatial_smoothing(data, header, save=False, path_to_output_file=None,
-                      suffix=None, current_resolution=None,
-                      target_resolution=None, unit=u.deg, verbose=True,
-                      reproject=False, header_projection=None,
-                      preserve_flux=True):
+def spatial_smoothing(data: np.ndarray,
+                      header: fits.Header,
+                      save: bool = False,
+                      path_to_output_file: Optional[Union[Path, str]] = None,
+                      suffix: Optional[str] = None,
+                      current_resolution: Optional[u.Quantity] = None,
+                      target_resolution: Optional[u.Quantity] = None,
+                      unit: u.Quantity = u.deg,
+                      verbose: bool = True,
+                      reproject: bool = False,
+                      header_projection: bool = None,
+                      preserve_flux: bool = True):
     """Smooth a FITS cube spatially and update its header.
 
     The data can only be smoothed to a circular beam.
@@ -833,9 +893,15 @@ def spatial_smoothing(data, header, save=False, path_to_output_file=None,
     return data, header
 
 
-def spectral_smoothing(data, header, save=False, path_to_output_file=None,
-                       suffix=None, current_resolution=None,
-                       target_resolution=None, unit=u.m/u.s, verbose=True):
+def spectral_smoothing(data: np.ndarray,
+                       header: fits.Header,
+                       save: bool = False,
+                       path_to_output_file: Optional[Union[Path, str]] = None,
+                       suffix: Optional[str] = None,
+                       current_resolution: Optional[u.Quantity] = None,
+                       target_resolution: Optional[u.Quantity] = None,
+                       unit: u.Quantity = u.m/u.s,
+                       verbose: bool = True):
     """Smooth a FITS cube spectrally and update its header.
 
     Parameters
@@ -912,8 +978,9 @@ def spectral_smoothing(data, header, save=False, path_to_output_file=None,
     return data, header
 
 
-def get_path_to_output_file(path_to_file, suffix='_',
-                            filename='foo.fits'):
+def get_path_to_output_file(path_to_file: Optional[Union[Path, str]],
+                            suffix: str = '_',
+                            filename: str = 'foo.fits'):
     """Determine filepath for output file.
 
     Parameters
@@ -942,9 +1009,16 @@ def get_path_to_output_file(path_to_file, suffix='_',
     return path_to_output_file
 
 
-def add_noise(average_rms, path_to_file=None, hdu=None, save=False,
-              overwrite=True, path_to_output_file=None, get_hdu=False,
-              get_data=True, get_header=True, random_seed=111):
+def add_noise(average_rms,
+              path_to_file: Optional[Union[Path, str]] = None,
+              hdu: Optional[fits.HDUList] = None,
+              save: bool = False,
+              overwrite: bool = True,
+              path_to_output_file: Optional[Union[Path, str]] = None,
+              get_hdu: bool = False,
+              get_data: bool = True,
+              get_header: bool = True,
+              random_seed: int = 111):
     """Add noise to spectral cube.
 
     Parameters
@@ -1036,9 +1110,16 @@ def transform_coordinates_to_pixel(coordinates, header):
     return [max(int(x), 0), max(int(y), 0), max(0, int(z))]
 
 
-def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
-                 save=False, overwrite=True, path_to_output_file=None,
-                 get_hdu=False, get_data=True, get_header=True):
+def make_subcube(slice_params: List,
+                 path_to_file: Optional[Union[Path, str]] = None,
+                 hdu: Optional[fits.HDUList] = None,
+                 dtype: str = 'float32',
+                 save: bool = False,
+                 overwrite: bool = True,
+                 path_to_output_file: Optional[Union[Path, str]] = None,
+                 get_hdu: bool = False,
+                 get_data: bool = True,
+                 get_header: bool = True):
     """Extract subcube from a spectral cube.
 
     Parameters
@@ -1098,9 +1179,14 @@ def make_subcube(slice_params, path_to_file=None, hdu=None, dtype='float32',
         fits.PrimaryHDU(data, header), get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
 
-def _clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
-                               slice_params=(slice(None), slice(None)),
-                               p_limit=0.02, pad_channels=5, use_ncpus=None):
+def _clip_noise_below_threshold(data: np.ndarray,
+                                snr: int = 3,
+                                path_to_noise_map: Optional[Union[str, Path]] = None,
+                                # TODO: change slice_params
+                                slice_params=(slice(None), slice(None)),
+                                p_limit: float = 0.02,
+                                pad_channels: int = 5,
+                                use_ncpus: Optional[int] = None) -> np.ndarray:
     """Set all data values below a specified signal-to-noise ratio to zero.
 
     Parameters
@@ -1183,7 +1269,11 @@ def _clip_noise_below_threshold(data, snr=3, path_to_noise_map=None,
     return data
 
 
-def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
+def change_header(header: fits.Header,
+                  format: Literal['pp', 'pv'] = 'pp',
+                  keep_axis: Literal['1', '2'] = '1',
+                  comments: Optional[List] = None,
+                  dct_keys: Optional[Dict] = None) -> fits.Header:
     """Change the FITS header of a file.
 
     Parameters
@@ -1239,16 +1329,21 @@ def change_header(header, format='pp', keep_axis='1', comments=[], dct_keys={}):
     prihdr['ORIGIN'] = socket.gethostname()
     prihdr['DATE'] = (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '(GMT)')
 
-    for comment in comments:
-        prihdr['COMMENT'] = comment
+    if comments is not None:
+        for comment in comments:
+            prihdr['COMMENT'] = comment
 
-    for key, val in dct_keys.items():
-        prihdr[key] = val
+    if dct_keys is not None:
+        for key, val in dct_keys.items():
+            prihdr[key] = val
 
     return prihdr
 
 
-def _get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
+def _get_moment_map(data: np.ndarray,
+                    header: fits.Header,
+                    order: int = 0,
+                    vel_unit: u.Quantity = u.km/u.s) -> fits.HDUList:
     """Produce moment map."""
     wcs = WCS(header)
 
@@ -1295,13 +1390,24 @@ def _get_moment_map(data, header, order=0, vel_unit=u.km/u.s):
     return fits.PrimaryHDU(moment_data, header)
 
 
-def moment_map(hdu=None, path_to_file=None, slice_params=None,
-               path_to_output_file=None,
-               apply_noise_threshold=False, snr=3, order=0,
-               p_limit=0.02, pad_channels=5, comments=[],
-               vel_unit=u.km/u.s, path_to_noise_map=None,
-               save=False, get_hdu=True, use_ncpus=None,
-               restore_nans=False, nan_mask=None, dtype='float32'):
+def moment_map(hdu: Optional[fits.HDUList] = None,
+               path_to_file: Optional[Union[Path, str]] = None,
+               slice_params: Optional[List] = None,
+               path_to_output_file: Optional[Union[Path, str]] = None,
+               apply_noise_threshold: bool = False,
+               snr: int = 3,
+               order: int = 0,
+               p_limit: float = 0.02,
+               pad_channels: int = 5,
+               comments: Optional[List] = None,
+               vel_unit: u.Quantity = u.km/u.s,
+               path_to_noise_map: Optional[Union[str, Path]] = None,
+               save: bool = False,
+               get_hdu: bool = True,
+               use_ncpus: Optional[int] = None,
+               restore_nans: bool = False,
+               nan_mask: Optional[np.ndarray] = None,
+               dtype: str = 'float32') -> Optional[fits.HDUList]:
     """Create a moment map of the input data.
 
     The type of moment map can be specified with the 'order' keyword:
@@ -1376,7 +1482,7 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
                                           use_ncpus=use_ncpus)
 
     hdu = _get_moment_map(data, header, order=order, vel_unit=vel_unit)
-    if comments:
+    if comments is not None:
         hdu.header = update_header(hdu.header, comments=comments)
 
     # TODO: check if this is correct
@@ -1402,8 +1508,11 @@ def moment_map(hdu=None, path_to_file=None, slice_params=None,
         return hdu
 
 
-def _get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None),
-               vel_unit=u.km/u.s):
+def _get_pv_map(data: np.ndarray,
+                header: fits.Header,
+                sum_over_axis: int = 1,
+                slice_z: slice = slice(None, None),
+                vel_unit: u.Quantity = u.km/u.s):
     """Produce a position-velocity map.
 
     Parameters
@@ -1449,11 +1558,22 @@ def _get_pv_map(data, header, sum_over_axis=1, slice_z=slice(None, None),
     return hdu
 
 
-def pv_map(path_to_file=None, hdu=None, slice_params=None,
-           path_to_output_file=None, path_to_noise_map=None,
-           apply_noise_threshold=False, snr=3, p_limit=0.02, pad_channels=5,
-           sum_over_latitude=True, vel_unit=u.km/u.s, comments=[],
-           save=False, get_hdu=True, use_ncpus=None, dtype='float32'):
+def pv_map(path_to_file: Optional[Union[Path, str]] = None,
+           hdu: Optional[fits.HDUList] = None,
+           slice_params: Optional[List] = None,
+           path_to_output_file: Optional[Union[Path, str]] = None,
+           path_to_noise_map: Optional[Union[str, Path]] = None,
+           apply_noise_threshold: bool = False,
+           snr: int = 3,
+           p_limit: float = 0.02,
+           pad_channels: int = 5,
+           sum_over_latitude: bool = True,
+           vel_unit: u.Quantity = u.km/u.s,
+           comments: Optional[List] = None,
+           save: bool = False,
+           get_hdu: bool = True,
+           use_ncpus: Optional[int] = None,
+           dtype: str = 'float32') -> Optional[fits.HDUList]:
     """Create a position-velocity map of the input data.
 
     Parameters
@@ -1526,7 +1646,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
 
     hdu = _get_pv_map(data, header, sum_over_axis=sum_over_axis,
                      slice_z=slice_z, vel_unit=vel_unit)
-    if comments:
+    if comments is not None:
         hdu.header = update_header(hdu.header, comments=comments)
     data = hdu.data
     header = hdu.header
@@ -1542,7 +1662,7 @@ def pv_map(path_to_file=None, hdu=None, slice_params=None,
         return hdu
 
 
-def _get_field_data(field):
+def _get_field_data(field: Union[str, Path, np.ndarray]) -> np.ndarray:
     """Get array data of the field.
 
     Parameters
@@ -1556,7 +1676,7 @@ def _get_field_data(field):
         Array of the field.
 
     """
-    if isinstance(field, str):
+    if isinstance(field, str) or isinstance(field, Path):
         data = open_fits_file(
             path_to_file=field, get_header=False, check_wcs=False)
     else:
@@ -1564,7 +1684,7 @@ def _get_field_data(field):
     return data
 
 
-def _get_field_header(field):
+def _get_field_header(field: Union[str, Path, np.ndarray]) -> fits.Header:
     """Get FITS header of the field.
 
     Returns generic FITS header in case `field` is a numpy.ndarray.
@@ -1576,7 +1696,7 @@ def _get_field_header(field):
 
     Returns
     -------
-    header : astropy.io.fits.header.Header
+    header : astropy.io.fits.Header
         FITS header of the field.
 
     """
@@ -1591,8 +1711,15 @@ def _get_field_header(field):
 
 
 # TODO: The following function is not in use anywhere in the project
-def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
-                   header=None, path_to_output_file=None, comments=[], verbose=True, dtype='float32'):
+def combine_fields(list_of_fields: List,
+                   ncols: int = 3,
+                   nrows: int = 2,
+                   save: bool = False,
+                   header: Optional[fits.Header] = None,
+                   path_to_output_file: Optional[Union[Path, str]] = None,
+                   comments: Optional[List] = None,
+                   verbose: bool = True,
+                   dtype: str = 'float32') -> Tuple[np.ndarray, fits.Header]:
     """Combine FITS files to a mosaic by stacking them in the spatial coordinates.
 
     This will only yield a correct combined mosaic if the original mosaic was split in a similar way as obtained by the get_list_slice_params method
@@ -1607,7 +1734,7 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
         Number of fields in the Y direction.
     save : bool
         Set to `True` if the resulting mosaicked file should be saved.
-    header : astropy.io.fits.header.Header
+    header : astropy.io.fits.Header
         FITS header that will be used for the combined mosaic.
     path_to_output_file : str
         Filepath to which the combined mosaic gets saved if 'save' is set to `True`.
@@ -1620,7 +1747,7 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
     -------
     data : numpy.ndarray
         Array of the combined mosaic.
-    header : astropy.io.fits.header.Header
+    header : astropy.io.fits.Header
         FITS header of the combined mosaic.
 
     """
@@ -1665,7 +1792,7 @@ def combine_fields(list_of_fields, ncols=3, nrows=2, save=False,
             index = len(data_combined.shape) - i
             header['NAXIS' + str(i)] = data_combined.shape[index]
 
-    if comments:
+    if comments is not None:
         header = update_header(header, comments=comments)
 
     if save:
