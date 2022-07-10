@@ -220,8 +220,7 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
                                ["N_components_initial", "amplitudes_initial", "fwhms_initial", "means_initial"]}
 
         pickle.dump(dct_initial_guesses, open(pathname, 'wb'), protocol=2)
-        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            filename, self.decomp_dirname), logger=self.logger)
+        say(f"'{filename}' in '{self.decomp_dirname}'", task="save", logger=self.logger)
 
     def save_final_results(self):
         say('\npickle dump GaussPy final results...', logger=self.logger)
@@ -262,5 +261,4 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
         filename = f'{self.filename_in}{"" if self.suffix is None else self.suffix}_fit_fin.pickle'
         pathname = os.path.join(self.decomp_dirname, filename)
         pickle.dump(dct_final_guesses, open(pathname, 'wb'), protocol=2)
-        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            filename, self.decomp_dirname), logger=self.logger)
+        say(f"'{filename}' in '{self.decomp_dirname}'", task="save", logger=self.logger)

@@ -320,8 +320,7 @@ class Finalize(object):
             filename = self.fin_filename + '.dat'
             path_to_table = os.path.join(self.dirpath_table, filename)
             table_results.write(path_to_table, format='ascii', overwrite=True)
-            say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-                filename, self.decomp_dirname))
+            say(f"'{filename}' in '{self.decomp_dirname}'", task="save")
 
         return table_results
 
@@ -330,8 +329,7 @@ class Finalize(object):
         filename = self.fin_filename + '.pickle'
         pathToFile = os.path.join(self.decomp_dirname, filename)
         pickle.dump(self.decomposition, open(pathToFile, 'wb'), protocol=2)
-        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            filename, self.decomp_dirname))
+        say(f"'{filename}' in '{self.decomp_dirname}'", task="save")
 
     def produce_map(self,
                     keyword: Literal['error', 'best_fit_rchi2', 'N_components'] = 'error',
@@ -386,7 +384,7 @@ class Finalize(object):
             path_to_file = Path(self.dirpath_gpy, 'gpy_maps', filename)
 
             save_fits(data=array, header=header, path_to_file=path_to_file, verbose=False)
-            say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, os.path.dirname(path_to_file)))
+            say(f"\n'{filename}' in '{os.path.dirname(path_to_file)}'", task="save")
 
         return fits.PrimaryHDU(array, header)
 
@@ -586,8 +584,7 @@ class Finalize(object):
         if save:
             pathToFile = Path(self.decomp_dirname, 'FITS', filename)
             save_fits(data=array, header=header, path_to_file=pathToFile, verbose=False)
-            say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-                filename, os.path.dirname(pathToFile)))
+            say(f"'{filename}' in '{os.path.dirname(pathToFile)}'", task="save")
 
         hdu = fits.PrimaryHDU(data=array, header=header)
 
