@@ -273,8 +273,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation):
 
         save_fits(self.errors.astype(dtype), header, path_to_file, verbose=False)
         #  TODO: put the color coding as an additional keyword in say?
-        say("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            filename, os.path.dirname(path_to_file)), logger=self.logger)
+        say(f"\n'{filename}' in '{os.path.dirname(path_to_file)}'", task="save", logger=self.logger)
 
 
 if __name__ == '__main__':

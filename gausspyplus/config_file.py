@@ -7,7 +7,7 @@ from typing import Optional
 
 from astropy import units as u
 
-from gausspyplus.utils.output import save_file
+from gausspyplus.utils.output import say
 
 from gausspyplus import definitions
 
@@ -62,7 +62,7 @@ def make(all_keywords: bool = False,
     with open(output_directory / filename, 'w') as file:
         for line in config_file:
             file.write(line)
-        save_file(filename, output_directory)
+        say(f"'{filename}' in '{output_directory}'", task="save")
 
 
 def get_values_from_config_file(self, config_file, config_key='DEFAULT'):

@@ -1902,8 +1902,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         """Save the results of the spatially coherent refitting iterations."""
         pathToFile = os.path.join(self.decomp_dirname, f'{self.fin_filename}.pickle')
         pickle.dump(self.decomposition, open(pathToFile, 'wb'), protocol=2)
-        say("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-            self.fin_filename, self.decomp_dirname), logger=self.logger)
+        say(f"'{self.fin_filename}' in '{self.decomp_dirname}'", task="save", logger=self.logger)
 
     #
     #  --- Phase 2: Refitting towards coherence in centroid positions ---

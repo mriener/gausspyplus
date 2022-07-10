@@ -86,11 +86,11 @@ def initialGuess(vel: np.ndarray,
     SNR_thresh = 5.0  Initial Spectrum S/N threshold
     SNR2_thresh =   S/N threshold for Second derivative
     """
-    say('\n\n  --> initialGuess() \n', verbose)
-    say('Algorithm parameters: ', verbose)
-    say(f'alpha = {alpha}', verbose)
-    say(f'SNR_thesh = {SNR_thresh}', verbose)
-    say(f'SNR2_thesh = {SNR2_thresh}', verbose)
+    say('\n\n  --> initialGuess() \n', verbose=verbose)
+    say('Algorithm parameters: ', verbose=verbose)
+    say(f'alpha = {alpha}', verbose=verbose)
+    say(f'SNR_thesh = {SNR_thresh}', verbose=verbose)
+    say(f'SNR2_thesh = {SNR2_thresh}', verbose=verbose)
 
     if np.any(np.isnan(data)):
         print('NaN-values in data, cannot continue.')
@@ -104,10 +104,10 @@ def initialGuess(vel: np.ndarray,
 
     # Take regularized derivatives
     t0 = time.time()
-    say(f'Convolution sigma [pixels]: {alpha}', verbose)
+    say(f'Convolution sigma [pixels]: {alpha}', verbose=verbose)
     u, u2, u3, u4 = _determine_derivatives(data, dv, alpha)
     say('...took {0:4.2f} seconds per derivative.'.format(
-        (time.time()-t0)/4.), verbose)
+        (time.time()-t0)/4.), verbose=verbose)
 
     # Decide on signal threshold
     if not errors:
@@ -120,9 +120,9 @@ def initialGuess(vel: np.ndarray,
     if SNR2_thresh > 0.:
         wsort = np.argsort(np.abs(u2))
         RMSD2 = np.std(u2[wsort[:int(0.5*len(u2))]]) / 0.377  # RMS based in +-1 sigma fluctuations
-        say(f'Second derivative noise: {RMSD2}', verbose)
+        say(f'Second derivative noise: {RMSD2}', verbose=verbose)
         thresh2 = -RMSD2 * SNR2_thresh
-        say(f'Second derivative threshold: {thresh2}', verbose)
+        say(f'Second derivative threshold: {thresh2}', verbose=verbose)
     else:
         thresh2 = 0.
     mask4 = np.array(u2.copy()[1:] < thresh2, dtype='int')  # Negative second derivative
@@ -198,7 +198,7 @@ def AGD(vel: np.ndarray,
         dct['max_amp'] = None
         dct['max_fwhm'] = None
 
-    say('\n  --> AGD() \n', verbose)
+    say('\n  --> AGD() \n', verbose=verbose)
 
     dv = np.abs(vel[1] - vel[0])
     v_to_i = interp1d(vel, np.arange(len(vel)))
@@ -227,7 +227,7 @@ def AGD(vel: np.ndarray,
     # Find phase-two guesses #
     # ----------------------------#
     if phase == 'two':
-        say('Beginning phase-two AGD... ', verbose)
+        say('Beginning phase-two AGD... ', verbose=verbose)
         ncomps_guess_phase2 = 0
 
         # ----------------------------------------------------------#
@@ -235,7 +235,7 @@ def AGD(vel: np.ndarray,
         #  -- Either the original data, or intermediate subtraction #
         # ----------------------------------------------------------#
         if ncomps_guess_phase1 == 0:
-            say('Phase 2 with no narrow comps -> No intermediate subtration... ', verbose)
+            say('Phase 2 with no narrow comps -> No intermediate subtration... ', verbose=verbose)
             residuals = data
         else:
             # "Else" Narrow components were found, and Phase == 2, so perform intermediate subtraction...
@@ -255,7 +255,7 @@ def AGD(vel: np.ndarray,
 
             # Perform the intermediate fit using LMFIT
             t0 = time.time()
-            say('Running LMFIT on initial narrow components...', verbose)
+            say('Running LMFIT on initial narrow components...', verbose=verbose)
             lmfit_params = paramvec_to_lmfit(params_guess_phase1, dct['max_amp'], dct['max_fwhm'])
             result = lmfit_minimize(objectiveD2_leastsq, lmfit_params, method='leastsq')
             params_fit_phase1 = vals_vec_from_lmfit(result.params)
@@ -315,7 +315,7 @@ def AGD(vel: np.ndarray,
     params_guess_final = np.concatenate([amps_temp[w_sort_amp], widths_temp[w_sort_amp], offsets_temp[w_sort_amp]])
 
     if (perform_final_fit is True) and (ncomps_guess_final > 0):
-        say('\n\n  --> Final Fitting... \n', verbose)
+        say('\n\n  --> Final Fitting... \n', verbose=verbose)
 
         # Objective functions for final fit
         def objective_leastsq(paramslm):
@@ -331,7 +331,7 @@ def AGD(vel: np.ndarray,
         params_errs = errs_vec_from_lmfit(result2.params)
 
         del lmfit_params
-        say(f'Final fit took {time.time() - t0} seconds.', verbose)
+        say(f'Final fit took {time.time() - t0} seconds.', verbose=verbose)
 
         ncomps_fit = int(len(params_fit)/3)
 

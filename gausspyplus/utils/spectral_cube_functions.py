@@ -23,7 +23,7 @@ from astropy.wcs import WCS
 from datetime import datetime
 from tqdm import tqdm
 
-from gausspyplus.utils.output import check_if_value_is_none, check_if_all_values_are_none, format_warning, save_file
+from gausspyplus.utils.output import check_if_value_is_none, check_if_all_values_are_none, format_warning, say
 from gausspyplus.utils.noise_estimation import determine_maximum_consecutive_channels, determine_noise
 
 warnings.showwarning = format_warning
@@ -571,7 +571,7 @@ def save_fits(data: np.ndarray,
         os.makedirs(os.path.dirname(path_to_file))
     fits.writeto(path_to_file, data, header=header, overwrite=True)
     if verbose:
-        save_file(os.path.basename(path_to_file), os.path.dirname(path_to_file))
+        say(f"'{os.path.basename(path_to_file)}' in '{os.path.dirname(path_to_file)}'", task="save")
 
 
 def return_hdu_options(hdu, get_hdu=False, get_data=False, get_header=False):

@@ -9,6 +9,7 @@ import logging
 import sys
 import time
 from datetime import datetime
+from typing import Literal, Optional
 
 
 def check_if_value_is_none(condition, value, varname_condition, varname_value,
@@ -89,21 +90,26 @@ def make_pretty_header(string):
     return "\n{line}\n{string}\n{line}".format(line='=' * len(string), string=string)
 
 
-def say(message, verbose=True, logger=False, end=None):
+def say(message: str,
+        task: Optional[Literal["save"]] = None,
+        verbose: bool = True,
+        logger: bool = False,
+        end: Optional[str] = None) -> None:
     """Diagnostic messages."""
+    note_prefix = {"save": "SAVED FILE: ",
+                   None: ""}
+    stdout_format = {"save": lambda msg: f"\033[92m{note_prefix['save']}\033[0m{msg}",
+                     None: lambda msg: msg}
+
     if logger:
-        logger.info(message)
+        logger.info(f"{note_prefix[task]} {message}")
     if verbose:
-        print(message, end=end)
+        print(stdout_format[task](message), end=end)
 
 
 def format_warning(message, category, filename, lineno, file=None, line=None):
     sys.stderr.write("\n\033[93mWARNING:\033[0m {}: {}\n".format(
         category.__name__, message))
-
-
-def save_file(filename, dirpath):
-    print("\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, dirpath))
 
 
 def timer(mode='start', start_time=None):
