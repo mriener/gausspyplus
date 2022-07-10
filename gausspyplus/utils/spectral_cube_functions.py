@@ -1,10 +1,3 @@
-# @Author: riener
-# @Date:   2019-02-18T16:27:12+01:00
-# @Filename: spectral_cube_functions.py
-# @Last modified by:   riener
-# @Last modified time: 09-04-2019
-
-
 import getpass
 import itertools
 import os
@@ -128,10 +121,7 @@ def correct_header(header: fits.Header,
 
     if keep_only_wcs_keywords:
         wcs = WCS(header)
-        dct_naxis = {}
-        for keyword in list(header.keys()):
-            if keyword.startswith('NAXIS'):
-                dct_naxis[keyword] = header[keyword]
+        dct_naxis = {keyword: header[keyword] for keyword in list(header.keys()) if keyword.startswith('NAXIS')}
         header = wcs.to_header()
         for keyword, value in dct_naxis.items():
             header[keyword] = value
@@ -217,8 +207,11 @@ def _change_wcs_header_reproject(header: fits.Header,
     header_diff = fits.HeaderDiff(header, wcs_header_new)
 
     if ppv:
-        update_header(header, update_keywords=header_diff.diff_keyword_values,
-                      write_meta=False)
+        update_header(
+            header,
+            update_keywords=header_diff.diff_keyword_values,
+            write_meta=False
+        )
         header['WCSAXES'] = 3
     else:
         wcs = WCS(correct_header(header))
@@ -227,9 +220,12 @@ def _change_wcs_header_reproject(header: fits.Header,
         remove_keywords = []
         if wcs_header_diff.diff_keywords:
             remove_keywords = wcs_header_diff.diff_keywords[0]
-        update_header(header, remove_keywords=remove_keywords,
-                      update_keywords=header_diff.diff_keyword_values,
-                      write_meta=False)
+        update_header(
+            header,
+            remove_keywords=remove_keywords,
+            update_keywords=header_diff.diff_keyword_values,
+            write_meta=False
+        )
         if 'NAXIS3' in header.keys():
             header.remove('NAXIS3')
         header['NAXIS'] = 2
@@ -291,9 +287,11 @@ def remove_additional_axes(data: np.ndarray,
     header_diff = fits.HeaderDiff(header, wcs_header_new)
 
     header = update_header(
-        header, remove_keywords=wcs_header_diff.diff_keywords[0],
+        header,
+        remove_keywords=wcs_header_diff.diff_keywords[0],
         update_keywords=header_diff.diff_keyword_values,
-        write_meta=False)
+        write_meta=False
+    )
 
     while header['NAXIS'] > max_dim:
         key = f"NAXIS{header['NAXIS']}"
@@ -330,9 +328,7 @@ def swap_axes(data: np.ndarray,
     dims = data.ndim
     old_order = list(range(len(new_order)))
     data = np.moveaxis(data, old_order, new_order)
-    # data = np.transpose(data, new_order)
-    # hdu = fits.PrimaryHDU(data=data)
-    header_new = header.copy()#hdu.header
+    header_new = header.copy()
 
     if 'CD1_1' in list(header.keys()):
         raise Exception('Cannot swap_axes for CDX_X keywords. Convert them to CDELTX.')
@@ -378,11 +374,11 @@ def _get_axis(header: Optional[fits.Header] = None,
         The (unitless) wcs axis of the spectral cube, converted to 'to_unit' (if specified).
 
     """
-    key = f'NAXIS{axis}'
     check_if_all_values_are_none(header, wcs, 'header', 'wcs')
     check_if_all_values_are_none(header, channels, 'header', 'channels')
     if header:
         wcs = WCS(header)
+        key = f'NAXIS{axis}'
         channels = np.arange(header[key])
 
     while wcs.wcs.naxis > 3:
@@ -425,9 +421,7 @@ def get_spectral_axis(header: Optional[fits.Header] = None,
         The (unitless) spectral axis of the spectral cube, converted to 'to_unit' (if specified).
 
     """
-    spectral_axis = _get_axis(
-        header=header, channels=channels, wcs=wcs, to_unit=to_unit, axis=3)
-    return spectral_axis
+    return _get_axis(header=header, channels=channels, wcs=wcs, to_unit=to_unit, axis=3)
 
 
 # TODO: The following function is not in use anywhere in the project
@@ -581,11 +575,7 @@ def get_list_slice_params(path_to_file: Optional[Union[Path, str]] = None,
     x_slices = _get_slices(x_size, ncols)
     y_slices = _get_slices(y_size, nrows)
 
-    slices = []
-
-    for y_slice, x_slice in itertools.product(y_slices, x_slices):
-        slices.append([velocity_slice, y_slice, x_slice])
-    return slices
+    return [[velocity_slice, y_slice, x_slice] for y_slice, x_slice in itertools.product(y_slices, x_slices)]
 
 
 def save_fits(data: np.ndarray,
@@ -646,7 +636,7 @@ def return_hdu_options(hdu: fits.HDUList,
     elif get_data and get_header:
         return (hdu.data, hdu.header)
     else:
-        return (None)
+        return None
 
 
 def open_fits_file(path_to_file: Union[str, Path],
@@ -781,7 +771,7 @@ def spatial_smoothing(data: np.ndarray,
                       verbose: bool = True,
                       reproject: bool = False,
                       header_projection: bool = None,
-                      preserve_flux: bool = True):
+                      preserve_flux: bool = True) -> Tuple[np.ndarray, fits.Header]:
     """Smooth a FITS cube spatially and update its header.
 
     The data can only be smoothed to a circular beam.
@@ -821,14 +811,11 @@ def spatial_smoothing(data: np.ndarray,
         Updated header of the FITS cube.
 
     """
-    check_if_value_is_none(
-        save, path_to_output_file, 'save', 'path_to_output_file')
-    check_if_all_values_are_none(current_resolution, target_resolution,
-                                 'current_resolution', 'target_resolution')
+    check_if_value_is_none(save, path_to_output_file, 'save', 'path_to_output_file')
+    check_if_all_values_are_none(current_resolution, target_resolution, 'current_resolution', 'target_resolution')
 
     header_pp = correct_header(header.copy())
-    header_pp = _change_wcs_header_reproject(
-        header_pp, header_pp, ppv=False)
+    header_pp = _change_wcs_header_reproject(header_pp, header_pp, ppv=False)
     wcs_pp = WCS(header_pp)
 
     fwhm_factor = np.sqrt(8*np.log(2))
@@ -848,28 +835,23 @@ def spatial_smoothing(data: np.ndarray,
 
     if 'BMAJ' in header.keys() and 'BMIN' in header.keys():
         if header['BMAJ'] != header['BMIN']:
-            warnings.warn(str(
-                'BMAJ != BMIN for input FITS array. '
-                'Smoothing to circular beam with HPBW of {}'.format(
-                    target_resolution)))
+            warnings.warn(f'BMAJ != BMIN for input FITS array. Smoothing to circular beam with HPBW of {target_resolution}')
+
         header['BMAJ'] = target_resolution.value
         header['BMIN'] = target_resolution.value
 
-    kernel_fwhm = np.sqrt(target_resolution.value**2 -
-                          current_resolution.value**2)
+    kernel_fwhm = np.sqrt(target_resolution.value**2 - current_resolution.value**2)
     kernel_std = (kernel_fwhm / fwhm_factor) / pixel_scale.value
     kernel = Gaussian2DKernel(kernel_std)
 
     if data.ndim == 2:
         data = convolve(data, kernel, normalize_kernel=True)
         if reproject:
-            data_reprojected = _reproject_data(
-                (data, wcs_pp), output_projection, shape_out, flux_factor)
+            data_reprojected = _reproject_data((data, wcs_pp), output_projection, shape_out, flux_factor)
     else:
         nSpectra = data.shape[0]
         if reproject:
-            data_reprojected = np.zeros(
-                (data.shape[0], shape_out[0], shape_out[1]))
+            data_reprojected = np.zeros((data.shape[0], shape_out[0], shape_out[1]))
         for i in tqdm(range(nSpectra)):
             channel = data[i, :, :]
             channel_smoothed = convolve(channel, kernel, normalize_kernel=True)
