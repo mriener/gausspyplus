@@ -7,6 +7,8 @@ from typing import List, Optional
 import numpy as np
 
 import sys
+ROOT = Path(os.path.realpath(__file__)).parents[2]
+sys.path.append(str(ROOT))
 
 from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
 
@@ -146,3 +148,12 @@ def get_noise_spike_ranges(spectrum: np.ndarray, rms: float, snr_noise_spike: in
     _, ranges = determine_peaks(spectrum, peak='negative', amp_threshold=snr_noise_spike*rms)
     return ranges.tolist()
 
+
+if __name__ == '__main__':
+
+    from astropy.io import fits
+    data = fits.getdata(ROOT / 'gausspyplus' / 'data' / 'grs-test_field.fits')
+    spectrum = data[:, 31, 40]
+
+    # time for original function: 31.4 µs ± 1.66 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+    print(intervals_where_mask_is_true(spectrum > 0.5))

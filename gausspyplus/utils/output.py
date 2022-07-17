@@ -1,18 +1,18 @@
-# @Author: riener
-# @Date:   2019-04-05T14:35:47+02:00
-# @Filename: output.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T11:10:30+02:00
-
 import os
 import logging
 import sys
 from datetime import datetime
-from typing import Literal, Optional
+from pathlib import Path
+from typing import Literal, Optional, Union
 
 
-def check_if_value_is_none(condition, value, varname_condition, varname_value,
-                           additional_text=''):
+def check_if_value_is_none(
+        condition,
+        value,
+        varname_condition,
+        varname_value,
+        additional_text=''
+):
     """Raise error message if no value is supplied for a selected condition.
 
     The error message is raised if the condition is 'True' and the value is 'None'.
@@ -30,13 +30,10 @@ def check_if_value_is_none(condition, value, varname_condition, varname_value,
 
     """
     if condition and (value is None):
-        errorMessage = str("Need to specify '{}' for '{}'=True. {}".format(
-            varname_value, varname_condition, additional_text))
-        raise Exception(errorMessage)
+        raise Exception(f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}")
 
 
-def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2,
-                                 additional_text=''):
+def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2):
     # TODO: refactor check_if_all_values_are_none with f strings to avoid repeated variable name
     """Raise error message if both values are 'None'.
 
@@ -53,12 +50,14 @@ def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2,
 
     """
     if (value1 is None) and (value2 is None):
-        errorMessage = str("Need to specify either '{}' or '{}'.".format(
-            varname_value1, varname_value2, additional_text))
-        raise Exception(errorMessage)
+        raise Exception(f"Need to specify either '{varname_value1}' or '{varname_value2}'.")
 
 
-def set_up_logger(parentDirname, filename, method='g+_decomposition'):
+def set_up_logger(
+        parentDirname: Union[str, Path],
+        filename: str,
+        method: str = 'g+_decomposition'
+) -> logging.Logger:
     #  setting up logger
     now = datetime.now()
     date_string = "{}{}{}-{}{}{}".format(
@@ -84,9 +83,10 @@ def set_up_logger(parentDirname, filename, method='g+_decomposition'):
     return logging.getLogger(__name__)
 
 
-def make_pretty_header(string):
+def make_pretty_header(string: str) -> str:
     """Return a nicely formatted heading."""
-    return "\n{line}\n{string}\n{line}".format(line='=' * len(string), string=string)
+    line = '=' * len(string)
+    return f"\n{line}\n{string}\n{line}"
 
 
 def say(message: str,
