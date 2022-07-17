@@ -13,7 +13,7 @@ from astropy import units as u
 from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 from astropy.io import fits
 from astropy.wcs import WCS
-from datetime import datetime
+from datetime import datetime, timezone
 from tqdm import tqdm
 
 from gausspyplus.utils.output import check_if_value_is_none, check_if_all_values_are_none, format_warning, say
@@ -185,7 +185,7 @@ def update_header(header: fits.Header,
     if write_meta:
         header['AUTHOR'] = getpass.getuser()
         header['ORIGIN'] = socket.gethostname()
-        header['DATE'] = (datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '(GMT)')
+        header['DATE'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'), '(GMT)'
 
     if comments is not None:
         for comment in comments:

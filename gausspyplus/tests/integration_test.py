@@ -12,6 +12,7 @@ filepath = Path(ROOT / "data" / "grs-test_field_10x10.fits")
 DATA = fits.getdata(filepath)
 
 
+#@pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_prepare_cube():
     from ..prepare import GaussPyPrepare
 
@@ -33,6 +34,7 @@ def test_prepare_cube():
     assert np.allclose(sum(rms[0] for rms in data_prepared["error"] if rms[0] is not None), 10.212814189950166)
 
 
+#@pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_decompose_cube_gausspy():
     from ..decompose import GaussPyDecompose
 
@@ -88,6 +90,7 @@ def test_decompose_cube_gausspy():
     # TODO: test a new decomposition round with n_max_comps
 
 
+#@pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_spatial_fitting_phase_1():
     from ..spatial_fitting import SpatialFitting
     sp = SpatialFitting()
@@ -128,6 +131,7 @@ def test_spatial_fitting_phase_1():
     assert sum(data_spatial_fitted_phase_1["refit_iteration"]) == 37
 
 
+#@pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_spatial_fitting_phase_2():
     from ..spatial_fitting import SpatialFitting
     sp = SpatialFitting()
