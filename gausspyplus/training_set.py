@@ -33,7 +33,6 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
         self.filename_out = None
 
         # TODO: also define lower limit for rchi2 to prevent overfitting?
-        # self.rchi2_limit = 1.5
         self.save_all = False
 
         self.amp_threshold = None
@@ -138,6 +137,8 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
     def decompose_spectra(self):
         if self.path_to_file is None:
             raise Exception("'path_to_file' needs to be specified")
+        if self.rchi2_limit is None:
+            raise Exception("'rchi2_limit' needs to be specified")
         if self.verbose:
             print(f"decompose {self.n_spectra} spectra ...")
         if self.random_seed is not None:

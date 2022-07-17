@@ -139,6 +139,13 @@ class SettingsDefault:
             "simple": False
         }
     )
+    rchi2_limit: Optional[float] = field(
+        default=None,
+        metadata={
+            "description": "Maximium value for the reduced chi-squared above which the fit gets flagged [float]",
+            "simple": False
+        }
+    )
     min_pvalue: float = field(
         default=0.01,
         metadata={
@@ -476,13 +483,6 @@ class SettingsSpatialFitting:
         default=False,
         metadata={
             "description": "Exclude all flagged spectra as possible refit solutions. [bool]",
-            "simple": False
-        }
-    )
-    rchi2_limit: Optional[float] = field(
-        default=None,
-        metadata={
-            "description": "Maximium value for the reduced chi-squared above which the fit gets flagged [float]",
             "simple": False
         }
     )

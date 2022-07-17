@@ -19,7 +19,6 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
     def __init__(self, path_to_pickle_file=None, config_file=''):
         self.path_to_pickle_file = path_to_pickle_file
         self.dirpath_gpy = None
-        self.rchi2_limit = None
 
         # TODO: this needs work
         # self.vel_unit = u.km / u.s
