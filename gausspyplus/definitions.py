@@ -22,6 +22,30 @@ PreparedSpectrum = namedtuple('PreparedSpectrum', ["intensity_values",
                                                    "noise_spike_intervals",
                                                    "index"])
 
+
+@dataclass
+class SettingsImproveFit:
+    improve_fitting: bool
+    min_fwhm: float
+    max_fwhm: Optional[float]
+    snr: float
+    snr_fit: Optional[float]
+    significance: float
+    snr_negative: Optional[float]
+    rchi2_limit: float
+    max_amp_factor: float
+    # TODO: change the following three fields throughout
+    refit_neg_res_peak: bool #neg_res_peak
+    refit_broad: bool
+    refit_blended: bool
+    fwhm_factor: float
+    separation_factor: float
+    exclude_means_outside_channel_range: bool
+    min_pvalue: float
+    max_ncomps: Optional[int]
+    max_amp: Optional[float] = None
+
+
 fields = [
     "index",
     "intensity_values",
@@ -139,11 +163,11 @@ class SettingsDefault:
             "simple": False
         }
     )
-    rchi2_limit: Optional[float] = field(
-        default=None,
+    rchi2_limit: float = field(
+        default=1.5,
         metadata={
-            "description": "Maximium value for the reduced chi-squared above which the fit gets flagged [float]",
-            "simple": False
+            "description": "Maximium value of reduced chi-squared for decomposition result [float]",
+            "simple": True
         }
     )
     min_pvalue: float = field(
@@ -295,13 +319,6 @@ class SettingsTraining:
         default=6,
         metadata={
             "description": "Minimum number of spectral channels a peak has to contain on either side [int]",
-            "simple": True
-        }
-    )
-    rchi2_limit: float = field(
-        default=1.5,
-        metadata={
-            "description": "Maximium value of reduced chi-squared for decomposition result [float]",
             "simple": True
         }
     )

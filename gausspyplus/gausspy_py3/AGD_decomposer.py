@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
+from gausspyplus.definitions import SettingsImproveFit
 from gausspyplus.gausspy_py3.gp_plus import try_to_improve_fitting
 from gausspyplus.model import Model
 from gausspyplus.spectrum import Spectrum
@@ -179,7 +180,7 @@ def AGD(vel: np.ndarray,
         idx: Optional[int] = None,
         signal_ranges: Optional[List] = None,
         noise_spike_ranges: Optional[List] = None,
-        improve_fitting_dict: Optional[Dict] = None,
+        settings_improve_fit: Optional[SettingsImproveFit] = None,
         alpha1: Optional[float] = None,
         alpha2: Optional[float] = None,
         plot: bool = False,
@@ -189,14 +190,10 @@ def AGD(vel: np.ndarray,
         perform_final_fit: bool = True,
         phase: Literal['one', 'two'] = 'one') -> Tuple[int, Dict]:
     """ Autonomous Gaussian Decomposition."""
-    dct = {}
-    if improve_fitting_dict is not None:
-        dct = improve_fitting_dict
-        dct['max_amp'] = dct['max_amp_factor']*np.max(data)
-    else:
-        dct['improve_fitting'] = False
-        dct['max_amp'] = None
-        dct['max_fwhm'] = None
+    max_amp = settings_improve_fit.max_amp_factor * np.max(data) if settings_improve_fit is not None else None
+    if settings_improve_fit is not None:
+        settings_improve_fit.max_amp = max_amp
+    improve_fitting = settings_improve_fit.improve_fitting if settings_improve_fit is not None else False
 
     say('\n  --> AGD() \n', verbose=verbose)
 
@@ -256,7 +253,11 @@ def AGD(vel: np.ndarray,
             # Perform the intermediate fit using LMFIT
             t0 = time.time()
             say('Running LMFIT on initial narrow components...', verbose=verbose)
-            lmfit_params = paramvec_to_lmfit(params_guess_phase1, dct['max_amp'], dct['max_fwhm'])
+            lmfit_params = paramvec_to_lmfit(
+                paramvec=params_guess_phase1,
+                max_amp=max_amp,
+                max_fwhm=settings_improve_fit.max_fwhm if settings_improve_fit is not None else None
+            )
             result = lmfit_minimize(objectiveD2_leastsq, lmfit_params, method='leastsq')
             params_fit_phase1 = vals_vec_from_lmfit(result.params)
             ncomps_fit_phase1 = int(len(params_fit_phase1) / 3)
@@ -325,7 +326,7 @@ def AGD(vel: np.ndarray,
 
         # Final fit using unconstrained parameters
         t0 = time.time()
-        lmfit_params = paramvec_to_lmfit(params_guess_final, dct['max_amp'], None)
+        lmfit_params = paramvec_to_lmfit(params_guess_final, max_amp, None)
         result2 = lmfit_minimize(objective_leastsq, lmfit_params, method='leastsq')
         params_fit = vals_vec_from_lmfit(result2.params)
         params_errs = errs_vec_from_lmfit(result2.params)
@@ -339,7 +340,7 @@ def AGD(vel: np.ndarray,
 
     # Try to improve the fit
     # ----------------------
-    if dct['improve_fitting']:
+    if improve_fitting:
         if ncomps_guess_final == 0:
             ncomps_fit = 0
             params_fit = []
@@ -354,7 +355,10 @@ def AGD(vel: np.ndarray,
             )
         )
         model.parameters = params_fit
-        best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(model=model, dct=dct)
+        best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
+            model=model,
+            settings_improve_fit=settings_improve_fit
+        )
 
         params_fit = best_fit_info["params_fit"]
         params_errs = best_fit_info["params_errs"]
@@ -381,7 +385,7 @@ def AGD(vel: np.ndarray,
             ncomps_fit = 0
             best_fit_final = data*0
 
-        if dct['improve_fitting']:
+        if improve_fitting:
             rchi2 = best_fit_info["rchi2"]
         else:
             #  TODO: define mask from signal_ranges
@@ -395,7 +399,7 @@ def AGD(vel: np.ndarray,
         ax4 = fig.add_axes([0.5, 0.1, 0.4, 0.4])  # Final fit
 
         # Decorations
-        if dct['improve_fitting']:
+        if improve_fitting:
             plt.figtext(0.52, 0.47, 'Final fit (GaussPy+)')
         else:
             plt.figtext(0.52, 0.47, 'Final fit (GaussPy)')
@@ -467,7 +471,7 @@ def AGD(vel: np.ndarray,
     if (perform_final_fit is True) and (ncomps_guess_final > 0):
         odict = {**odict, **{'best_fit_parameters': params_fit, 'best_fit_errors': params_errs}}
 
-    if dct['improve_fitting']:
+    if improve_fitting:
         odict = {**odict, **{'best_fit_rchi2': rchi2,
                              'best_fit_aicc': aicc,
                              'pvalue': pvalue,

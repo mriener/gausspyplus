@@ -10,7 +10,7 @@ from astropy.wcs import WCS
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.utils.spectral_cube_functions import correct_header
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
-from gausspyplus.definitions import SettingsDefault, SettingsDecomposition
+from gausspyplus.definitions import SettingsDefault, SettingsDecomposition, SettingsImproveFit
 
 
 class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
@@ -94,26 +94,26 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
     #  dictionary
     # @functools.cached_property
     @property
-    def fitting(self):
-        return {
-            'improve_fitting': self.improve_fitting,
-            'min_fwhm': self.min_fwhm,
-            'max_fwhm': self.max_fwhm,
-            'snr': self.snr,
-            'snr_fit': self.snr_fit,
-            'significance': self.significance,
-            'snr_negative': self.snr_negative,
-            'rchi2_limit': self.rchi2_limit,
-            'max_amp_factor': self.max_amp_factor,
-            'neg_res_peak': self.refit_neg_res_peak,
-            'broad': self.refit_broad,
-            'blended': self.refit_blended,
-            'fwhm_factor': self.fwhm_factor,
-            'separation_factor': self.separation_factor,
-            'exclude_means_outside_channel_range': self.exclude_means_outside_channel_range,
-            'min_pvalue': self.min_pvalue,
-            'max_ncomps': self.max_ncomps
-        }
+    def fitting(self) -> SettingsImproveFit:
+        return SettingsImproveFit(
+            improve_fitting=self.improve_fitting,
+            min_fwhm=self.min_fwhm,
+            max_fwhm=self.max_fwhm,
+            snr=self.snr,
+            snr_fit=self.snr_fit,
+            significance=self.significance,
+            snr_negative=self.snr_negative,
+            rchi2_limit=self.rchi2_limit,
+            max_amp_factor=self.max_amp_factor,
+            refit_neg_res_peak=self.refit_neg_res_peak,
+            refit_broad=self.refit_broad,
+            refit_blended=self.refit_blended,
+            fwhm_factor=self.fwhm_factor,
+            separation_factor=self.separation_factor,
+            exclude_means_outside_channel_range=self.exclude_means_outside_channel_range,
+            min_pvalue=self.min_pvalue,
+            max_ncomps=self.max_ncomps
+        )
 
     # @functools.cached_property
     # def testing(self):
@@ -163,10 +163,13 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
                              f'\nSNR2: {self.snr2_thresh}')
         say(string_gausspy, logger=self.logger)
 
-        if self.fitting['improve_fitting']:
-            string_gausspy_plus = '\n' + '\n'.join([f'\n{key}: {value}' for key, value in self.fitting.items()])
+        if self.fitting.improve_fitting:
+            # string_gausspy_plus = '\n' + '\n'.join([f'\n{key}: {value}' for key, value in self.fitting.items()])
+            string_gausspy_plus = '\n' + '\n'.join(
+                [f"{attribute}: {getattr(self.fitting, attribute)}"
+                 for attribute in dir(self.fitting) if not attribute.startswith("__")])
         else:
-            string_gausspy_plus = f"\nimprove_fitting: {self.fitting['improve_fitting']}"
+            string_gausspy_plus = f"\nimprove_fitting: {self.fitting.improve_fitting}"
         say(string_gausspy_plus, logger=self.logger)
 
     def start_decomposition(self):
@@ -184,7 +187,7 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
         decomposer.set('use_ncpus', self.use_ncpus)
         decomposer.set('SNR_thresh', self.snr_thresh)
         decomposer.set('SNR2_thresh', self.snr2_thresh)
-        decomposer.set('improve_fitting_dict', self.fitting)
+        decomposer.set('settings_improve_fit', self.fitting)
         decomposer.set('alpha1', self.alpha1)
 
         if self.testing:
