@@ -35,6 +35,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
         # TODO: also define lower limit for rchi2 to prevent overfitting?
         self.save_all = False
 
+        # TODO: Can the amp_threshold attribute be replaced or covered by another attribute?
         self.amp_threshold = None
 
         if config_file:
