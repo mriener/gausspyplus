@@ -65,3 +65,4 @@ distribute-*.tar.gz
 *.ini
 *.log
 *.fits
+*.txt
