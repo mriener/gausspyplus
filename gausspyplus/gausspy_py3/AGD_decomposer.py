@@ -342,7 +342,7 @@ def AGD(vel: np.ndarray,
     # ----------------------
     if improve_fitting:
         if ncomps_guess_final == 0:
-            ncomps_fit = 0
+            # ncomps_fit = 0
             params_fit = []
         #  TODO: check if ncomps_fit should be ncomps_guess_final
         model = Model(
