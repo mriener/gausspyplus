@@ -950,7 +950,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  for component flagged as broad select the interval [mean - FWHM, mean + FWHM]
         if flag == 'blended':
             params = amps + fwhms + means
-            separation_factor = self.decomposition['improve_fit_settings']['separation_factor']
+            separation_factor = self.decomposition['improve_fit_settings'].separation_factor
             indices = get_fully_blended_gaussians(params, separation_factor=separation_factor)
             lower = max(0, min(np.array(means)[indices] - np.array(fwhms)[indices]))
             upper = max(np.array(means)[indices] + np.array(fwhms)[indices])
@@ -959,7 +959,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             lower = max(0, means[idx] - fwhms[idx])
             upper = means[idx] + fwhms[idx]
         elif flag == 'residual':
-            dct = self.decomposition['improve_fit_settings'].copy()
+            settings_improve_fit = self.decomposition['improve_fit_settings']
 
             #  TODO: What if multiple negative residual features occur in one spectrum?
             idx = check_for_negative_residual(
@@ -969,7 +969,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                         channels=self.channels,
                         rms_noise=rms
                     )),
-                dct=dct,
+                settings_improve_fit=settings_improve_fit,
                 get_idx=True
             )
             if idx is None:
@@ -1811,8 +1811,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             channels = self.channels
 
         #  correct dictionary key
-        dct = self.decomposition['improve_fit_settings'].copy()
-        dct['max_amp'] = dct['max_amp_factor'] * np.max(spectrum)
+        settings_improve_fit = self.decomposition['improve_fit_settings']
+        settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(spectrum)
 
         #  set limits for fit parameters
         params, params_min, params_max = [], [], []
@@ -1834,7 +1834,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 )
             ),
             params_fit=params,
-            dct=dct,
+            settings_improve_fit=settings_improve_fit,
             params_min=params_min,
             params_max=params_max,
         )
@@ -1847,7 +1847,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         while new_fit:
             model, fitted_residual_peaks = check_for_peaks_in_residual(
                 model=model,
-                dct=dct,
+                settings_improve_fit=settings_improve_fit,
                 fitted_residual_peaks=fitted_residual_peaks,
             )
             new_fit = model.new_best_fit
@@ -1877,11 +1877,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         N_blended = get_fully_blended_gaussians(
             params_fit=model.parameters,
             get_count=True,
-            separation_factor=self.decomposition['improve_fit_settings']['separation_factor']
+            separation_factor=self.decomposition['improve_fit_settings'].separation_factor
         )
         N_neg_res_peak = check_for_negative_residual(
             model=model,
-            dct=dct,
+            settings_improve_fit=settings_improve_fit,
             get_count=True)
 
         return {

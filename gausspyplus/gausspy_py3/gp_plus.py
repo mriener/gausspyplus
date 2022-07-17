@@ -6,6 +6,7 @@ import numpy as np
 
 from lmfit import minimize as lmfit_minimize
 
+from gausspyplus.definitions import SettingsImproveFit
 from gausspyplus.model import Model
 from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal, get_slice_indices_for_interval
 from gausspyplus.utils.fit_quality_checks import determine_significance
@@ -24,7 +25,7 @@ from gausspyplus.utils.noise_estimation import determine_peaks
 
 def _perform_least_squares_fit(spectrum: namedtuple,
                                params_fit: List,
-                               dct: Dict,
+                               settings_improve_fit: SettingsImproveFit,
                                params_min: Optional[List] = None,
                                params_max: Optional[List] = None) -> Tuple[List, List, int]:
     # Objective functions for final fit
@@ -37,7 +38,7 @@ def _perform_least_squares_fit(spectrum: namedtuple,
     #  get new best fit
     lmfit_params = paramvec_to_lmfit(
         paramvec=params_fit,
-        max_amp=dct['max_amp'],
+        max_amp=settings_improve_fit.max_amp,
         max_fwhm=None,
         params_min=params_min,
         params_max=params_max
@@ -134,7 +135,7 @@ def _remove_components_above_max_ncomps(amps_fit: List,
 def _check_params_fit(spectrum: namedtuple,
                       params_fit: List,
                       params_errs: List,
-                      dct: Dict,
+                      settings_improve_fit: SettingsImproveFit,
                       quality_control: List[int],
                       params_min: Optional[List] = None,
                       params_max: Optional[List] = None) -> Tuple[List, List, int, List, List, List, bool]:
@@ -147,7 +148,7 @@ def _check_params_fit(spectrum: namedtuple,
     params_fit : Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
     params_errs : Parameter error vector in the form of [e_amp1, ..., e_ampN, e_fwhm1, ..., e_fwhmN,
         e_mean1, ..., e_meanN].
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
     params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
         min_mean1, ..., min_meanN]
     params_max : List of maximum limits for parameters: [max_amp1, ..., max_ampN, max_fwhm1, ..., max_fwhmN,
@@ -185,29 +186,29 @@ def _check_params_fit(spectrum: namedtuple,
 
     remove_indices = []
     for i, (amp, fwhm, offset) in enumerate(zip(amps_fit, fwhms_fit, offsets_fit)):
-        if dct['max_fwhm'] is not None and fwhm > dct['max_fwhm']:
+        if settings_improve_fit.max_fwhm is not None and fwhm > settings_improve_fit.max_fwhm:
             remove_indices.append(i)
             quality_control.append(0)
             continue
 
-        if dct['min_fwhm'] is not None and fwhm < dct['min_fwhm']:
+        if settings_improve_fit.min_fwhm is not None and fwhm < settings_improve_fit.min_fwhm:
             remove_indices.append(i)
             quality_control.append(1)
             continue
 
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
-        if amp < dct['snr_fit'] * spectrum.rms_noise:
+        if amp < settings_improve_fit.snr_fit * spectrum.rms_noise:
             remove_indices.append(i)
             quality_control.append(2)
             continue
 
-        # if amp > dct['max_amp']:
+        # if amp > settings_improve_fit.max_amp:
         #     remove_indices.append(i)
         #     quality_control.append(3)
         #     continue
 
         #  discard the Gaussian component if it does not satisfy the significance criterion
-        if determine_significance(amp, fwhm, spectrum.rms_noise) < dct['significance']:
+        if determine_significance(amp, fwhm, spectrum.rms_noise) < settings_improve_fit.significance:
             remove_indices.append(i)
             quality_control.append(3)
             continue
@@ -225,16 +226,16 @@ def _check_params_fit(spectrum: namedtuple,
                         spectrum=spectrum.intensity_values,
                         rms=spectrum.rms_noise,
                         ranges=[(low, upp)],
-                        snr=dct['snr'],
-                        significance=dct['significance']):
+                        snr=settings_improve_fit.snr,
+                        significance=settings_improve_fit.significance):
                 remove_indices.append(i)
                 quality_control.append(5)
 
-    if dct['max_ncomps'] is not None:
+    if settings_improve_fit.max_ncomps is not None:
         remove_indices, quality_control = _remove_components_above_max_ncomps(
             amps_fit=amps_fit,
             fwhms_fit=fwhms_fit,
-            ncomps_max=dct['max_ncomps'],
+            ncomps_max=settings_improve_fit.max_ncomps,
             remove_indices=remove_indices,
             quality_control=quality_control
         )
@@ -268,7 +269,7 @@ def _check_params_fit(spectrum: namedtuple,
         params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
             spectrum=spectrum,
             params_fit=params_fit,
-            dct=dct,
+            settings_improve_fit=settings_improve_fit,
             params_min=params_min,
             params_max=params_max
         )
@@ -521,7 +522,7 @@ def remove_components(params_fit: List,
 
 def get_best_fit_model(model: Model,  # model is a new instance of Model
                        params_fit: List,
-                       dct: Dict,
+                       settings_improve_fit: SettingsImproveFit,
                        params_min: Optional[List] = None,
                        params_max: Optional[List] = None,
                        ) -> Model:
@@ -531,8 +532,8 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
     ----------
     params_fit : list
         Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    dct : dict
-        Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : dict
+        Dataclass containing parameter settings for the improved fitting.
     params_min : list
         List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN, min_mean1, ..., min_meanN]
     params_max : list
@@ -549,7 +550,7 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
     params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
         spectrum=model.spectrum,
         params_fit=params_fit,
-        dct=dct,
+        settings_improve_fit=settings_improve_fit,
         params_min=params_min,
         params_max=params_max
     )
@@ -562,7 +563,7 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
                 spectrum=model.spectrum,
                 params_fit=params_fit,
                 params_errs=params_errs,
-                dct=dct,
+                settings_improve_fit=settings_improve_fit,
                 quality_control=quality_control,
             )
 
@@ -587,14 +588,14 @@ def choose_better_model_based_on_aicc(old_model: Model, new_model: Model) -> Mod
 
 
 def check_for_negative_residual(model: Model,
-                                dct: Dict,
+                                settings_improve_fit: SettingsImproveFit,
                                 get_count: bool = False,
                                 get_idx: bool = False,
                                 ) -> Union[int, Model]:
     """Check for negative residual features and try to refit them.
 
     We define negative residual features as negative peaks in the residual that were introduced by the fit. These
-    negative peaks have to have a minimum negative signal-to-noise ratio of dct['snr_negative'].
+    negative peaks have to have a minimum negative signal-to-noise ratio of settings_improve_fit['snr_negative'].
 
     In case of a negative residual feature, we try to replace the Gaussian fit component that is causing the feature
     with two narrower components. We only accept this solution if it yields a better fit as determined by the AICc
@@ -603,7 +604,7 @@ def check_for_negative_residual(model: Model,
     Parameters
     ----------
     model : Current best fit model
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
     get_count : Default is 'False'. If set to 'True', only the number of occurring negative residual features will be
         returned.
     get_idx : Default is 'False'. If set to 'True', the index of the Gaussian fit component causing the negative
@@ -621,15 +622,15 @@ def check_for_negative_residual(model: Model,
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual=model.residual,
         rms=model.spectrum.rms_noise,
-        snr=dct['snr_negative'],
-        significance=dct['significance'],
+        snr=settings_improve_fit.snr_negative,
+        significance=settings_improve_fit.significance,
         peak='negative'
     )
 
     #  check if negative residual feature was already present in the data
     remove_indices = [
         i for i, offset in enumerate(offset_guesses)
-        if model.residual[offset] > (model.spectrum.intensity_values[offset] - dct['snr'] * model.spectrum.rms_noise)
+        if model.residual[offset] > (model.spectrum.intensity_values[offset] - settings_improve_fit.snr * model.spectrum.rms_noise)
     ]
 
     if remove_indices:
@@ -662,8 +663,8 @@ def check_for_negative_residual(model: Model,
 
         params_fit = _replace_gaussian_with_two_new_ones(
             spectrum=model.spectrum,
-            snr=dct['snr'],
-            significance=dct['significance'],
+            snr=settings_improve_fit.snr,
+            significance=settings_improve_fit.significance,
             params_fit=model.parameters,
             exclude_idx=exclude_idx,
             offset=offset
@@ -672,12 +673,12 @@ def check_for_negative_residual(model: Model,
         new_model = get_best_fit_model(
             model=Model(spectrum=model.spectrum),
             params_fit=params_fit,
-            dct=dct
+            settings_improve_fit=settings_improve_fit
         )
     return choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
 
-def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> Model:
+def _try_fit_with_new_components(model: Model, settings_improve_fit: SettingsImproveFit, exclude_idx: int) -> Model:
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we
@@ -688,7 +689,7 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
     Parameters
     ----------
     model
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
     exclude_idx : Index of Gaussian fit component that will be removed.
 
     Returns
@@ -700,7 +701,7 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
         params_fit=remove_components(params_fit=model.parameters, remove_indices=exclude_idx),
-        dct=dct
+        settings_improve_fit=settings_improve_fit
     )
 
     model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
@@ -712,8 +713,8 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual=new_model.residual,
         rms=new_model.spectrum.rms_noise,
-        snr=dct['snr'],
-        significance=dct['significance'],
+        snr=settings_improve_fit.snr,
+        significance=settings_improve_fit.significance,
         peak='positive'
     )
 
@@ -728,16 +729,16 @@ def _try_fit_with_new_components(model: Model, dct: Dict, exclude_idx: int) -> M
         params_fit=(new_model.amps + list(amp_guesses) +
                     new_model.fwhms + list(fwhm_guesses) +
                     new_model.means + list(offset_guesses)),
-        dct=dct
+        settings_improve_fit=settings_improve_fit
     )
 
     return choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
 
-def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
+def _check_for_broad_feature(model: Model, settings_improve_fit: SettingsImproveFit) -> Model:
     """Check for broad features and try to refit them.
 
-    We define broad fit components as having a FWHM value that is bigger by a factor of dct['fwhm_factor'] than the
+    We define broad fit components as having a FWHM value that is bigger by a factor of settings_improve_fit['fwhm_factor'] than the
     second broadest component in the spectrum.
 
     In case of a broad fit component, we first try to replace it with two narrower components. If this does not work,
@@ -751,7 +752,7 @@ def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
     Parameters
     ----------
     model
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
 
     Returns
     -------
@@ -760,19 +761,19 @@ def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
     """
     model.new_best_fit = False
 
-    if model.n_components < 2 and dct['fwhm_factor'] > 0:
+    if model.n_components < 2 and settings_improve_fit.fwhm_factor > 0:
         return model
 
     fwhms_sorted = sorted(model.fwhms)
-    if fwhms_sorted[-1] < dct['fwhm_factor'] * fwhms_sorted[-2]:
+    if fwhms_sorted[-1] < settings_improve_fit.fwhm_factor * fwhms_sorted[-2]:
         return model
 
     exclude_idx = np.argmax(model.fwhms)
 
     params_fit = _replace_gaussian_with_two_new_ones(
         spectrum=model.spectrum,
-        snr=dct['snr'],
-        significance=dct['significance'],
+        snr=settings_improve_fit.snr,
+        significance=settings_improve_fit.significance,
         params_fit=model.parameters,
         exclude_idx=exclude_idx,
         offset=model.means[exclude_idx]
@@ -782,7 +783,7 @@ def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
         new_model = get_best_fit_model(
             model=Model(spectrum=model.spectrum),
             params_fit=params_fit,
-            dct=dct
+            settings_improve_fit=settings_improve_fit
         )
 
         model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
@@ -792,12 +793,12 @@ def _check_for_broad_feature(model: Model, dct: Dict) -> Model:
 
     return _try_fit_with_new_components(
         model=model,
-        dct=dct,
+        settings_improve_fit=settings_improve_fit,
         exclude_idx=np.argmax(model.fwhms),
     )
 
 
-def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
+def _check_for_blended_feature(model: Model, settings_improve_fit: SettingsImproveFit) -> Model:
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard
@@ -812,7 +813,7 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
     Parameters
     ----------
     model
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
 
     Returns
     -------
@@ -822,13 +823,13 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
     exclude_indices = get_fully_blended_gaussians(
         params_fit=model.parameters,
         get_count=False,
-        separation_factor=dct['separation_factor']
+        separation_factor=settings_improve_fit.separation_factor
     )
 
     for exclude_idx in exclude_indices:
         model = _try_fit_with_new_components(
             model=model,
-            dct=dct,
+            settings_improve_fit=settings_improve_fit,
             exclude_idx=exclude_idx,
         )
         if model.new_best_fit:
@@ -838,7 +839,7 @@ def _check_for_blended_feature(model: Model, dct: Dict) -> Model:
 
 
 def check_for_peaks_in_residual(model: Model,
-                                dct: Dict,
+                                settings_improve_fit: SettingsImproveFit,
                                 fitted_residual_peaks: List,
                                 params_min: Optional[List] = None,
                                 params_max: Optional[List] = None,
@@ -848,7 +849,7 @@ def check_for_peaks_in_residual(model: Model,
     Parameters
     ----------
     model
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
     fitted_residual_peaks : List of initial mean position guesses for new fit components determined from residual peaks
         that were already tried in previous iterations.
     params_min : List of minimum limits for parameters: [min_amp1, ..., min_ampN, min_fwhm1, ..., min_fwhmN,
@@ -866,8 +867,8 @@ def check_for_peaks_in_residual(model: Model,
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual=model.residual,
         rms=model.spectrum.rms_noise,
-        snr=dct['snr'],
-        significance=dct['significance'],
+        snr=settings_improve_fit.snr,
+        significance=settings_improve_fit.significance,
         peak='positive'
     )
 
@@ -884,7 +885,7 @@ def check_for_peaks_in_residual(model: Model,
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
         params_fit=amps_fit + fwhms_fit + offsets_fit,
-        dct=dct,
+        settings_improve_fit=settings_improve_fit,
         params_min=params_min,
         params_max=params_max,
     )
@@ -920,13 +921,13 @@ def _log_new_fit(new_fit: bool,
     return log_gplus
 
 
-def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, List]:
+def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFit) -> Tuple[Dict, int, int, List]:
     """Short summary.
 
     Parameters
     ----------
     model
-    dct : Dictionary containing parameter settings for the improved fitting.
+    settings_improve_fit : Dataclass containing parameter settings for the improved fitting.
 
     Returns
     -------
@@ -942,7 +943,7 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
         model = get_best_fit_model(
             model=Model(spectrum=model.spectrum),
             params_fit=model.parameters,
-            dct=dct
+            settings_improve_fit=settings_improve_fit
         )
 
     #  Try to improve fit by searching for peaks in the residual
@@ -950,13 +951,13 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
     fitted_residual_peaks = []
     log_gplus = []
 
-    # while (rchi2 > dct['rchi2_limit']) or first_run:
-    while (model.pvalue < dct['min_pvalue']) or first_run:
+    # while (rchi2 > settings_improve_fit.rchi2_limit) or first_run:
+    while (model.pvalue < settings_improve_fit.min_pvalue) or first_run:
         n_fitted_residual_peaks_before_check = len(fitted_residual_peaks)
         new_fit = True
         while new_fit:
             model.new_best_fit = False
-            model, fitted_residual_peaks = check_for_peaks_in_residual(model, dct, fitted_residual_peaks)
+            model, fitted_residual_peaks = check_for_peaks_in_residual(model, settings_improve_fit, fitted_residual_peaks)
             new_fit = model.new_best_fit
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
         n_fitted_residual_peaks_after_check = len(fitted_residual_peaks)
@@ -968,21 +969,21 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
             break
 
         #  try to refit negative residual feature
-        if dct['neg_res_peak']:
-            model = check_for_negative_residual(model=model, dct=dct)
+        if settings_improve_fit.refit_neg_res_peak:
+            model = check_for_negative_residual(model=model, settings_improve_fit=settings_improve_fit)
             new_fit = model.new_best_fit
             log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='negative_residual_peak')
 
         #  try to refit broad Gaussian components
-        while dct['broad']:
-            model = _check_for_broad_feature(model=model, dct=dct)
+        while settings_improve_fit.refit_broad:
+            model = _check_for_broad_feature(model=model, settings_improve_fit=settings_improve_fit)
             log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='broad')
             if not model.new_best_fit:
                 break
 
         #  try to refit blended Gaussian components
-        while dct['blended'] and model.n_components > 1:
-            model = _check_for_blended_feature(model=model, dct=dct)
+        while settings_improve_fit.refit_blended and model.n_components > 1:
+            model = _check_for_blended_feature(model=model, settings_improve_fit=settings_improve_fit)
             log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='blended')
             if not model.new_best_fit:
                 break
@@ -991,12 +992,12 @@ def try_to_improve_fitting(model: Model, dct: Dict) -> Tuple[Dict, int, int, Lis
             break
         first_run = False
 
-    N_neg_res_peak = check_for_negative_residual(model=model, dct=dct, get_count=True)
+    N_neg_res_peak = check_for_negative_residual(model=model, settings_improve_fit=settings_improve_fit, get_count=True)
 
     N_blended = get_fully_blended_gaussians(
         params_fit=model.parameters,
         get_count=True,
-        separation_factor=dct['separation_factor']
+        separation_factor=settings_improve_fit.separation_factor
     )
 
     return model.best_fit_info, N_neg_res_peak, N_blended, log_gplus
