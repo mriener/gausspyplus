@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "gausspyplus"
+version = "0.3.0"
+description = "A fully automated Gaussian decomposition package for emission line spectra."
+authors = ["Manuel Riener <manuel.riener@icloud.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.11"
+astropy = "4.3.1"
+lmfit = "1.0.3"
+matplotlib = "3.5.2"
+networkx = "2.6.3"
+numpy = "1.20.3"
+scipy = "1.7.2"
+tqdm = "4.62.3"
+
+[tool.poetry.dev-dependencies]
+jupyterlab = "3.2.3"
+pytest = "6.2.5"
+
+[tool.poetry.scripts]
+streamlit = "poetry_run:streamlit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
