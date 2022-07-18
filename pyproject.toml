@@ -18,6 +18,7 @@ tqdm = "4.62.3"
 [tool.poetry.dev-dependencies]
 jupyterlab = "3.2.3"
 pytest = "6.2.5"
+black = "22.6.0"
 
 [tool.poetry.scripts]
 streamlit = "poetry_run:streamlit"
