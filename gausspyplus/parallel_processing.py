@@ -21,7 +21,7 @@ from gausspyplus.finalize import Finalize
 #  With Python 3.8 the start method for multiprocessing defaults to 'spawn' for
 #  MacOS systems. Here we change it back to 'fork' for compatibility reasons.
 if sys.version_info[:2] >= (3, 8):
-    multiprocessing.set_start_method('fork', force=True)
+    multiprocessing.set_start_method("fork", force=True)
 
 
 def init_worker_ts():
@@ -35,10 +35,12 @@ def init_gausspy(*args):
     if args:
         agd_object, agd_data, ilist = args[0]
     else:
-        agd_object, science_data_path, ilist = pickle.load(open('batchdecomp_temp.pickle', 'rb'), encoding='latin1')
-        agd_data = pickle.load(open(science_data_path, 'rb'), encoding='latin1')
+        agd_object, science_data_path, ilist = pickle.load(
+            open("batchdecomp_temp.pickle", "rb"), encoding="latin1"
+        )
+        agd_data = pickle.load(open(science_data_path, "rb"), encoding="latin1")
     if ilist is None:
-        ilist = np.arange(len(agd_data['data_list']))
+        ilist = np.arange(len(agd_data["data_list"]))
 
 
 def init(mp_info):
@@ -56,37 +58,41 @@ def calculate_noise(i):
         max_consecutive_channels=mp_params[1],
         pad_channels=mp_params[2],
         idx=i,
-        average_rms=mp_params[3]
+        average_rms=mp_params[3],
     )
 
 
 def decompose_one(i):
-    if agd_data['data_list'][i] is None:
+    if agd_data["data_list"][i] is None:
         return None
-    if 'signal_ranges' in list(agd_data.keys()):
-        signal_ranges = agd_data['signal_ranges'][i]
-        noise_spike_ranges = agd_data['noise_spike_ranges'][i]
+    if "signal_ranges" in list(agd_data.keys()):
+        signal_ranges = agd_data["signal_ranges"][i]
+        noise_spike_ranges = agd_data["noise_spike_ranges"][i]
     else:
         signal_ranges, noise_spike_ranges = None, None
 
     # TODO: what if idx keyword is missing or None?
     return GaussianDecomposer.decompose(
         self=agd_object,
-        xdata=agd_data['x_values'],
-        ydata=agd_data['data_list'][i],
-        edata=agd_data['error'][i] * np.ones(len(agd_data['x_values'])),
-        idx=agd_data['index'][i],
+        xdata=agd_data["x_values"],
+        ydata=agd_data["data_list"][i],
+        edata=agd_data["error"][i] * np.ones(len(agd_data["x_values"])),
+        idx=agd_data["index"][i],
         signal_ranges=signal_ranges,
-        noise_spike_ranges=noise_spike_ranges
+        noise_spike_ranges=noise_spike_ranges,
     )
 
 
 def refit_spectrum_1(i):
-    return SpatialFitting.refit_spectrum_phase_1(self=mp_params[0], index=mp_data[i], i=i)
+    return SpatialFitting.refit_spectrum_phase_1(
+        self=mp_params[0], index=mp_data[i], i=i
+    )
 
 
 def refit_spectrum_2(i):
-    return SpatialFitting.refit_spectrum_phase_2(self=mp_params[0], index=mp_data[i], i=i)
+    return SpatialFitting.refit_spectrum_phase_2(
+        self=mp_params[0], index=mp_data[i], i=i
+    )
 
 
 def calculate_noise_gpy(i):
@@ -119,10 +125,15 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
     """
     # We run the first few iterations serially to catch bugs
     if front_num > 0:
-        front = [function(**a) if use_kwargs else function(a) for a in array[:front_num]]
+        front = [
+            function(**a) if use_kwargs else function(a) for a in array[:front_num]
+        ]
     # If we set n_jobs to 1, just run a list comprehension. This is useful for benchmarking and debugging.
     if n_jobs == 1:
-        return front + [function(**a) if use_kwargs else function(a) for a in tqdm(array[front_num:])]
+        return front + [
+            function(**a) if use_kwargs else function(a)
+            for a in tqdm(array[front_num:])
+        ]
     # Assemble the workers
     with ProcessPoolExecutor(max_workers=n_jobs) as pool:
         # Pass the elements of array into function
@@ -131,10 +142,10 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
         else:
             futures = [pool.submit(function, a) for a in array[front_num:]]
         kwargs = {
-            'total': len(futures),
-            'unit': 'it',
-            'unit_scale': True,
-            'leave': True
+            "total": len(futures),
+            "unit": "it",
+            "unit_scale": True,
+            "leave": True,
         }
         # Print out the progress as tasks complete
         for _ in tqdm(as_completed(futures), **kwargs):
@@ -149,25 +160,37 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
     return front + out
 
 
-def func(use_ncpus=None, function='noise'):
+def func(use_ncpus=None, function="noise"):
     # Multiprocessing code
     ncpus = multiprocessing.cpu_count()
     if use_ncpus is None:
-        use_ncpus = int(ncpus*0.75)
-    print(f'Using {use_ncpus} of {ncpus} cpus')
+        use_ncpus = int(ncpus * 0.75)
+    print(f"Using {use_ncpus} of {ncpus} cpus")
     try:
-        if function == 'noise':
-            results_list = parallel_process(array=mp_ilist, function=calculate_noise, n_jobs=use_ncpus)
-        elif function == 'gausspy_decompose':
-            results_list = parallel_process(array=ilist, function=decompose_one, n_jobs=use_ncpus)
-        elif function == 'gpy_noise':
-            results_list = parallel_process(array=mp_ilist, function=calculate_noise_gpy, n_jobs=use_ncpus)
-        elif function == 'refit_phase_1':
-            results_list = parallel_process(array=mp_ilist, function=refit_spectrum_1, n_jobs=use_ncpus)
-        elif function == 'refit_phase_2':
-            results_list = parallel_process(array=mp_ilist, function=refit_spectrum_2, n_jobs=use_ncpus)
-        elif function == 'make_table':
-            results_list = parallel_process(array=mp_ilist, function=make_table, n_jobs=use_ncpus)
+        if function == "noise":
+            results_list = parallel_process(
+                array=mp_ilist, function=calculate_noise, n_jobs=use_ncpus
+            )
+        elif function == "gausspy_decompose":
+            results_list = parallel_process(
+                array=ilist, function=decompose_one, n_jobs=use_ncpus
+            )
+        elif function == "gpy_noise":
+            results_list = parallel_process(
+                array=mp_ilist, function=calculate_noise_gpy, n_jobs=use_ncpus
+            )
+        elif function == "refit_phase_1":
+            results_list = parallel_process(
+                array=mp_ilist, function=refit_spectrum_1, n_jobs=use_ncpus
+            )
+        elif function == "refit_phase_2":
+            results_list = parallel_process(
+                array=mp_ilist, function=refit_spectrum_2, n_jobs=use_ncpus
+            )
+        elif function == "make_table":
+            results_list = parallel_process(
+                array=mp_ilist, function=make_table, n_jobs=use_ncpus
+            )
     except KeyboardInterrupt:
         print("KeyboardInterrupt... quitting.")
         quit()
@@ -208,7 +231,7 @@ def func_ts(total, use_ncpus=None):
     ncpus = multiprocessing.cpu_count()
     if use_ncpus is None:
         use_ncpus = int(0.75 * ncpus)
-    print(f'using {use_ncpus} out of {ncpus} cpus')
+    print(f"using {use_ncpus} out of {ncpus} cpus")
     p = multiprocessing.Pool(processes=use_ncpus, initializer=init_worker_ts)
 
     try:

@@ -26,18 +26,26 @@ class Spectrum:
 
     @functools.cached_property
     def signal_mask(self) -> Optional[np.ndarray]:
-        return None if not self.signal_intervals else mask_channels(
-            n_channels=self.n_channels,
-            ranges=self.signal_intervals,
-            pad_channels=None,
-            remove_intervals=self.noise_spike_intervals
+        return (
+            None
+            if not self.signal_intervals
+            else mask_channels(
+                n_channels=self.n_channels,
+                ranges=self.signal_intervals,
+                pad_channels=None,
+                remove_intervals=self.noise_spike_intervals,
+            )
         )
 
     @functools.cached_property
     def noise_spike_mask(self) -> Optional[np.ndarray]:
-        return None if not self.noise_spike_intervals else mask_channels(
-            n_channels=self.n_channels,
-            ranges=[[0, self.n_channels]],
-            pad_channels=None,
-            remove_intervals=self.noise_spike_intervals
+        return (
+            None
+            if not self.noise_spike_intervals
+            else mask_channels(
+                n_channels=self.n_channels,
+                ranges=[[0, self.n_channels]],
+                pad_channels=None,
+                remove_intervals=self.noise_spike_intervals,
+            )
         )

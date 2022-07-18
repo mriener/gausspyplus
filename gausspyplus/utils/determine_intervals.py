@@ -7,17 +7,24 @@ from typing import List, Optional
 import numpy as np
 
 import sys
+
 ROOT = Path(os.path.realpath(__file__)).parents[2]
 sys.path.append(str(ROOT))
 
-from gausspyplus.utils.noise_estimation import determine_peaks, mask_channels, intervals_where_mask_is_true, pad_intervals
+from gausspyplus.utils.noise_estimation import (
+    determine_peaks,
+    mask_channels,
+    intervals_where_mask_is_true,
+    pad_intervals,
+)
 
 
 def get_slice_indices_for_interval(interval_center, interval_half_width):
     return (
         max(0, int(interval_center - interval_half_width)),  # index for lower bound
-        int(interval_center + interval_half_width) + 2 # index for upper bound
+        int(interval_center + interval_half_width) + 2,  # index for upper bound
     )
+
 
 def merge_overlapping_intervals(intervals: List[List]) -> List[List]:
     """Merge overlapping intervals (Credit: https://stackoverflow.com/a/43600953)."""
@@ -36,22 +43,26 @@ def merge_overlapping_intervals(intervals: List[List]) -> List[List]:
     return merged_intervals
 
 
-def _add_buffer_to_intervals(ranges: List[Optional[List]],
-                             n_channels: int,
-                             pad_channels: int = 5) -> List[Optional[List]]:
+def _add_buffer_to_intervals(
+    ranges: List[Optional[List]], n_channels: int, pad_channels: int = 5
+) -> List[Optional[List]]:
     """Pad intervals on lower and upper sides and merge overlapping intervals."""
     # TODO: this needs to be tested and compared time-wise with the previous
     if not ranges:  # in case ranges is an empty list
         return ranges
-    intervals = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
+    intervals = pad_intervals(
+        intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels
+    )
     return merge_overlapping_intervals(intervals)
 
 
-def check_if_intervals_contain_signal(spectrum: np.ndarray,
-                                      rms: float,
-                                      ranges: List[Optional[List]],
-                                      snr: float = 3.,
-                                      significance: float = 5.) -> List[Optional[List]]:
+def check_if_intervals_contain_signal(
+    spectrum: np.ndarray,
+    rms: float,
+    ranges: List[Optional[List]],
+    snr: float = 3.0,
+    significance: float = 5.0,
+) -> List[Optional[List]]:
     """Check if selected intervals contain significant positive signal peaks.
 
     If the maximum intensity value of an interval (low, upp) is smaller than snr * rms, the interval gets removed
@@ -73,18 +84,27 @@ def check_if_intervals_contain_signal(spectrum: np.ndarray,
     """
     # TODO: ranges should be np.ndarray
     # TODO: rename this function (function is also used in gp_plus, where it is used for a conditional check)
-    intervals = [[lower, upper] for lower, upper in ranges if np.max(spectrum[lower:upper]) > snr*rms]
-    return [[lower, upper] for lower, upper in intervals
-            if np.sum(spectrum[lower:upper]) / (np.sqrt(upper - lower)*rms) > significance]
+    intervals = [
+        [lower, upper]
+        for lower, upper in ranges
+        if np.max(spectrum[lower:upper]) > snr * rms
+    ]
+    return [
+        [lower, upper]
+        for lower, upper in intervals
+        if np.sum(spectrum[lower:upper]) / (np.sqrt(upper - lower) * rms) > significance
+    ]
 
 
-def get_signal_ranges(spectrum: np.ndarray,
-                      rms: float,
-                      pad_channels: int = 5,
-                      snr: float = 3.,
-                      significance: float = 5.,
-                      min_channels: int = 100,
-                      remove_intervals: Optional[List[Optional[List]]] = None) -> List[Optional[List]]:
+def get_signal_ranges(
+    spectrum: np.ndarray,
+    rms: float,
+    pad_channels: int = 5,
+    snr: float = 3.0,
+    significance: float = 5.0,
+    min_channels: int = 100,
+    remove_intervals: Optional[List[Optional[List]]] = None,
+) -> List[Optional[List]]:
     """Determine ranges in the spectrum that could contain signal.
 
     Parameters
@@ -106,9 +126,11 @@ def get_signal_ranges(spectrum: np.ndarray,
     n_channels = spectrum.size
 
     #  TODO: max_amp_vals is calculated but not used -> can determine_peaks be simplified if max_amp_vals is not needed?
-    _, ranges = determine_peaks(spectrum, peak='positive', amp_threshold=snr*rms)
+    _, ranges = determine_peaks(spectrum, peak="positive", amp_threshold=snr * rms)
 
-    ranges = check_if_intervals_contain_signal(spectrum, rms, ranges, snr=snr, significance=significance)
+    ranges = check_if_intervals_contain_signal(
+        spectrum, rms, ranges, snr=snr, significance=significance
+    )
 
     if len(ranges) == 0 or pad_channels <= 0:
         return ranges
@@ -120,15 +142,21 @@ def get_signal_ranges(spectrum: np.ndarray,
     #  3 x pad_channels in the 3rd iteration, and so on
     for i in itertools.count():
         ranges = _add_buffer_to_intervals(ranges, n_channels, pad_channels=pad_channels)
-        mask_signal = mask_channels(n_channels, ranges, remove_intervals=remove_intervals)
+        mask_signal = mask_channels(
+            n_channels, ranges, remove_intervals=remove_intervals
+        )
         ranges = intervals_where_mask_is_true(mask_signal)
         # TODO: find something better for the second break condition
-        if (np.count_nonzero(mask_signal) >= min_channels) or (2 * i * pad_channels >= spectrum.size):
+        if (np.count_nonzero(mask_signal) >= min_channels) or (
+            2 * i * pad_channels >= spectrum.size
+        ):
             break
     return ranges
 
 
-def get_noise_spike_ranges(spectrum: np.ndarray, rms: float, snr_noise_spike: int = 5) -> List[Optional[List]]:
+def get_noise_spike_ranges(
+    spectrum: np.ndarray, rms: float, snr_noise_spike: int = 5
+) -> List[Optional[List]]:
     """Determine intervals in the spectrum potentially containing noise spikes.
 
     Parameters
@@ -145,14 +173,17 @@ def get_noise_spike_ranges(spectrum: np.ndarray, rms: float, snr_noise_spike: in
 
     """
     # TODO: change name of function to determine_noise_spike_intervals
-    _, ranges = determine_peaks(spectrum, peak='negative', amp_threshold=snr_noise_spike*rms)
+    _, ranges = determine_peaks(
+        spectrum, peak="negative", amp_threshold=snr_noise_spike * rms
+    )
     return ranges.tolist()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     from astropy.io import fits
-    data = fits.getdata(ROOT / 'gausspyplus' / 'data' / 'grs-test_field.fits')
+
+    data = fits.getdata(ROOT / "gausspyplus" / "data" / "grs-test_field.fits")
     spectrum = data[:, 31, 40]
 
     # time for original function: 31.4 µs ± 1.66 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)

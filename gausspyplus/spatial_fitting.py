@@ -15,24 +15,38 @@ from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.spectrum import Spectrum
-from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians, check_for_peaks_in_residual, \
-    check_for_negative_residual, remove_components_from_sublists, get_best_fit_model
+from gausspyplus.gausspy_py3.gp_plus import (
+    get_fully_blended_gaussians,
+    check_for_peaks_in_residual,
+    check_for_negative_residual,
+    remove_components_from_sublists,
+    get_best_fit_model,
+)
 from gausspyplus.model import Model
-from gausspyplus.utils.determine_intervals import merge_overlapping_intervals, get_slice_indices_for_interval
+from gausspyplus.utils.determine_intervals import (
+    merge_overlapping_intervals,
+    get_slice_indices_for_interval,
+)
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
-from gausspyplus.utils.ndimage_functions import weighted_median, number_of_component_jumps, broad_components
+from gausspyplus.utils.ndimage_functions import (
+    weighted_median,
+    number_of_component_jumps,
+    broad_components,
+)
 from gausspyplus.utils.noise_estimation import mask_channels
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 from gausspyplus.definitions import SettingsDefault, SettingsSpatialFitting
 
 
 class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
-    def __init__(self,
-                 path_to_pickle_file: Optional[Union[str, Path]] = None,
-                 path_to_decomp_file: Optional[Union[str, Path]] = None,
-                 fin_filename: Optional[Union[str, Path]] = None,
-                 config_file: Union[str, Path] = ''):
+    def __init__(
+        self,
+        path_to_pickle_file: Optional[Union[str, Path]] = None,
+        path_to_decomp_file: Optional[Union[str, Path]] = None,
+        fin_filename: Optional[Union[str, Path]] = None,
+        config_file: Union[str, Path] = "",
+    ):
         """Class implementing the two phases of spatially coherent refitting discussed in Riener+ 2019."""
         self.path_to_pickle_file = path_to_pickle_file
         self.path_to_decomp_file = path_to_decomp_file
@@ -41,11 +55,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         self.constrain_fwhm = False
         self.pixel_range = None
-        self._w_start = 1.
+        self._w_start = 1.0
         self._finalize = False
 
         if config_file:
-            get_values_from_config_file(self, config_file, config_key='spatial fitting')
+            get_values_from_config_file(self, config_file, config_key="spatial fitting")
 
     def _check_settings(self) -> None:
         """Check user settings and raise error messages or apply corrections."""
@@ -58,14 +72,22 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         self.filename, self.file_extension = os.path.splitext(self.file)
 
         if self.fin_filename is None:
-            suffix = '_sf-p1'
-            self.fin_filename = self.filename + suffix + ("" if self.suffix is None else self.suffix)
+            suffix = "_sf-p1"
+            self.fin_filename = (
+                self.filename + suffix + ("" if self.suffix is None else self.suffix)
+            )
             if self.phase_two:
-                suffix = '_sf-p2'
-                if self.filename.endswith('_sf-p1'):
-                    self.fin_filename = self.filename.replace('_sf-p1', '_sf-p2') + ("" if self.suffix is None else self.suffix)
+                suffix = "_sf-p2"
+                if self.filename.endswith("_sf-p1"):
+                    self.fin_filename = self.filename.replace("_sf-p1", "_sf-p2") + (
+                        "" if self.suffix is None else self.suffix
+                    )
                 else:
-                    self.fin_filename = self.filename + suffix + ("" if self.suffix is None else self.suffix)
+                    self.fin_filename = (
+                        self.filename
+                        + suffix
+                        + ("" if self.suffix is None else self.suffix)
+                    )
 
         if self.dirpath_gpy is None:
             self.dirpath_gpy = os.path.dirname(self.decomp_dirname)
@@ -75,12 +97,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if self.fwhm_factor_refit is None:
             self.fwhm_factor_refit = self.fwhm_factor
 
-        if all(refit is False for refit in [self.refit_blended,
-                                            self.refit_neg_res_peak,
-                                            self.refit_rchi2,
-                                            self.refit_residual,
-                                            self.refit_broad,
-                                            self.refit_ncomps]):
+        if all(
+            refit is False
+            for refit in [
+                self.refit_blended,
+                self.refit_neg_res_peak,
+                self.refit_rchi2,
+                self.refit_residual,
+                self.refit_broad,
+                self.refit_ncomps,
+            ]
+        ):
             raise Exception("Need to set at least one 'refit_*' parameter to 'True'")
 
         if self.flag_blended is None:
@@ -90,7 +117,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if self.flag_rchi2 is None:
             self.flag_rchi2 = self.refit_rchi2
         if self.flag_rchi2 and (self.rchi2_limit is None):
-            raise Exception("Need to set 'rchi2_limit' if 'flag_rchi2=True' or 'refit_rchi2=True'")
+            raise Exception(
+                "Need to set 'rchi2_limit' if 'flag_rchi2=True' or 'refit_rchi2=True'"
+            )
         if self.flag_residual is None:
             self.flag_residual = self.refit_residual
         if self.flag_broad is None:
@@ -101,17 +130,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
     def _initialize(self) -> None:
         """Read in data files and initialize parameters."""
         with open(self.path_to_pickle_file, "rb") as pickle_file:
-            pickledData = pickle.load(pickle_file, encoding='latin1')
+            pickledData = pickle.load(pickle_file, encoding="latin1")
 
-        self.indexList = pickledData['index']
-        self.data = pickledData['data_list']
-        self.errors = pickledData['error']
-        if 'header' in pickledData.keys():
-            self.header = pickledData['header']
-            self.shape = (self.header['NAXIS2'], self.header['NAXIS1'])
-            self.length = self.header['NAXIS2'] * self.header['NAXIS1']
-            self.location = pickledData['location']
-            self.n_channels = self.header['NAXIS3']
+        self.indexList = pickledData["index"]
+        self.data = pickledData["data_list"]
+        self.errors = pickledData["error"]
+        if "header" in pickledData.keys():
+            self.header = pickledData["header"]
+            self.shape = (self.header["NAXIS2"], self.header["NAXIS1"])
+            self.length = self.header["NAXIS2"] * self.header["NAXIS1"]
+            self.location = pickledData["location"]
+            self.n_channels = self.header["NAXIS3"]
         else:
             self.length = len(self.data)
             self.n_channels = len(self.data[0])
@@ -119,40 +148,44 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if self.max_fwhm is None:
             self.max_fwhm = int(self.n_channels / 3)
 
-        self.signalRanges = pickledData['signal_ranges']
-        self.noiseSpikeRanges = pickledData['noise_spike_ranges']
+        self.signalRanges = pickledData["signal_ranges"]
+        self.noiseSpikeRanges = pickledData["noise_spike_ranges"]
 
         with open(self.path_to_decomp_file, "rb") as pickle_file:
-            self.decomposition = pickle.load(pickle_file, encoding='latin1')
+            self.decomposition = pickle.load(pickle_file, encoding="latin1")
 
-        self.nIndices = len(self.decomposition['index_fit'])
+        self.nIndices = len(self.decomposition["index_fit"])
 
-        self.decomposition['refit_iteration'] = [0] * self.nIndices
-        self.decomposition['gaussians_rchi2'] = [None] * self.nIndices
-        self.decomposition['gaussians_aicc'] = [None] * self.nIndices
+        self.decomposition["refit_iteration"] = [0] * self.nIndices
+        self.decomposition["gaussians_rchi2"] = [None] * self.nIndices
+        self.decomposition["gaussians_aicc"] = [None] * self.nIndices
 
-        self.neighbor_indices = np.array([None]*self.nIndices)
-        self.neighbor_indices_all = np.array([None]*self.nIndices)
+        self.neighbor_indices = np.array([None] * self.nIndices)
+        self.neighbor_indices_all = np.array([None] * self.nIndices)
 
-        self.nanMask = np.isnan([np.nan if i is None else i for i in self.decomposition['N_components']])
+        self.nanMask = np.isnan(
+            [np.nan if i is None else i for i in self.decomposition["N_components"]]
+        )
 
         if self.pixel_range is not None:
             self._mask_out_beyond_pixel_range()
 
-        self.nanIndices = np.array(self.decomposition['index_fit'])[self.nanMask]
+        self.nanIndices = np.array(self.decomposition["index_fit"])[self.nanMask]
 
         self.signal_mask = [None for _ in range(self.nIndices)]
-        for i, (noiseSpikeRanges, signalRanges) in enumerate(zip(self.noiseSpikeRanges, self.signalRanges)):
+        for i, (noiseSpikeRanges, signalRanges) in enumerate(
+            zip(self.noiseSpikeRanges, self.signalRanges)
+        ):
             if signalRanges is not None:
                 self.signal_mask[i] = mask_channels(
                     n_channels=self.n_channels,
                     ranges=signalRanges,
-                    remove_intervals=noiseSpikeRanges
+                    remove_intervals=noiseSpikeRanges,
                 )
 
         #  starting condition so that refitting iteration can start
         # self.mask_refitted = np.ones(1)
-        self.mask_refitted = np.array([1]*self.nIndices)
+        self.mask_refitted = np.array([1] * self.nIndices)
         self.list_n_refit = []
         self.refitting_iteration = 0
 
@@ -162,20 +195,30 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         self.min_p = self._w_start - self.w_2
 
     def _mask_out_beyond_pixel_range(self) -> None:
-        locations = list(itertools.product(
-            range(self.pixel_range['y'][0], self.pixel_range['y'][1]),
-            range(self.pixel_range['x'][0], self.pixel_range['x'][1])))
+        locations = list(
+            itertools.product(
+                range(self.pixel_range["y"][0], self.pixel_range["y"][1]),
+                range(self.pixel_range["x"][0], self.pixel_range["x"][1]),
+            )
+        )
 
         for idx, loc in enumerate(self.location):
             if loc not in locations:
                 self.nanMask[idx] = np.nan
 
     def _info_text(self, refit=False):
-        text_phase_1 = '' if not refit else textwrap.dedent(f"""
+        text_phase_1 = (
+            ""
+            if not refit
+            else textwrap.dedent(
+                f"""
             For phase 1:
             Exclude flagged spectra as possible refit solutions in first refit attempts: {self.exclude_flagged}
-            Use also flagged spectra as refit solutions in case no new best fit could be obtained from unflagged spectra: {self.use_all_neighors}""")
-        return text_phase_1 + textwrap.dedent(f"""
+            Use also flagged spectra as refit solutions in case no new best fit could be obtained from unflagged spectra: {self.use_all_neighors}"""
+            )
+        )
+        return text_phase_1 + textwrap.dedent(
+            f"""
             {('Flagging', 'Refitting')[refit]}:
              - Blended components: {(self.flag_blended, self.refit_blended)[refit]}'
              - Negative residual features: {(self.flag_neg_res_peak, self.refit_neg_res_peak)[refit]}
@@ -186,15 +229,23 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
              \t >= {(self.fwhm_factor, self.fwhm_factor_refit)[refit]} times any FWHM in >= {self.broad_neighbor_fraction:.0%} of its neigbors
              - High reduced chi2 values (> {(self.rchi2_limit, self.rchi2_limit_refit)[refit]}): {(self.flag_rchi2, self.refit_rchi2)[refit]}
              - Non-Gaussian distributed residuals: {(self.flag_residual, self.refit_residual)[refit]}
-             - Differing number of components: {(self.flag_ncomps, self.refit_ncomps)[refit]}""")
+             - Differing number of components: {(self.flag_ncomps, self.refit_ncomps)[refit]}"""
+        )
 
     def _getting_ready(self) -> None:
         """Set up logger and write initial output to terminal."""
         if self.log_output:
-            self.logger = set_up_logger(self.dirpath_gpy, self.filename, method='g+_spatial_refitting')
+            self.logger = set_up_logger(
+                self.dirpath_gpy, self.filename, method="g+_spatial_refitting"
+            )
         else:
             self.logger = False
-        say(message=make_pretty_header(f'Spatial refitting - Phase {1 + self.phase_two}'), logger=self.logger)
+        say(
+            message=make_pretty_header(
+                f"Spatial refitting - Phase {1 + self.phase_two}"
+            ),
+            logger=self.logger,
+        )
         say(self._info_text(refit=False), logger=self.logger)
         if not self.phase_two:
             say(self._info_text(refit=True), logger=self.logger)
@@ -231,7 +282,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         else:
             self._determine_spectra_for_refitting()
 
-    def _define_mask(self, key: str, limit: Union[int, float], flag: bool) -> np.ndarray:
+    def _define_mask(
+        self, key: str, limit: Union[int, float], flag: bool
+    ) -> np.ndarray:
         """Create boolean mask with data values exceeding the defined limits set to 'True'.
 
         This mask is only created if 'flag=True'.
@@ -248,15 +301,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         if not flag:
-            return np.zeros(self.length).astype('bool')
+            return np.zeros(self.length).astype("bool")
 
         array = np.array(self.decomposition[key])
         array[self.nanMask] = 0
         return array > limit
 
-    def _define_mask_residual(self, key: str, limit: Union[int, float], flag: bool) -> np.ndarray:
+    def _define_mask_residual(
+        self, key: str, limit: Union[int, float], flag: bool
+    ) -> np.ndarray:
         if not flag:
-            return np.zeros(self.length).astype('bool')
+            return np.zeros(self.length).astype("bool")
 
         array = np.array(self.decomposition[key])
         array[self.nanMask] = limit
@@ -266,8 +321,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         # TODO: Can _define_mask_broad_limit be combined with _broad_components?
         """Return boolean mask identifying the location of broad fit components."""
         return np.array(
-            [False if (fwhms is None or len(fwhms) == 0) else np.any(np.array(fwhms) > self.max_fwhm)
-             for fwhms in self.decomposition['fwhms_fit']]
+            [
+                False
+                if (fwhms is None or len(fwhms) == 0)
+                else np.any(np.array(fwhms) > self.max_fwhm)
+                for fwhms in self.decomposition["fwhms_fit"]
+            ]
         )
 
     def _check_individual_spectrum_for_broad_fit_component(self, fwhms):
@@ -278,32 +337,53 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  exceeds the second largest FWHM value in that spectrum by a factor of 'self.fwhm_factor'; also check if
         #  the absolute difference of their values exceeds 'self.fwhm_separation' to avoid narrow components.
         fwhms = sorted(fwhms)
-        return (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (fwhms[-1] - fwhms[-2]) > self.fwhm_separation
+        return (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (
+            fwhms[-1] - fwhms[-2]
+        ) > self.fwhm_separation
 
     def _define_mask_broad(self) -> np.ndarray:
         """Return a boolean mask indicating the location of broad fit components."""
         is_broad_compared_to_other_fit_components_in_spectrum = np.array(
-            [self._check_individual_spectrum_for_broad_fit_component(fwhms)
-             for fwhms in self.decomposition['fwhms_fit']]
+            [
+                self._check_individual_spectrum_for_broad_fit_component(fwhms)
+                for fwhms in self.decomposition["fwhms_fit"]
+            ]
         )
 
         # Check if the fit component with the largest FWHM value of a spectrum satisfies the criteria to be flagged as
         #  a broad component by comparing it to the largest FWHM values of its 8 immediate neighbors.
         #  The input 2D array consists of the maximum FWHM fit component per spectrum.
-        is_broad_compared_to_fit_components_of_neighbors = ndimage.generic_filter(
-            input=np.array([np.nan if (fwhms is None or len(fwhms) == 0) else max(fwhms)
-                            for fwhms in self.decomposition['fwhms_fit']]).reshape(self.shape),
-            function=broad_components,
-            footprint=np.ones((3, 3)),
-            mode='constant',
-            cval=np.nan,
-            extra_arguments=(self.fwhm_factor, self.fwhm_separation, self.broad_neighbor_fraction)
-        ).flatten().astype("bool")
+        is_broad_compared_to_fit_components_of_neighbors = (
+            ndimage.generic_filter(
+                input=np.array(
+                    [
+                        np.nan if (fwhms is None or len(fwhms) == 0) else max(fwhms)
+                        for fwhms in self.decomposition["fwhms_fit"]
+                    ]
+                ).reshape(self.shape),
+                function=broad_components,
+                footprint=np.ones((3, 3)),
+                mode="constant",
+                cval=np.nan,
+                extra_arguments=(
+                    self.fwhm_factor,
+                    self.fwhm_separation,
+                    self.broad_neighbor_fraction,
+                ),
+            )
+            .flatten()
+            .astype("bool")
+        )
         # TODO: is nanMask masking needed if _mask_out_beyond_pixel_range is set?
         # is_broad_compared_to_other_fit_components_in_spectrum[self.nanMask] = False
-        return is_broad_compared_to_other_fit_components_in_spectrum | is_broad_compared_to_fit_components_of_neighbors
+        return (
+            is_broad_compared_to_other_fit_components_in_spectrum
+            | is_broad_compared_to_fit_components_of_neighbors
+        )
 
-    def _define_mask_neighbor_ncomps(self, flag: bool) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+    def _define_mask_neighbor_ncomps(
+        self, flag: bool
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
         """Create a boolean mask indicating the location of component jumps.
 
         Parameters
@@ -318,14 +398,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         if not flag:
-            return np.zeros(self.length).astype('bool'), None, None
+            return np.zeros(self.length).astype("bool"), None, None
 
         nanmask_1d = self.nanMask
         nanmask_2d = nanmask_1d.reshape(self.shape)
         ncomps_1d = np.empty(self.length)
         ncomps_1d.fill(np.nan)
-        ncomps_1d[~self.nanMask] = np.array(self.decomposition['N_components'])[~self.nanMask]
-        ncomps_2d = ncomps_1d.astype('float').reshape(self.shape)
+        ncomps_1d[~self.nanMask] = np.array(self.decomposition["N_components"])[
+            ~self.nanMask
+        ]
+        ncomps_2d = ncomps_1d.astype("float").reshape(self.shape)
         ncomps_2d[nanmask_2d] = np.nan
 
         mask_neighbor = np.zeros(self.length)
@@ -334,58 +416,85 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             input=ncomps_2d,
             function=weighted_median,
             footprint=np.ones((3, 3)),
-            mode='constant',
-            cval=np.nan
+            mode="constant",
+            cval=np.nan,
         ).flatten()
-        mask_neighbor[~self.nanMask] = ncomps_wmedian[~self.nanMask] > self.max_diff_comps
+        mask_neighbor[~self.nanMask] = (
+            ncomps_wmedian[~self.nanMask] > self.max_diff_comps
+        )
 
         ncomps_jumps = ndimage.generic_filter(
             input=ncomps_2d,
             function=number_of_component_jumps,
             footprint=np.ones((3, 3)),
-            mode='reflect',
+            mode="reflect",
             cval=np.nan,
-            extra_arguments=(self.max_jump_comps,)
+            extra_arguments=(self.max_jump_comps,),
         ).flatten()
-        mask_neighbor[~self.nanMask] = ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
+        mask_neighbor[~self.nanMask] = (
+            ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
+        )
 
-        mask_neighbor = mask_neighbor.astype('bool')
+        mask_neighbor = mask_neighbor.astype("bool")
 
         # TODO: check the return type: above 3 params are returned but in the following 4??
         return mask_neighbor, ncomps_wmedian, ncomps_jumps, ncomps_1d
 
     def determine_spectra_for_flagging(self) -> None:
         """Flag spectra not satisfying user-defined flagging criteria."""
-        self.mask_blended = self._define_mask('N_blended', 0, self.flag_blended)
-        self.mask_neg_res_peak = self._define_mask('N_neg_res_peak', 0, self.flag_neg_res_peak)
-        self.mask_rchi2_flagged = self._define_mask('best_fit_rchi2', self.rchi2_limit, self.flag_rchi2)
-        self.mask_residual = self._define_mask_residual('pvalue', self.min_pvalue, self.flag_residual)
-        self.mask_broad_flagged = self._define_mask_broad() if self.flag_broad else np.zeros(self.length, dtype=bool)
-        self.mask_broad_limit = self._define_mask_broad_limit() if self.flag_broad else np.zeros(self.length, dtype=bool)
-        self.mask_ncomps, self.ncomps_wmedian, self.ncomps_jumps, self.ncomps =\
-            self._define_mask_neighbor_ncomps(self.flag_ncomps)
+        self.mask_blended = self._define_mask("N_blended", 0, self.flag_blended)
+        self.mask_neg_res_peak = self._define_mask(
+            "N_neg_res_peak", 0, self.flag_neg_res_peak
+        )
+        self.mask_rchi2_flagged = self._define_mask(
+            "best_fit_rchi2", self.rchi2_limit, self.flag_rchi2
+        )
+        self.mask_residual = self._define_mask_residual(
+            "pvalue", self.min_pvalue, self.flag_residual
+        )
+        self.mask_broad_flagged = (
+            self._define_mask_broad()
+            if self.flag_broad
+            else np.zeros(self.length, dtype=bool)
+        )
+        self.mask_broad_limit = (
+            self._define_mask_broad_limit()
+            if self.flag_broad
+            else np.zeros(self.length, dtype=bool)
+        )
+        (
+            self.mask_ncomps,
+            self.ncomps_wmedian,
+            self.ncomps_jumps,
+            self.ncomps,
+        ) = self._define_mask_neighbor_ncomps(self.flag_ncomps)
 
         if self._finalize:
             return
 
-        mask_flagged = (self.mask_blended
-                        + self.mask_neg_res_peak
-                        + self.mask_broad_flagged
-                        + self.mask_rchi2_flagged
-                        + self.mask_residual
-                        + self.mask_ncomps)
+        mask_flagged = (
+            self.mask_blended
+            + self.mask_neg_res_peak
+            + self.mask_broad_flagged
+            + self.mask_rchi2_flagged
+            + self.mask_residual
+            + self.mask_ncomps
+        )
 
-        self.count_flags = (self.mask_blended.astype('int')
-                            + self.mask_neg_res_peak.astype('int')
-                            + self.mask_broad_flagged.astype('int')
-                            + self.mask_rchi2_flagged.astype('int')
-                            + self.mask_residual.astype('int')
-                            + self.mask_ncomps.astype('int'))
+        self.count_flags = (
+            self.mask_blended.astype("int")
+            + self.mask_neg_res_peak.astype("int")
+            + self.mask_broad_flagged.astype("int")
+            + self.mask_rchi2_flagged.astype("int")
+            + self.mask_residual.astype("int")
+            + self.mask_ncomps.astype("int")
+        )
 
-        self.indices_flagged = np.array(self.decomposition['index_fit'])[mask_flagged]
+        self.indices_flagged = np.array(self.decomposition["index_fit"])[mask_flagged]
 
         if self.phase_two:
-            text = textwrap.dedent(f"""
+            text = textwrap.dedent(
+                f"""
                 Flags:
                 - {np.count_nonzero(self.mask_blended)} spectra w/ blended components
                 - {np.count_nonzero(self.mask_neg_res_peak)} spectra w/ negative residual feature
@@ -393,12 +502,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 \t (info: {np.count_nonzero(self.mask_broad_limit)} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
                 - {np.count_nonzero(self.mask_rchi2_flagged)} spectra w/ high rchi2 value
                 - {np.count_nonzero(self.mask_residual)} spectra w/ residual not passing normality test
-                - {np.count_nonzero(self.mask_ncomps)} spectra w/ differing number of components""")
+                - {np.count_nonzero(self.mask_ncomps)} spectra w/ differing number of components"""
+            )
             say(text, logger=self.logger)
 
     def _define_mask_refit(self) -> None:
         """Select spectra to refit in phase 1 of the spatially coherent refitting."""
-        mask_refit = np.zeros(self.length).astype('bool')
+        mask_refit = np.zeros(self.length).astype("bool")
         # TODO: The masks are always defined so the if conditions are obsolote and the masks can be summed directly
         if self.refit_blended:
             mask_refit += self.mask_blended
@@ -413,16 +523,18 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if self.refit_ncomps:
             mask_refit += self.mask_ncomps
 
-        self.indices_refit = np.array(self.decomposition['index_fit'])[mask_refit]
+        self.indices_refit = np.array(self.decomposition["index_fit"])[mask_refit]
         # self.indices_refit = self.indices_refit[886:888]  # for debugging
-        self.locations_refit = np.take(np.array(self.location), self.indices_refit, axis=0)
+        self.locations_refit = np.take(
+            np.array(self.location), self.indices_refit, axis=0
+        )
 
     def _get_n_refit(self, flag: bool, n_refit: int) -> int:
         return n_refit if flag else 0
 
     def _determine_spectra_for_refitting(self) -> None:
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
-        say('\ndetermine spectra that need refitting...', logger=self.logger)
+        say("\ndetermine spectra that need refitting...", logger=self.logger)
 
         #  flag spectra based on user-defined criteria
         self.determine_spectra_for_flagging()
@@ -430,11 +542,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  determine new masks for spectra that do not satisfy the user-defined criteria for broad components and
         #  reduced chi-square values; this is done because users can opt to use different values for flagging and
         #  refitting for these two criteria
-        self.mask_broad_refit = self._define_mask_broad() if self.refit_broad else np.zeros(self.length)
+        self.mask_broad_refit = (
+            self._define_mask_broad() if self.refit_broad else np.zeros(self.length)
+        )
         self.mask_rchi2_refit = self._define_mask(
-            key='best_fit_rchi2',
-            limit=self.rchi2_limit_refit,
-            flag=self.refit_rchi2
+            key="best_fit_rchi2", limit=self.rchi2_limit_refit, flag=self.refit_rchi2
         )
 
         #  select spectra for refitting based on user-defined criteria
@@ -442,7 +554,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         #  print the results of the flagging/refitting selections to the terminal
 
-        n_spectra = sum(x is not None for x in self.decomposition['N_components'])
+        n_spectra = sum(x is not None for x in self.decomposition["N_components"])
         n_indices_refit = len(self.indices_refit)
         n_flagged_blended = np.count_nonzero(self.mask_blended)
         n_flagged_neg_res_peak = np.count_nonzero(self.mask_neg_res_peak)
@@ -452,10 +564,18 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
 
         n_refit_blended = self._get_n_refit(self.refit_blended, n_flagged_blended)
-        n_refit_neg_res_peak = self._get_n_refit(self.refit_neg_res_peak, n_flagged_neg_res_peak)
-        n_refit_broad = self._get_n_refit(self.refit_broad, np.count_nonzero(self.mask_broad_refit))
-        n_refit_rchi2 = self._get_n_refit(self.refit_rchi2, np.count_nonzero(self.mask_rchi2_refit))
-        n_refit_residual = self._get_n_refit(self.refit_residual, np.count_nonzero(self.mask_residual))
+        n_refit_neg_res_peak = self._get_n_refit(
+            self.refit_neg_res_peak, n_flagged_neg_res_peak
+        )
+        n_refit_broad = self._get_n_refit(
+            self.refit_broad, np.count_nonzero(self.mask_broad_refit)
+        )
+        n_refit_rchi2 = self._get_n_refit(
+            self.refit_rchi2, np.count_nonzero(self.mask_rchi2_refit)
+        )
+        n_refit_residual = self._get_n_refit(
+            self.refit_residual, np.count_nonzero(self.mask_residual)
+        )
         n_refit_ncomps = self._get_n_refit(self.refit_ncomps, n_flagged_ncomps)
 
         try:
@@ -469,10 +589,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             n_refit_broad,
             n_refit_rchi2,
             n_refit_residual,
-            n_refit_ncomps
+            n_refit_ncomps,
         ]
 
-        text = textwrap.dedent(f"""
+        text = textwrap.dedent(
+            f"""
             {n_indices_refit} out of {n_spectra} spectra ({n_fraction_refit:.2%}) selected for refitting:
              - {n_refit_blended} spectra w/ blended components ({n_flagged_blended} flagged)
              - {n_refit_neg_res_peak} spectra w/ negative residual feature ({n_flagged_neg_res_peak} flagged)
@@ -480,7 +601,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
              \t (info: {np.count_nonzero(self.mask_broad_limit)} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
              - {n_refit_rchi2} spectra w/ high rchi2 value ({n_flagged_rchi2} flagged)
              - {n_refit_residual} spectra w/ residual not passing normality test ({n_flagged_residual} flagged)
-             - {n_refit_ncomps} spectra w/ differing number of components ({n_flagged_ncomps} flagged)""")
+             - {n_refit_ncomps} spectra w/ differing number of components ({n_flagged_ncomps} flagged)"""
+        )
         say(text, logger=self.logger)
 
         #  check if the stopping criterion is fulfilled
@@ -504,36 +626,53 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             return True
         #  stop refitting if the number of spectra selected for refitting got higher than in the previous iteration for each user-defined criterion
         if self.refitting_iteration > 0:
-            return all(n_refit_list[i] >= min(n[i] for n in self.list_n_refit) for i in range(len(n_refit_list)))
+            return all(
+                n_refit_list[i] >= min(n[i] for n in self.list_n_refit)
+                for i in range(len(n_refit_list))
+            )
 
     def _refitting(self) -> None:
         """Refit spectra with multiprocessing routine."""
-        say('\nstart refit iteration #{}...'.format(
-            self.refitting_iteration), logger=self.logger)
+        say(
+            "\nstart refit iteration #{}...".format(self.refitting_iteration),
+            logger=self.logger,
+        )
 
         #  initialize the multiprocessing routine
 
         import gausspyplus.parallel_processing
+
         gausspyplus.parallel_processing.init([self.indices_refit, [self]])
 
         #  try to refit spectra via the multiprocessing routine
         results_list = gausspyplus.parallel_processing.func(
             use_ncpus=self.use_ncpus,
-            function='refit_phase_2' if self.phase_two else 'refit_phase_1'
+            function="refit_phase_2" if self.phase_two else "refit_phase_1",
         )
-        print('SUCCESS')
+        print("SUCCESS")
 
         if self._finalize:
             return results_list
 
         #  reset the mask for spectra selected for refitting
-        self.mask_refitted = np.array([0]*self.nIndices)
+        self.mask_refitted = np.array([0] * self.nIndices)
 
-        keys = ['amplitudes_fit', 'fwhms_fit', 'means_fit',
-                'amplitudes_fit_err', 'fwhms_fit_err', 'means_fit_err',
-                'best_fit_rchi2', 'best_fit_aicc', 'N_components',
-                'gaussians_rchi2', 'gaussians_aicc', 'pvalue',
-                'N_neg_res_peak', 'N_blended']
+        keys = [
+            "amplitudes_fit",
+            "fwhms_fit",
+            "means_fit",
+            "amplitudes_fit_err",
+            "fwhms_fit_err",
+            "means_fit_err",
+            "best_fit_rchi2",
+            "best_fit_aicc",
+            "N_components",
+            "gaussians_rchi2",
+            "gaussians_aicc",
+            "pvalue",
+            "N_neg_res_peak",
+            "N_blended",
+        ]
 
         count_selected, count_refitted = 0, 0
 
@@ -550,7 +689,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             self.neighbor_indices[index] = indices_neighbors
             if result is not None:
                 count_refitted += 1
-                self.decomposition['refit_iteration'][index] += 1
+                self.decomposition["refit_iteration"][index] += 1
                 self.mask_refitted[index] = 1
                 for key in keys:
                     self.decomposition[key][index] = result[key]
@@ -558,11 +697,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  print statistics of the refitting iteration to the terminal
 
         refit_percent = 0 if count_selected == 0 else count_refitted / count_selected
-        text = textwrap.dedent(f"""
+        text = textwrap.dedent(
+            f"""
             Results of the refit iteration:
             Tried to refit {count_selected} spectra
             Successfully refitted {count_refitted} spectra ({refit_percent:.2%})\n
-            ***""")
+            ***"""
+        )
         say(text, logger=self.logger)
 
         #  check if one of the stopping criteria is fulfilled
@@ -571,7 +712,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             if self._stopping_criterion([count_refitted]):
                 self.min_p -= self.w_2
                 self.list_n_refit = [[self.length]]
-                self.mask_refitted = np.array([1]*self.nIndices)
+                self.mask_refitted = np.array([1] * self.nIndices)
             else:
                 self.list_n_refit.append([count_refitted])
 
@@ -582,7 +723,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         else:
             self._determine_spectra_for_refitting()
 
-    def _determine_neighbor_indices(self, neighbors: List, include_flagged: bool = False) -> Tuple[np.ndarray, bool]:
+    def _determine_neighbor_indices(
+        self, neighbors: List, include_flagged: bool = False
+    ) -> Tuple[np.ndarray, bool]:
         """Determine indices of all valid neighboring pixels.
 
         Parameters
@@ -597,31 +740,51 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         all_neighbors = False
-        indices_neighbors_all = np.array([np.ravel_multi_index(neighbor, self.shape).astype("int")
-                                          for neighbor in neighbors])
+        indices_neighbors_all = np.array(
+            [
+                np.ravel_multi_index(neighbor, self.shape).astype("int")
+                for neighbor in neighbors
+            ]
+        )
 
         # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
-        indices_bad = self.indices_flagged if self.exclude_flagged else self.indices_refit
+        indices_bad = (
+            self.indices_flagged if self.exclude_flagged else self.indices_refit
+        )
 
         # Use only neighboring spectra for refitting that are not masked out and have fit components
-        indices_neighbors = np.array([idx for idx in indices_neighbors_all
-                                      if (idx not in indices_bad
-                                          and idx not in self.nanIndices
-                                          and self.decomposition['N_components'][idx] > 0)])
+        indices_neighbors = np.array(
+            [
+                idx
+                for idx in indices_neighbors_all
+                if (
+                    idx not in indices_bad
+                    and idx not in self.nanIndices
+                    and self.decomposition["N_components"][idx] > 0
+                )
+            ]
+        )
 
         if indices_neighbors.size > 1:
             #  sort neighboring fit solutions according to lowest value of reduced chi-square
             #  TODO: change this so that this gets sorted according to the lowest difference of the reduced chi-square
             #   values to the ideal value of 1 to prevent using fit solutions that 'overfit' the data
-            sort = np.argsort(np.array(self.decomposition["best_fit_rchi2"])[indices_neighbors])
+            sort = np.argsort(
+                np.array(self.decomposition["best_fit_rchi2"])[indices_neighbors]
+            )
             indices_neighbors = indices_neighbors[sort]
 
         elif (indices_neighbors.size == 0) or include_flagged:
             #  in case there are no unflagged neighbors, use all flagged neighbors instead
             all_neighbors = True
-            indices_neighbors = np.array([idx for idx in indices_neighbors_all
-                                          if (idx not in self.nanIndices)
-                                          and (self.decomposition["N_components"][idx] != 0)])
+            indices_neighbors = np.array(
+                [
+                    idx
+                    for idx in indices_neighbors_all
+                    if (idx not in self.nanIndices)
+                    and (self.decomposition["N_components"][idx] != 0)
+                ]
+            )
             sort = np.argsort(self.count_flags[indices_neighbors])
             indices_neighbors = indices_neighbors[sort]
 
@@ -655,23 +818,30 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         neighbors = get_neighbors(location=self.locations_refit[i], shape=self.shape)
         # TODO: Is it okay, that flagged spectra are not included here?
-        indices_neighbors, all_neighbors = self._determine_neighbor_indices(neighbors=neighbors, include_flagged=False)
+        indices_neighbors, all_neighbors = self._determine_neighbor_indices(
+            neighbors=neighbors, include_flagged=False
+        )
 
-        if (indices_neighbors.size == 0) or (all_neighbors and not self.use_all_neighors):
+        if (indices_neighbors.size == 0) or (
+            all_neighbors and not self.use_all_neighors
+        ):
             return [index, None, indices_neighbors, refit]
 
         # skip refitting if there were no changes to the last iteration
-        if (np.array_equal(indices_neighbors, self.neighbor_indices[index]) and self.mask_refitted[indices_neighbors].sum() < 1):
+        if (
+            np.array_equal(indices_neighbors, self.neighbor_indices[index])
+            and self.mask_refitted[indices_neighbors].sum() < 1
+        ):
             return [index, None, indices_neighbors, refit]
 
         if self.refit_neg_res_peak and self.mask_neg_res_peak[index]:
-            flags.append('residual')
+            flags.append("residual")
         elif self.refit_broad and self.mask_broad_refit[index]:
-            flags.append('broad')
+            flags.append("broad")
         elif self.refit_blended and self.mask_blended[index]:
-            flags.append('blended')
+            flags.append("blended")
 
-        flags.append('None')
+        flags.append("None")
 
         #  try to refit the spectrum with fit solution of individual unflagged neighboring spectra
 
@@ -684,7 +854,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 signal_ranges=signal_ranges,
                 noise_spike_ranges=noise_spike_ranges,
                 signal_mask=signal_mask,
-                flag=flag
+                flag=flag,
             )
 
             if dictResults is not None:
@@ -700,14 +870,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 indices_neighbors=indices_neighbors,
                 signal_ranges=signal_ranges,
                 noise_spike_ranges=noise_spike_ranges,
-                signal_mask=signal_mask
+                signal_mask=signal_mask,
             )
 
-        if (not all_neighbors and self.use_all_neighors):
+        if not all_neighbors and self.use_all_neighors:
             #  even though we now use indices_neighbors_all we still return indices_neighbors to avoid repeating the refitting
-            indices_neighbors_all, all_neighbors = self._determine_neighbor_indices(neighbors=neighbors,
-                                                                                    include_flagged=True)
-            indices_neighbors_flagged = np.setdiff1d(indices_neighbors_all, indices_neighbors).astype('int')
+            indices_neighbors_all, all_neighbors = self._determine_neighbor_indices(
+                neighbors=neighbors, include_flagged=True
+            )
+            indices_neighbors_flagged = np.setdiff1d(
+                indices_neighbors_all, indices_neighbors
+            ).astype("int")
 
             if indices_neighbors_flagged.size == 0:
                 return [index, None, indices_neighbors, refit]
@@ -721,7 +894,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                     signal_ranges=signal_ranges,
                     noise_spike_ranges=noise_spike_ranges,
                     signal_mask=signal_mask,
-                    flag=flag)
+                    flag=flag,
+                )
 
                 if dictResults is not None:
                     return [index, dictResults, indices_neighbors, refit]
@@ -734,19 +908,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                     indices_neighbors=indices_neighbors_all,
                     signal_ranges=signal_ranges,
                     noise_spike_ranges=noise_spike_ranges,
-                    signal_mask=signal_mask
+                    signal_mask=signal_mask,
                 )
 
         return [index, dictResults, indices_neighbors, refit]
 
-    def _try_refit_with_grouping(self,
-                                 index: int,
-                                 spectrum: np.ndarray,
-                                 rms: float,
-                                 indices_neighbors: np.ndarray,
-                                 signal_ranges: List,
-                                 noise_spike_ranges: List,
-                                 signal_mask: np.ndarray) -> Tuple[Optional[Dict], bool]:
+    def _try_refit_with_grouping(
+        self,
+        index: int,
+        spectrum: np.ndarray,
+        rms: float,
+        indices_neighbors: np.ndarray,
+        signal_ranges: List,
+        noise_spike_ranges: List,
+        signal_mask: np.ndarray,
+    ) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum by grouping all neighboring unflagged fit solutions.
 
         Parameters
@@ -779,8 +955,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  position and FWHM values.
 
         for split_fwhm in [False, True]:
-            dictComps = self._grouping(amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=split_fwhm)
-            dictComps = self._determine_average_values(spectrum=spectrum, rms=rms, dictComps=dictComps)
+            dictComps = self._grouping(
+                amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=split_fwhm
+            )
+            dictComps = self._determine_average_values(
+                spectrum=spectrum, rms=rms, dictComps=dictComps
+            )
 
             #  try refit with the new average fit solution values
 
@@ -791,7 +971,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                     dictComps=dictComps,
                     signal_ranges=signal_ranges,
                     noise_spike_ranges=noise_spike_ranges,
-                    signal_mask=signal_mask
+                    signal_mask=signal_mask,
                 )
                 refit = True
                 if dictResults is None:
@@ -827,18 +1007,20 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             and not self.mask_refitted[index_neighbor]
         )
 
-    def _try_refit_with_individual_neighbors(self,
-                                             index: int,
-                                             spectrum: np.ndarray,
-                                             rms: float,
-                                             indices_neighbors: np.ndarray,
-                                             signal_ranges: List,
-                                             noise_spike_ranges: List,
-                                             signal_mask: np.ndarray,
-                                             interval: Optional[List] = None,
-                                             n_centroids: Optional[int] = None,
-                                             flag: str = 'none',
-                                             dct_new_fit: Optional[Dict] = None) -> Tuple[Optional[Dict], bool]:
+    def _try_refit_with_individual_neighbors(
+        self,
+        index: int,
+        spectrum: np.ndarray,
+        rms: float,
+        indices_neighbors: np.ndarray,
+        signal_ranges: List,
+        noise_spike_ranges: List,
+        signal_mask: np.ndarray,
+        interval: Optional[List] = None,
+        n_centroids: Optional[int] = None,
+        flag: str = "none",
+        dct_new_fit: Optional[Dict] = None,
+    ) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum with the fit solution of an unflagged neighboring spectrum.
 
         Parameters
@@ -880,13 +1062,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             #  entire fit solution of the neighboring spectrum.
 
             # TODO: check if this if-elif condition is correct and can be simplified
-            if flag in {'broad', 'blended', 'residual'}:
+            if flag in {"broad", "blended", "residual"}:
                 dictComps = self._replace_flagged_interval(
                     index=index,
                     index_neighbor=index_neighbor,
                     spectrum=spectrum,
                     rms=rms,
-                    flag=flag
+                    flag=flag,
                 )
             elif interval is not None:
                 dictComps = self._replace_flagged_interval(
@@ -895,10 +1077,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                     spectrum=spectrum,
                     rms=rms,
                     interval=interval,
-                    dct_new_fit=dct_new_fit
+                    dct_new_fit=dct_new_fit,
                 )
             else:
-                dictComps = self._get_initial_values_from_neighbor(i=index_neighbor, spectrum=spectrum)
+                dictComps = self._get_initial_values_from_neighbor(
+                    i=index_neighbor, spectrum=spectrum
+                )
 
             if dictComps is None:
                 continue
@@ -911,26 +1095,31 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 dictComps=dictComps,
                 signal_ranges=signal_ranges,
                 noise_spike_ranges=noise_spike_ranges,
-                signal_mask=signal_mask)
+                signal_mask=signal_mask,
+            )
             refit = True
             if dictResults is None:
                 continue
-            if self._choose_new_fit(dictResults=dictResults,
-                                    index=index,
-                                    dct_new_fit=dct_new_fit,
-                                    interval=interval,
-                                    n_centroids=n_centroids):
+            if self._choose_new_fit(
+                dictResults=dictResults,
+                index=index,
+                dct_new_fit=dct_new_fit,
+                interval=interval,
+                n_centroids=n_centroids,
+            ):
                 return dictResults, refit
 
         return None, refit
 
-    def _get_refit_interval(self,
-                            spectrum: np.ndarray,
-                            rms: float,
-                            amps: List,
-                            fwhms: List,
-                            means: List,
-                            flag: str) -> List:
+    def _get_refit_interval(
+        self,
+        spectrum: np.ndarray,
+        rms: float,
+        amps: List,
+        fwhms: List,
+        means: List,
+        flag: str,
+    ) -> List:
         """Get interval of spectral channels containing flagged feature selected for refitting.
 
         Parameters
@@ -948,29 +1137,32 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         #  for component flagged as broad select the interval [mean - FWHM, mean + FWHM]
-        if flag == 'blended':
+        if flag == "blended":
             params = amps + fwhms + means
-            separation_factor = self.decomposition['improve_fit_settings'].separation_factor
-            indices = get_fully_blended_gaussians(params, separation_factor=separation_factor)
+            separation_factor = self.decomposition[
+                "improve_fit_settings"
+            ].separation_factor
+            indices = get_fully_blended_gaussians(
+                params, separation_factor=separation_factor
+            )
             lower = max(0, min(np.array(means)[indices] - np.array(fwhms)[indices]))
             upper = max(np.array(means)[indices] + np.array(fwhms)[indices])
-        elif flag == 'broad':
+        elif flag == "broad":
             idx = np.argmax(np.array(fwhms))  # idx of broadest component
             lower = max(0, means[idx] - fwhms[idx])
             upper = means[idx] + fwhms[idx]
-        elif flag == 'residual':
-            settings_improve_fit = self.decomposition['improve_fit_settings']
+        elif flag == "residual":
+            settings_improve_fit = self.decomposition["improve_fit_settings"]
 
             #  TODO: What if multiple negative residual features occur in one spectrum?
             idx = check_for_negative_residual(
                 model=Model(
                     spectrum=Spectrum(
-                        intensity_values=spectrum,
-                        channels=self.channels,
-                        rms_noise=rms
-                    )),
+                        intensity_values=spectrum, channels=self.channels, rms_noise=rms
+                    )
+                ),
                 settings_improve_fit=settings_improve_fit,
-                get_idx=True
+                get_idx=True,
             )
             if idx is None:
                 #  TODO: check if self.channels[-1] causes problems
@@ -980,14 +1172,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         return [lower, upper]
 
-    def _replace_flagged_interval(self,
-                                  index: int,
-                                  index_neighbor: int,
-                                  spectrum: np.ndarray,
-                                  rms: float,
-                                  flag: str = 'none',
-                                  interval: Optional[List] = None,
-                                  dct_new_fit: Optional[Dict] = None) -> Dict:
+    def _replace_flagged_interval(
+        self,
+        index: int,
+        index_neighbor: int,
+        spectrum: np.ndarray,
+        rms: float,
+        flag: str = "none",
+        interval: Optional[List] = None,
+        dct_new_fit: Optional[Dict] = None,
+    ) -> Dict:
         """Update initial guesses for fit components by replacing flagged feature with a neighboring fit solution.
 
         Parameters
@@ -1009,21 +1203,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         """
         #  for phase 2 of the spatially coherent refitting; if fit solution was already updated in previous iteration
         if dct_new_fit is not None:
-            amps = dct_new_fit['amplitudes_fit']
-            fwhms = dct_new_fit['fwhms_fit']
-            means = dct_new_fit['means_fit']
+            amps = dct_new_fit["amplitudes_fit"]
+            fwhms = dct_new_fit["fwhms_fit"]
+            means = dct_new_fit["means_fit"]
 
-            amps_err = dct_new_fit['amplitudes_fit_err']
-            fwhms_err = dct_new_fit['fwhms_fit_err']
-            means_err = dct_new_fit['means_fit_err']
+            amps_err = dct_new_fit["amplitudes_fit_err"]
+            fwhms_err = dct_new_fit["fwhms_fit_err"]
+            means_err = dct_new_fit["means_fit_err"]
         else:
-            amps = self.decomposition['amplitudes_fit'][index]
-            fwhms = self.decomposition['fwhms_fit'][index]
-            means = self.decomposition['means_fit'][index]
+            amps = self.decomposition["amplitudes_fit"][index]
+            fwhms = self.decomposition["fwhms_fit"][index]
+            means = self.decomposition["means_fit"][index]
 
-            amps_err = self.decomposition['amplitudes_fit_err'][index]
-            fwhms_err = self.decomposition['fwhms_fit_err'][index]
-            means_err = self.decomposition['means_fit_err'][index]
+            amps_err = self.decomposition["amplitudes_fit_err"][index]
+            fwhms_err = self.decomposition["fwhms_fit_err"][index]
+            means_err = self.decomposition["means_fit_err"][index]
 
         #  remove fit solution(s) of fit component(s) that are causing the flagged feature
 
@@ -1034,37 +1228,45 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 amps=amps,
                 fwhms=fwhms,
                 means=means,
-                flag=flag
+                flag=flag,
             )
-        indices, interval = self._components_in_interval(fwhms=fwhms, means=means, interval=interval)
+        indices, interval = self._components_in_interval(
+            fwhms=fwhms, means=means, interval=interval
+        )
 
-        amps, fwhms, means = remove_components_from_sublists(lst=[amps, fwhms, means], remove_indices=indices)
-        amps_err, fwhms_err, means_err = remove_components_from_sublists(lst=[amps_err, fwhms_err, means_err],
-                                                                         remove_indices=indices)
+        amps, fwhms, means = remove_components_from_sublists(
+            lst=[amps, fwhms, means], remove_indices=indices
+        )
+        amps_err, fwhms_err, means_err = remove_components_from_sublists(
+            lst=[amps_err, fwhms_err, means_err], remove_indices=indices
+        )
 
         #  get new initial guess(es) for removed component(s) from neighboring fit solution
 
-        amps_new = self.decomposition['amplitudes_fit'][index_neighbor]
-        fwhms_new = self.decomposition['fwhms_fit'][index_neighbor]
-        means_new = self.decomposition['means_fit'][index_neighbor]
+        amps_new = self.decomposition["amplitudes_fit"][index_neighbor]
+        fwhms_new = self.decomposition["fwhms_fit"][index_neighbor]
+        means_new = self.decomposition["means_fit"][index_neighbor]
 
-        amps_err_new = self.decomposition['amplitudes_fit'][index_neighbor]
-        fwhms_err_new = self.decomposition['fwhms_fit'][index_neighbor]
-        means_err_new = self.decomposition['means_fit'][index_neighbor]
+        amps_err_new = self.decomposition["amplitudes_fit"][index_neighbor]
+        fwhms_err_new = self.decomposition["fwhms_fit"][index_neighbor]
+        means_err_new = self.decomposition["means_fit"][index_neighbor]
 
         #  check which of the neighboring fit components overlap with the interval containing the flagged feature(s)
-        indices, interval = self._components_in_interval(fwhms=fwhms_new, means=means_new, interval=interval)
+        indices, interval = self._components_in_interval(
+            fwhms=fwhms_new, means=means_new, interval=interval
+        )
 
         if len(indices) == 0:
             return
 
         #  discard all neighboring fit components not overlappting with the interval containing the flagged feature(s)
         remove_indices = np.delete(np.arange(len(amps_new)), indices)
-        amps_new, fwhms_new, means_new = remove_components_from_sublists(lst=[amps_new, fwhms_new, means_new],
-                                                                         remove_indices=remove_indices)
+        amps_new, fwhms_new, means_new = remove_components_from_sublists(
+            lst=[amps_new, fwhms_new, means_new], remove_indices=remove_indices
+        )
         amps_err_new, fwhms_err_new, means_err_new = remove_components_from_sublists(
             lst=[amps_err_new, fwhms_err_new, means_err_new],
-            remove_indices=remove_indices
+            remove_indices=remove_indices,
         )
 
         if len(amps_new) == 0:
@@ -1076,14 +1278,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         idx_upper = int(interval[1]) + 2
 
         dictCompsInterval = {}
-        for amp, fwhm, mean, mean_err in zip(amps_new, fwhms_new, means_new, means_err_new):
+        for amp, fwhm, mean, mean_err in zip(
+            amps_new, fwhms_new, means_new, means_err_new
+        ):
             dictCompsInterval = self._add_initial_value_to_dict(
                 dictComps=dictCompsInterval,
                 spectrum=spectrum[idx_lower:idx_upper],
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean - idx_lower,
-                mean_bound=max(self.mean_separation, mean_err)
+                mean_bound=max(self.mean_separation, mean_err),
             )
 
         channels = np.arange(len(spectrum[idx_lower:idx_upper]))
@@ -1096,7 +1300,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             noise_spike_ranges=None,
             signal_mask=None,
             params_only=True,
-            channels=channels
+            channels=channels,
         )
 
         if dictFit is None:
@@ -1105,17 +1309,19 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  create new dictionary of fit solution(s) by combining new fit component(s) taken from neighboring spectrum with the remaining fit component(s) outside the flagged interval
 
         dictComps = {}
-        for amp, fwhm, mean, mean_err in zip(dictFit['amplitudes_fit'],
-                                             dictFit['fwhms_fit'],
-                                             dictFit['means_fit'],
-                                             dictFit['means_fit_err']):
+        for amp, fwhm, mean, mean_err in zip(
+            dictFit["amplitudes_fit"],
+            dictFit["fwhms_fit"],
+            dictFit["means_fit"],
+            dictFit["means_fit_err"],
+        ):
             dictComps = self._add_initial_value_to_dict(
                 dictComps=dictComps,
                 spectrum=spectrum,
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean + idx_lower,
-                mean_bound=max(self.mean_separation, mean_err)
+                mean_bound=max(self.mean_separation, mean_err),
             )
 
         for amp, fwhm, mean, mean_err in zip(amps, fwhms, means, means_err):
@@ -1125,12 +1331,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean,
-                mean_bound=max(self.mean_separation, mean_err)
+                mean_bound=max(self.mean_separation, mean_err),
             )
 
         return dictComps
 
-    def _components_in_interval(self, fwhms: List, means: List, interval: List) -> Tuple[List, List]:
+    def _components_in_interval(
+        self, fwhms: List, means: List, interval: List
+    ) -> Tuple[List, List]:
         """Find indices of components overlapping with the interval and update the interval range to accommodate full extent of the components.
 
         Component i is selected if means[i] +/- fwhms[i] overlaps with the
@@ -1159,7 +1367,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         for i, (mean, fwhm) in enumerate(zip(means, fwhms)):
             lower = max(0, mean - fwhm)
             upper = mean + fwhm
-            if (lower_interval <= lower <= upper_interval) or (lower_interval <= upper <= upper_interval):
+            if (lower_interval <= lower <= upper_interval) or (
+                lower_interval <= upper <= upper_interval
+            ):
                 lower_interval_new = min(lower_interval_new, lower)
                 upper_interval_new = max(upper_interval_new, upper)
                 indices.append(i)
@@ -1167,18 +1377,24 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
     @staticmethod
     # TODO: move this to another general module
-    def upper_limit_for_amplitude(spectrum: np.ndarray, mean: float, fwhm: float, buffer_factor: float = 1.) -> float:
+    def upper_limit_for_amplitude(
+        spectrum: np.ndarray, mean: float, fwhm: float, buffer_factor: float = 1.0
+    ) -> float:
         stddev = fwhm / CONVERSION_STD_TO_FWHM
-        idx_low, idx_upp = get_slice_indices_for_interval(interval_center=mean, interval_half_width=stddev)
+        idx_low, idx_upp = get_slice_indices_for_interval(
+            interval_center=mean, interval_half_width=stddev
+        )
         return buffer_factor * np.max(spectrum[idx_low:idx_upp])
 
-    def _add_initial_value_to_dict(self,
-                                   dictComps: Dict,
-                                   spectrum: np.ndarray,
-                                   amp: float,
-                                   fwhm: float,
-                                   mean: float,
-                                   mean_bound: float) -> Dict:
+    def _add_initial_value_to_dict(
+        self,
+        dictComps: Dict,
+        spectrum: np.ndarray,
+        amp: float,
+        fwhm: float,
+        mean: float,
+        mean_bound: float,
+    ) -> Dict:
         """Update dictionary of fit components with new component.
 
         Parameters
@@ -1198,25 +1414,26 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         #  TODO: add here also mean +/- stddev??
 
         dictComps[str(len(dictComps) + 1)] = {
-            'amp_ini': amp,
-            'mean_ini': mean,
-            'fwhm_ini': fwhm,
-            'amp_bounds': [
-                0.,
-                SpatialFitting.upper_limit_for_amplitude(spectrum, mean, fwhm, buffer_factor=1.1)
+            "amp_ini": amp,
+            "mean_ini": mean,
+            "fwhm_ini": fwhm,
+            "amp_bounds": [
+                0.0,
+                SpatialFitting.upper_limit_for_amplitude(
+                    spectrum, mean, fwhm, buffer_factor=1.1
+                ),
             ],
-            'mean_bounds': [
-                max(0., mean - mean_bound),
-                mean + mean_bound
+            "mean_bounds": [max(0.0, mean - mean_bound), mean + mean_bound],
+            "fwhm_bounds": [
+                max(0.0, fwhm - self.fwhm_separation) if self.constrain_fwhm else 0.0,
+                fwhm + self.fwhm_separation if self.constrain_fwhm else None,
             ],
-            'fwhm_bounds': [
-                max(0., fwhm - self.fwhm_separation) if self.constrain_fwhm else 0.,
-                fwhm + self.fwhm_separation if self.constrain_fwhm else None
-            ]
         }
         return dictComps
 
-    def _get_dictionary_value(self, key: str, index: int, dct_new_fit: Optional[Dict] = None):
+    def _get_dictionary_value(
+        self, key: str, index: int, dct_new_fit: Optional[Dict] = None
+    ):
         """Return a dictionary value.
         # TODO: type hint for return
         # TODO: replace this with dictionary method -> default
@@ -1229,14 +1446,20 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             spatially coherent refitting); otherwise the value is extracted from the 'self.decomposition' dictionary
 
         """
-        return dct_new_fit[key] if dct_new_fit is not None else self.decomposition[key][index]
+        return (
+            dct_new_fit[key]
+            if dct_new_fit is not None
+            else self.decomposition[key][index]
+        )
 
-    def _get_flags(self,
-                   dictResults: Dict,
-                   index: int,
-                   key: Optional[str] = 'None',
-                   flag: Optional[bool] = None,
-                   dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
+    def _get_flags(
+        self,
+        dictResults: Dict,
+        index: int,
+        key: Optional[str] = "None",
+        flag: Optional[bool] = None,
+        dct_new_fit: Optional[Dict] = None,
+    ) -> Tuple[int, int]:
         """Check how the refit affected the number of blended or negative residual features.
 
         This check will only be performed if the 'self.flag_blended=True' or 'self.flag_neg_res_peak=True'.
@@ -1261,7 +1484,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if not flag:
             return flag_old, flag_new
 
-        n_old = self._get_dictionary_value(key=key, index=index, dct_new_fit=dct_new_fit)
+        n_old = self._get_dictionary_value(
+            key=key, index=index, dct_new_fit=dct_new_fit
+        )
         n_new = dictResults[key]
         #  flag if old fitting results showed flagged feature
         if n_old > 0:
@@ -1275,7 +1500,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         return flag_old, flag_new
 
-    def _get_flags_rchi2(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
+    def _get_flags_rchi2(
+        self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None
+    ) -> Tuple[int, int]:
         """Check how the reduced chi-square value of a spectrum changed after the refit.
 
         This check will only be performed if the 'self.flag_rchi2=True'.
@@ -1298,8 +1525,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if not self.flag_rchi2:
             return flag_old, flag_new
 
-        rchi2_old = self._get_dictionary_value(key='best_fit_rchi2', index=index, dct_new_fit=dct_new_fit)
-        rchi2_new = dictResults['best_fit_rchi2']
+        rchi2_old = self._get_dictionary_value(
+            key="best_fit_rchi2", index=index, dct_new_fit=dct_new_fit
+        )
+        rchi2_new = dictResults["best_fit_rchi2"]
 
         if rchi2_old > self.rchi2_limit:
             flag_old += 1
@@ -1307,19 +1536,25 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             flag_new += 1
 
         #  reward new fit if it is closer to rchi2 = 1 and thus likely less "overfit"
-        if max(rchi2_old, rchi2_new) < self.rchi2_limit and abs(rchi2_new - 1) < abs(rchi2_old - 1):
+        if max(rchi2_old, rchi2_new) < self.rchi2_limit and abs(rchi2_new - 1) < abs(
+            rchi2_old - 1
+        ):
             flag_old += 1
 
         return flag_old, flag_new
 
-    def _get_flags_pvalue(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
+    def _get_flags_pvalue(
+        self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None
+    ) -> Tuple[int, int]:
         flag_old, flag_new = (0 for _ in range(2))
 
         if not self.flag_residual:
             return flag_old, flag_new
 
-        pvalue_old = self._get_dictionary_value(key='pvalue', index=index, dct_new_fit=dct_new_fit)
-        pvalue_new = dictResults['pvalue']
+        pvalue_old = self._get_dictionary_value(
+            key="pvalue", index=index, dct_new_fit=dct_new_fit
+        )
+        pvalue_new = dictResults["pvalue"]
 
         if pvalue_old < self.min_pvalue:
             flag_old += 1
@@ -1332,7 +1567,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         return flag_old, flag_new
 
-    def _get_flags_broad(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
+    def _get_flags_broad(
+        self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None
+    ) -> Tuple[int, int]:
         """Check how the refit affected the number of components flagged as broad.
 
         This check will only be performed if the 'self.flag_broad=True'.
@@ -1357,8 +1594,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         if self.mask_broad_flagged[index]:
             flag_old = 1
-            fwhm_max_old = max(self._get_dictionary_value(key='fwhms_fit', index=index, dct_new_fit=dct_new_fit))
-            fwhm_max_new = max(np.array(dictResults['fwhms_fit']))
+            fwhm_max_old = max(
+                self._get_dictionary_value(
+                    key="fwhms_fit", index=index, dct_new_fit=dct_new_fit
+                )
+            )
+            fwhm_max_new = max(np.array(dictResults["fwhms_fit"]))
             #  no changes to the fit
             if fwhm_max_new == fwhm_max_old:
                 flag_new = 1
@@ -1366,16 +1607,20 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             elif fwhm_max_new > fwhm_max_old:
                 flag_new = 2
         else:
-            fwhms = dictResults['fwhms_fit']
+            fwhms = dictResults["fwhms_fit"]
             if len(fwhms) > 1:
                 #  punish fit if broad component was introduced
-                fwhms = sorted(dictResults['fwhms_fit'])
-                if (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (fwhms[-1] - fwhms[-2]) > self.fwhm_separation:
+                fwhms = sorted(dictResults["fwhms_fit"])
+                if (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (
+                    fwhms[-1] - fwhms[-2]
+                ) > self.fwhm_separation:
                     flag_new = 1
 
         return flag_old, flag_new
 
-    def _get_flags_ncomps(self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None) -> Tuple[int, int]:
+    def _get_flags_ncomps(
+        self, dictResults: Dict, index: int, dct_new_fit: Optional[Dict] = None
+    ) -> Tuple[int, int]:
         """Check how the number of component jumps changed after the refit.
 
         TODO: Remove unused dictResults -> also from code where function is called!
@@ -1399,12 +1644,26 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             return flag_old, flag_new
 
         loc = self.location[index]
-        indices = get_neighbors(location=loc, exclude_location=True, shape=self.shape, n_neighbors=1, get_indices=True)
-        mask_indices = get_neighbors(location=loc, exclude_location=True, shape=self.shape, n_neighbors=1, get_mask=True)
+        indices = get_neighbors(
+            location=loc,
+            exclude_location=True,
+            shape=self.shape,
+            n_neighbors=1,
+            get_indices=True,
+        )
+        mask_indices = get_neighbors(
+            location=loc,
+            exclude_location=True,
+            shape=self.shape,
+            n_neighbors=1,
+            get_mask=True,
+        )
 
         ncomps = np.ones(8) * np.nan
         ncomps[mask_indices] = self.ncomps[indices]
-        ncomps_central = self._get_dictionary_value(key='N_components', index=index, dct_new_fit=dct_new_fit)
+        ncomps_central = self._get_dictionary_value(
+            key="N_components", index=index, dct_new_fit=dct_new_fit
+        )
         ncomps = np.insert(ncomps, 4, ncomps_central)
         njumps_new = number_of_component_jumps(ncomps, self.max_jump_comps)
 
@@ -1422,12 +1681,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         return flag_old, flag_new
 
-    def _get_flags_centroids(self,
-                             dictResults: Dict,
-                             index: int,
-                             dct_new_fit: Optional[Dict] = None,
-                             interval: Optional[List] = None,
-                             n_centroids: Optional[int] = None) -> Tuple[int, int]:
+    def _get_flags_centroids(
+        self,
+        dictResults: Dict,
+        index: int,
+        dct_new_fit: Optional[Dict] = None,
+        interval: Optional[List] = None,
+        n_centroids: Optional[int] = None,
+    ) -> Tuple[int, int]:
         """Check how the presence of centroid positions changed after the refit.
 
         This check is only performed in phase 2 of the spatially coherent refitting.
@@ -1453,8 +1714,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         if interval is None:
             return flag_old, flag_new
 
-        means_old = self._get_dictionary_value(key='means_fit', index=index, dct_new_fit=dct_new_fit)
-        means_new = dictResults['means_fit']
+        means_old = self._get_dictionary_value(
+            key="means_fit", index=index, dct_new_fit=dct_new_fit
+        )
+        means_new = dictResults["means_fit"]
 
         flag_old, flag_new = (2 for _ in range(2))
 
@@ -1473,12 +1736,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         return flag_old, flag_new
 
-    def _choose_new_fit(self,
-                        dictResults: Dict,
-                        index: int,
-                        dct_new_fit: Optional[Dict] = None,
-                        interval: Optional[List] = None,
-                        n_centroids: Optional[int] = None) -> bool:
+    def _choose_new_fit(
+        self,
+        dictResults: Dict,
+        index: int,
+        dct_new_fit: Optional[Dict] = None,
+        interval: Optional[List] = None,
+        n_centroids: Optional[int] = None,
+    ) -> bool:
         """Decide whether to accept the new fit solution as the new best fit.
 
         Parameters
@@ -1501,41 +1766,33 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         flag_blended_old, flag_blended_new = self._get_flags(
             dictResults=dictResults,
             index=index,
-            key='N_blended',
+            key="N_blended",
             flag=self.flag_blended,
-            dct_new_fit=dct_new_fit
+            dct_new_fit=dct_new_fit,
         )
 
         flag_neg_res_peak_old, flag_neg_res_peak_new = self._get_flags(
             dictResults=dictResults,
             index=index,
-            key='N_neg_res_peak',
+            key="N_neg_res_peak",
             flag=self.flag_neg_res_peak,
-            dct_new_fit=dct_new_fit
+            dct_new_fit=dct_new_fit,
         )
 
         flag_rchi2_old, flag_rchi2_new = self._get_flags_rchi2(
-            dictResults=dictResults,
-            index=index,
-            dct_new_fit=dct_new_fit
+            dictResults=dictResults, index=index, dct_new_fit=dct_new_fit
         )
 
         flag_residual_old, flag_residual_new = self._get_flags_pvalue(
-            dictResults=dictResults,
-            index=index,
-            dct_new_fit=dct_new_fit
+            dictResults=dictResults, index=index, dct_new_fit=dct_new_fit
         )
 
         flag_broad_old, flag_broad_new = self._get_flags_broad(
-            dictResults=dictResults,
-            index=index,
-            dct_new_fit=dct_new_fit
+            dictResults=dictResults, index=index, dct_new_fit=dct_new_fit
         )
 
         flag_ncomps_old, flag_ncomps_new = self._get_flags_ncomps(
-            dictResults=dictResults,
-            index=index,
-            dct_new_fit=dct_new_fit
+            dictResults=dictResults, index=index, dct_new_fit=dct_new_fit
         )
 
         flag_centroids_old, flag_centroids_new = self._get_flags_centroids(
@@ -1543,7 +1800,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             index=index,
             dct_new_fit=dct_new_fit,
             interval=interval,
-            n_centroids=n_centroids
+            n_centroids=n_centroids,
         )
 
         #  only for phase 2: do not accept the new fit if there was no improvement for the centroid positions required in 'interval'
@@ -1552,21 +1809,25 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         #  compute total flag values
 
-        n_flags_old = (flag_blended_old
-                       + flag_neg_res_peak_old
-                       + flag_broad_old
-                       + flag_rchi2_old
-                       + flag_residual_old
-                       + flag_ncomps_old
-                       + flag_centroids_old)
+        n_flags_old = (
+            flag_blended_old
+            + flag_neg_res_peak_old
+            + flag_broad_old
+            + flag_rchi2_old
+            + flag_residual_old
+            + flag_ncomps_old
+            + flag_centroids_old
+        )
 
-        n_flags_new = (flag_blended_new
-                       + flag_neg_res_peak_new
-                       + flag_broad_new
-                       + flag_rchi2_new
-                       + flag_residual_new
-                       + flag_ncomps_new
-                       + flag_centroids_new)
+        n_flags_new = (
+            flag_blended_new
+            + flag_neg_res_peak_new
+            + flag_broad_new
+            + flag_rchi2_new
+            + flag_residual_new
+            + flag_ncomps_new
+            + flag_centroids_new
+        )
 
         #  do not accept new fit if the total flag value increased
         if n_flags_new > n_flags_old:
@@ -1578,10 +1839,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         # - if the AICc value of new fit is higher than the AICc value of the current best fit solution, only accept the
         # new fit if the values of the residual are normally distributed, i.e. if it passes the Kolmogorov-Smirnov test
 
-        aicc_old = self._get_dictionary_value(key='best_fit_aicc', index=index, dct_new_fit=dct_new_fit)
-        aicc_new = dictResults['best_fit_aicc']
+        aicc_old = self._get_dictionary_value(
+            key="best_fit_aicc", index=index, dct_new_fit=dct_new_fit
+        )
+        aicc_new = dictResults["best_fit_aicc"]
         # residual_signal_mask = dictResults['residual_signal_mask']
-        pvalue = dictResults['pvalue']
+        pvalue = dictResults["pvalue"]
 
         return (aicc_new <= aicc_old) or (pvalue >= self.min_pvalue)
 
@@ -1589,7 +1852,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         # sum(tuple_of_lists, []) makes a flat list out of the tuple of lists
         return np.array(sum((self.decomposition[key][idx] for idx in indices), []))
 
-    def _get_initial_values(self, indices_neighbors: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _get_initial_values(
+        self, indices_neighbors: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get sorted parameter values (amps, means, fwhms) of neighboring fit components for the grouping.
 
         Parameters
@@ -1604,17 +1869,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         fwhms : Array of FWHM values (sorted according to mean position).
 
         """
-        amps = self._get_values_for_indices(indices=indices_neighbors, key='amplitudes_fit')
-        means = self._get_values_for_indices(indices=indices_neighbors, key='means_fit')
-        fwhms = self._get_values_for_indices(indices=indices_neighbors, key='fwhms_fit')
+        amps = self._get_values_for_indices(
+            indices=indices_neighbors, key="amplitudes_fit"
+        )
+        means = self._get_values_for_indices(indices=indices_neighbors, key="means_fit")
+        fwhms = self._get_values_for_indices(indices=indices_neighbors, key="fwhms_fit")
         sort_order = np.argsort(means)
         return amps[sort_order], means[sort_order], fwhms[sort_order]
 
-    def _grouping(self,
-                  amps_tot: np.ndarray,
-                  means_tot: np.ndarray,
-                  fwhms_tot: np.ndarray,
-                  split_fwhm: bool = True) -> collections.OrderedDict:
+    def _grouping(
+        self,
+        amps_tot: np.ndarray,
+        means_tot: np.ndarray,
+        fwhms_tot: np.ndarray,
+        split_fwhm: bool = True,
+    ) -> collections.OrderedDict:
         """Grouping according to mean position values only or mean position values and FWHM values.
 
         Parameters
@@ -1631,7 +1900,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         #  group with regards to mean positions only
-        split_indices = np.flatnonzero(np.ediff1d(means_tot, to_begin=0) > self.mean_separation)
+        split_indices = np.flatnonzero(
+            np.ediff1d(means_tot, to_begin=0) > self.mean_separation
+        )
         split_means_tot = np.split(means_tot, split_indices)
         split_fwhms_tot = np.split(fwhms_tot, split_indices)
         split_amps_tot = np.split(amps_tot, split_indices)
@@ -1648,8 +1919,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
             lst_of_grouped_indices = []
             for i in range(len(means)):
-                grouped_indices_means = np.where((np.abs(means - means[i]) < self.mean_separation))[0]
-                grouped_indices_fwhms = np.where((np.abs(fwhms - fwhms[i]) < self.fwhm_separation))[0]
+                grouped_indices_means = np.where(
+                    (np.abs(means - means[i]) < self.mean_separation)
+                )[0]
+                grouped_indices_fwhms = np.where(
+                    (np.abs(fwhms - fwhms[i]) < self.fwhm_separation)
+                )[0]
                 ind = np.intersect1d(grouped_indices_means, grouped_indices_fwhms)
                 lst_of_grouped_indices.append(list(ind))
 
@@ -1661,10 +1936,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
             for sublst in lst:
                 key = f"{len(dictComps) + 1}"
-                dictComps[key] = {"amps": amps[sublst], "means": means[sublst], "fwhms": fwhms[sublst]}
+                dictComps[key] = {
+                    "amps": amps[sublst],
+                    "means": means[sublst],
+                    "fwhms": fwhms[sublst],
+                }
 
         dictCompsOrdered = collections.OrderedDict()
-        for i, k in enumerate(sorted(dictComps, key=lambda k: len(dictComps[k]['amps']), reverse=True)):
+        for i, k in enumerate(
+            sorted(dictComps, key=lambda k: len(dictComps[k]["amps"]), reverse=True)
+        ):
             dictCompsOrdered[str(i + 1)] = dictComps[k]
 
         return dictCompsOrdered
@@ -1684,11 +1965,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         """
         dictComps = {}
 
-        for key in range(self.decomposition['N_components'][i]):
-            amp = self.decomposition['amplitudes_fit'][i][key]
-            mean = self.decomposition['means_fit'][i][key]
-            mean_err = self.decomposition['means_fit_err'][i][key]
-            fwhm = self.decomposition['fwhms_fit'][i][key]
+        for key in range(self.decomposition["N_components"][i]):
+            amp = self.decomposition["amplitudes_fit"][i][key]
+            mean = self.decomposition["means_fit"][i][key]
+            mean_err = self.decomposition["means_fit_err"][i][key]
+            fwhm = self.decomposition["fwhms_fit"][i][key]
 
             mean_min = min(mean - self.mean_separation, mean - mean_err)
             mean_min = max(0, mean_min)  # prevent negative values
@@ -1703,20 +1984,24 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
             keyname = str(key + 1)
             dictComps[keyname] = {
-                'amp_ini': amp,
-                'mean_ini': mean,
-                'fwhm_ini': fwhm,
-                'amp_bounds': [0.0, SpatialFitting.upper_limit_for_amplitude(spectrum, mean, fwhm, buffer_factor=1.1)],
-                'mean_bounds': [mean_min, mean_max],
-                'fwhm_bounds': [fwhm_min, fwhm_max],
+                "amp_ini": amp,
+                "mean_ini": mean,
+                "fwhm_ini": fwhm,
+                "amp_bounds": [
+                    0.0,
+                    SpatialFitting.upper_limit_for_amplitude(
+                        spectrum, mean, fwhm, buffer_factor=1.1
+                    ),
+                ],
+                "mean_bounds": [mean_min, mean_max],
+                "fwhm_bounds": [fwhm_min, fwhm_max],
             }
 
         return dictComps
 
-    def _determine_average_values(self,
-                                  spectrum: np.ndarray,
-                                  rms: float,
-                                  dictComps: collections.OrderedDict) -> collections.OrderedDict:
+    def _determine_average_values(
+        self, spectrum: np.ndarray, rms: float, dictComps: collections.OrderedDict
+    ) -> collections.OrderedDict:
         """Determine average values for fit components obtained by grouping.
 
         Parameters
@@ -1732,20 +2017,24 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         for key in dictComps.copy().keys():
-            amps = np.array(dictComps[key]['amps'])
+            amps = np.array(dictComps[key]["amps"])
             #  TODO: also exclude all groups with two points?
             if len(amps) == 1:
                 dictComps.pop(key)
                 continue
-            means = np.array(dictComps[key]['means'])
-            fwhms = np.array(dictComps[key]['fwhms'])
+            means = np.array(dictComps[key]["means"])
+            fwhms = np.array(dictComps[key]["fwhms"])
 
             # TODO: take the median instead of the mean??
             amp_ini = np.mean(amps)
             mean_ini = np.mean(means)
             fwhm_ini = np.mean(fwhms)
 
-            if (amp_max := SpatialFitting.upper_limit_for_amplitude(spectrum, mean_ini, fwhm_ini)) < self.snr*rms:
+            if (
+                amp_max := SpatialFitting.upper_limit_for_amplitude(
+                    spectrum, mean_ini, fwhm_ini
+                )
+            ) < self.snr * rms:
                 dictComps.pop(key)
                 continue
 
@@ -1761,31 +2050,39 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
             if self.constrain_fwhm:
                 #  determine fitting constraints for fwhm value
-                lower_interval = max(abs(fwhm_ini - np.min(fwhms)), self.fwhm_separation)
+                lower_interval = max(
+                    abs(fwhm_ini - np.min(fwhms)), self.fwhm_separation
+                )
                 fwhm_min = max(0, fwhm_ini - lower_interval)
 
-                upper_interval = max(abs(fwhm_ini - np.max(fwhms)), self.fwhm_separation)
+                upper_interval = max(
+                    abs(fwhm_ini - np.max(fwhms)), self.fwhm_separation
+                )
                 fwhm_max = fwhm_ini + upper_interval
 
-            dictComps[key].update({
-                'amp_ini': amp_ini,
-                'mean_ini': mean_ini,
-                'fwhm_ini': fwhm_ini,
-                'amp_bounds': [0., 1.1*amp_max],
-                'mean_bounds': [mean_min, mean_max],
-                'fwhm_bounds': [fwhm_min, fwhm_max]
-            })
+            dictComps[key].update(
+                {
+                    "amp_ini": amp_ini,
+                    "mean_ini": mean_ini,
+                    "fwhm_ini": fwhm_ini,
+                    "amp_bounds": [0.0, 1.1 * amp_max],
+                    "mean_bounds": [mean_min, mean_max],
+                    "fwhm_bounds": [fwhm_min, fwhm_max],
+                }
+            )
         return dictComps
 
-    def _gaussian_fitting(self,
-                          spectrum: np.ndarray,
-                          rms: float,
-                          dictComps: Dict,
-                          signal_ranges: List,
-                          noise_spike_ranges: List,
-                          signal_mask: np.ndarray,
-                          params_only: bool = False,
-                          channels: Optional[np.ndarray] = None) -> Dict:
+    def _gaussian_fitting(
+        self,
+        spectrum: np.ndarray,
+        rms: float,
+        dictComps: Dict,
+        signal_ranges: List,
+        noise_spike_ranges: List,
+        signal_mask: np.ndarray,
+        params_only: bool = False,
+        channels: Optional[np.ndarray] = None,
+    ) -> Dict:
         """Perform a new Gaussian decomposition with updated initial guesses.
 
         Parameters
@@ -1811,16 +2108,18 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             channels = self.channels
 
         #  correct dictionary key
-        settings_improve_fit = self.decomposition['improve_fit_settings']
-        settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(spectrum)
+        settings_improve_fit = self.decomposition["improve_fit_settings"]
+        settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(
+            spectrum
+        )
 
         #  set limits for fit parameters
         params, params_min, params_max = [], [], []
-        for key in ['amp', 'fwhm', 'mean']:
+        for key in ["amp", "fwhm", "mean"]:
             for nr in dictComps.keys():
-                params.append(dictComps[nr][f'{key}_ini'])
-                params_min.append(dictComps[nr][f'{key}_bounds'][0])
-                params_max.append(dictComps[nr][f'{key}_bounds'][1])
+                params.append(dictComps[nr][f"{key}_ini"])
+                params_min.append(dictComps[nr][f"{key}_bounds"][0])
+                params_max.append(dictComps[nr][f"{key}_bounds"][1])
 
         #  get new best fit
         model = get_best_fit_model(
@@ -1830,7 +2129,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                     channels=channels,
                     rms_noise=rms,
                     signal_intervals=signal_ranges,
-                    noise_spike_intervals=noise_spike_ranges
+                    noise_spike_intervals=noise_spike_ranges,
                 )
             ),
             params_fit=params,
@@ -1856,12 +2155,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             return
 
         dictResults = {
-            'amplitudes_fit': model.amps,
-            'fwhms_fit': model.fwhms,
-            'means_fit': model.means,
-            'amplitudes_fit_err': model.amps_uncertainties,
-            'fwhms_fit_err': model.fwhms_uncertainties,
-            'means_fit_err': model.means_uncertainties
+            "amplitudes_fit": model.amps,
+            "fwhms_fit": model.fwhms,
+            "means_fit": model.means,
+            "amplitudes_fit_err": model.amps_uncertainties,
+            "fwhms_fit_err": model.fwhms_uncertainties,
+            "means_fit_err": model.means_uncertainties,
         }
 
         if params_only:
@@ -1877,32 +2176,38 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         N_blended = get_fully_blended_gaussians(
             params_fit=model.parameters,
             get_count=True,
-            separation_factor=self.decomposition['improve_fit_settings'].separation_factor
+            separation_factor=self.decomposition[
+                "improve_fit_settings"
+            ].separation_factor,
         )
         N_neg_res_peak = check_for_negative_residual(
-            model=model,
-            settings_improve_fit=settings_improve_fit,
-            get_count=True)
+            model=model, settings_improve_fit=settings_improve_fit, get_count=True
+        )
 
         return {
             **dictResults,
-            **{"best_fit_rchi2": model.rchi2,
-               "best_fit_aicc": model.aicc,
-               "residual_signal_mask": model.residual[signal_mask],
-               "gaussians_rchi2": rchi2_gauss,
-               "gaussians_aicc": aicc_gauss,
-               "pvalue": model.pvalue,
-               "N_components": model.n_components,
-               "N_blended": N_blended,
-               "N_neg_res_peak": N_neg_res_peak
-               }
+            **{
+                "best_fit_rchi2": model.rchi2,
+                "best_fit_aicc": model.aicc,
+                "residual_signal_mask": model.residual[signal_mask],
+                "gaussians_rchi2": rchi2_gauss,
+                "gaussians_aicc": aicc_gauss,
+                "pvalue": model.pvalue,
+                "N_components": model.n_components,
+                "N_blended": N_blended,
+                "N_neg_res_peak": N_neg_res_peak,
+            },
         }
 
     def _save_final_results(self) -> None:
         """Save the results of the spatially coherent refitting iterations."""
-        pathToFile = os.path.join(self.decomp_dirname, f'{self.fin_filename}.pickle')
-        pickle.dump(self.decomposition, open(pathToFile, 'wb'), protocol=2)
-        say(f"'{self.fin_filename}' in '{self.decomp_dirname}'", task="save", logger=self.logger)
+        pathToFile = os.path.join(self.decomp_dirname, f"{self.fin_filename}.pickle")
+        pickle.dump(self.decomposition, open(pathToFile, "wb"), protocol=2)
+        say(
+            f"'{self.fin_filename}' in '{self.decomp_dirname}'",
+            task="save",
+            logger=self.logger,
+        )
 
     #
     #  --- Phase 2: Refitting towards coherence in centroid positions ---
@@ -1913,55 +2218,87 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         choices = list(set(n_centroids))
         # first, check only immediate neighboring spectra
         mask_weight = weights >= (self.w_1 / np.sqrt(2))
-        counts_choices = [0 if choice == 0 else np.count_nonzero(n_centroids[mask_weight] == choice)
-                          for choice in choices]
+        counts_choices = [
+            0 if choice == 0 else np.count_nonzero(n_centroids[mask_weight] == choice)
+            for choice in choices
+        ]
 
         n_neighbors = np.count_nonzero(mask_weight)
         if np.max(counts_choices) > 0.5 * n_neighbors:
             return choices[np.argmax(counts_choices)]
 
         # include additional neighbors that are two pixels away
-        weights_choices = [0 if choice == 0 else sum(weights[n_centroids == choice]) for choice in choices]
+        weights_choices = [
+            0 if choice == 0 else sum(weights[n_centroids == choice])
+            for choice in choices
+        ]
         return choices[np.argmax(weights_choices)]
 
     def _combine_directions(self, dct: Dict) -> Dict:
         """Combine directions and build master dictionary."""
         indices_neighbors = np.concatenate(
-            [dct[direction]['indices_neighbors'] for direction in self.weights.keys()])
+            [dct[direction]["indices_neighbors"] for direction in self.weights.keys()]
+        )
         weights = np.concatenate(
-            [dct[direction]['weights'] for direction in self.weights.keys()])
+            [dct[direction]["weights"] for direction in self.weights.keys()]
+        )
         intervals = merge_overlapping_intervals(
-            [interval for direction in self.weights.keys() for interval in dct[direction]['means_interval']])
-        means_interval = {str(key): [max(0, interval[0] - self.mean_separation / 2),
-                                     interval[1] + self.mean_separation / 2]
-                          for key, interval in enumerate(intervals, start=1)}
+            [
+                interval
+                for direction in self.weights.keys()
+                for interval in dct[direction]["means_interval"]
+            ]
+        )
+        means_interval = {
+            str(key): [
+                max(0, interval[0] - self.mean_separation / 2),
+                interval[1] + self.mean_separation / 2,
+            ]
+            for key, interval in enumerate(intervals, start=1)
+        }
         # TODO: The following lines also appear in _check_continuity_centroids; should this be refactored into its own
         #  method?
-        means_of_neighbors = [self.decomposition['means_fit'][idx] for idx in indices_neighbors]
+        means_of_neighbors = [
+            self.decomposition["means_fit"][idx] for idx in indices_neighbors
+        ]
         # estimate the expected number of centroids for interval
-        ncomps_per_interval = {key: [sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
-                                     for means in means_of_neighbors]
-                               for key, (mean_min, mean_max) in means_interval.items()}
+        ncomps_per_interval = {
+            key: [
+                sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
+                for means in means_of_neighbors
+            ]
+            for key, (mean_min, mean_max) in means_interval.items()
+        }
         # calculate number of centroids per centroid interval of neighbors
-        n_centroids = {key: self._get_n_centroid(np.array(ncomps), weights)
-                       for key, ncomps in ncomps_per_interval.items()}
+        n_centroids = {
+            key: self._get_n_centroid(np.array(ncomps), weights)
+            for key, ncomps in ncomps_per_interval.items()
+        }
         return {
-            'indices_neighbors': indices_neighbors,
-            'weights': weights,
-            'means_interval': means_interval,
-            'n_comps': ncomps_per_interval,
-            'n_centroids': n_centroids
+            "indices_neighbors": indices_neighbors,
+            "weights": weights,
+            "means_interval": means_interval,
+            "n_comps": ncomps_per_interval,
+            "n_centroids": n_centroids,
         }
 
     @functools.cached_property
     def weights(self):
-        weights = dict.fromkeys(['horizontal', 'vertical'], {-2: self.w_2, -1: self.w_1, 1: self.w_1, 2: self.w_2})
-        weights.update(dict.fromkeys(['diagonal_ul', 'diagonal_ur'], {
-            -2: self.w_2 / np.sqrt(8),
-            -1: self.w_1 / np.sqrt(2),
-            1: self.w_1 / np.sqrt(2),
-            2: self.w_2 / np.sqrt(8)
-        }))
+        weights = dict.fromkeys(
+            ["horizontal", "vertical"],
+            {-2: self.w_2, -1: self.w_1, 1: self.w_1, 2: self.w_2},
+        )
+        weights.update(
+            dict.fromkeys(
+                ["diagonal_ul", "diagonal_ur"],
+                {
+                    -2: self.w_2 / np.sqrt(8),
+                    -1: self.w_1 / np.sqrt(2),
+                    1: self.w_1 / np.sqrt(2),
+                    2: self.w_2 / np.sqrt(8),
+                },
+            )
+        )
         return weights
 
     def _get_indices_and_weights_of_valid_neighbors(self, loc, idx, direction):
@@ -1971,15 +2308,29 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             shape=self.shape,
             n_neighbors=2,
             direction=direction,
-            get_indices=True
+            get_indices=True,
         )
         is_neighbor = indices_neighbors_and_center != idx
-        has_fit_components = np.array([self.decomposition['N_components'][i]
-                                       for i in indices_neighbors_and_center]).astype(bool)
-        relative_position_to_center = np.arange(len(indices_neighbors_and_center)) - np.flatnonzero(~is_neighbor)
-        return (indices_neighbors_and_center[is_neighbor & has_fit_components],
-                np.array([self.weights[direction][pos]
-                          for pos in relative_position_to_center[is_neighbor & has_fit_components]]))
+        has_fit_components = np.array(
+            [
+                self.decomposition["N_components"][i]
+                for i in indices_neighbors_and_center
+            ]
+        ).astype(bool)
+        relative_position_to_center = np.arange(
+            len(indices_neighbors_and_center)
+        ) - np.flatnonzero(~is_neighbor)
+        return (
+            indices_neighbors_and_center[is_neighbor & has_fit_components],
+            np.array(
+                [
+                    self.weights[direction][pos]
+                    for pos in relative_position_to_center[
+                        is_neighbor & has_fit_components
+                    ]
+                ]
+            ),
+        )
 
     def _check_continuity_centroids(self, idx: int, loc: Tuple) -> Dict:
         """Check for coherence of centroid positions of neighboring spectra.
@@ -1999,76 +2350,115 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         dct = {}
 
         for direction in self.weights.keys():
-            indices_neighbors, weights_neighbors = self._get_indices_and_weights_of_valid_neighbors(loc, idx, direction)
+            (
+                indices_neighbors,
+                weights_neighbors,
+            ) = self._get_indices_and_weights_of_valid_neighbors(loc, idx, direction)
 
             if len(indices_neighbors) == 0:
                 dct[direction] = {
-                    'indices_neighbors': indices_neighbors,
-                    'weights': weights_neighbors,
-                    'means_interval': [],
+                    "indices_neighbors": indices_neighbors,
+                    "weights": weights_neighbors,
+                    "means_interval": [],
                 }
                 continue
 
             amps, means, fwhms = self._get_initial_values(indices_neighbors)
-            grouping = self._grouping(amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False)
+            grouping = self._grouping(
+                amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False
+            )
 
-            means_interval = {key: [max(0, min(value['means']) - self.mean_separation / 2),
-                                    max(value['means']) + self.mean_separation / 2]
-                              for key, value in grouping.items()}
+            means_interval = {
+                key: [
+                    max(0, min(value["means"]) - self.mean_separation / 2),
+                    max(value["means"]) + self.mean_separation / 2,
+                ]
+                for key, value in grouping.items()
+            }
 
-            means_of_neighbors = [self.decomposition['means_fit'][idx] for idx in indices_neighbors]
-            ncomps_per_interval = {key: [sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
-                                         for means in means_of_neighbors]
-                                   for key, (mean_min, mean_max) in means_interval.items()}
+            means_of_neighbors = [
+                self.decomposition["means_fit"][idx] for idx in indices_neighbors
+            ]
+            ncomps_per_interval = {
+                key: [
+                    sum(mean_min < mean < mean_max for mean in means)
+                    if bool(means)
+                    else 0
+                    for means in means_of_neighbors
+                ]
+                for key, (mean_min, mean_max) in means_interval.items()
+            }
 
             # Calculate weight of required components per centroid interval.
-            factor_required = {key: sum(np.array(val, dtype=bool) * weights_neighbors)
-                               for key, val in ncomps_per_interval.items()}
+            factor_required = {
+                key: sum(np.array(val, dtype=bool) * weights_neighbors)
+                for key, val in ncomps_per_interval.items()
+            }
 
             # Keep only centroid intervals that have a certain minimum weight
-            means_interval = [means_interval[key] for key in factor_required
-                              if factor_required[key] > self.min_p]
+            means_interval = [
+                means_interval[key]
+                for key in factor_required
+                if factor_required[key] > self.min_p
+            ]
 
             dct[direction] = {
-                'indices_neighbors': indices_neighbors,
-                'weights': weights_neighbors,
-                'means_interval': means_interval,
+                "indices_neighbors": indices_neighbors,
+                "weights": weights_neighbors,
+                "means_interval": means_interval,
             }
 
         return self._combine_directions(dct)
 
     def _check_for_required_components(self, idx: int, dct: Dict) -> Dict:
         """Check the presence of the required centroid positions within the determined interval."""
-        means = self.decomposition['means_fit'][idx]
-        keys_for_refit = [key for key, interval in dct['means_interval'].items()
-                          if sum(interval[0] < x < interval[1] for x in means) != dct['n_centroids'][key]]
+        means = self.decomposition["means_fit"][idx]
+        keys_for_refit = [
+            key
+            for key, interval in dct["means_interval"].items()
+            if sum(interval[0] < x < interval[1] for x in means)
+            != dct["n_centroids"][key]
+        ]
         return {
-            'indices_neighbors': dct['indices_neighbors'],
-            'weights': dct['weights'],
-            'means_interval': {str(i): dct['means_interval'][key]
-                               for i, key in enumerate(keys_for_refit, start=1)},
-            'n_centroids': {str(i): dct['n_centroids'][key]
-                            for i, key in enumerate(keys_for_refit, start=1)},
+            "indices_neighbors": dct["indices_neighbors"],
+            "weights": dct["weights"],
+            "means_interval": {
+                str(i): dct["means_interval"][key]
+                for i, key in enumerate(keys_for_refit, start=1)
+            },
+            "n_centroids": {
+                str(i): dct["n_centroids"][key]
+                for i, key in enumerate(keys_for_refit, start=1)
+            },
         }
 
-    def _select_neighbors_to_use_for_refit(self,
-                                           indices: np.ndarray,
-                                           means_interval: Dict,
-                                           n_centroids: Dict) -> Dict:
+    def _select_neighbors_to_use_for_refit(
+        self, indices: np.ndarray, means_interval: Dict, n_centroids: Dict
+    ) -> Dict:
         """Select neighboring fit solutions with right number of centroid positions as refit solutions."""
-        return {key: [idx for idx in indices
-                      if n_centroids[key] == sum(interval[0] < x < interval[1]
-                                                 for x in self.decomposition['means_fit'][idx])]
-                for key, interval in means_interval.items()}
+        return {
+            key: [
+                idx
+                for idx in indices
+                if n_centroids[key]
+                == sum(
+                    interval[0] < x < interval[1]
+                    for x in self.decomposition["means_fit"][idx]
+                )
+            ]
+            for key, interval in means_interval.items()
+        }
 
     def _determine_all_neighbors(self) -> None:
         """Determine the indices of all valid neighbors."""
         say("\ndetermine neighbors for all spectra...", logger=self.logger)
 
-        mask_all = np.array([0 if x is None else 1 for x in self.decomposition['N_components']]).astype('bool')
-        self.indices_all = np.array(self.decomposition['index_fit'])[mask_all]
+        mask_all = np.array(
+            [0 if x is None else 1 for x in self.decomposition["N_components"]]
+        ).astype("bool")
+        self.indices_all = np.array(self.decomposition["index_fit"])[mask_all]
         if self.pixel_range is not None:
-            self.indices_all = np.array(self.decomposition['index_fit'])[~self.nanMask]
+            self.indices_all = np.array(self.decomposition["index_fit"])[~self.nanMask]
         self.locations_all = np.take(np.array(self.location), self.indices_all, axis=0)
 
         for i, loc in tqdm(zip(self.indices_all, self.locations_all)):
@@ -2080,15 +2470,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                     shape=self.shape,
                     n_neighbors=2,
                     direction=direction,
-                    get_indices=True
+                    get_indices=True,
                 )
-                indices_neighbors_total = np.append(indices_neighbors_total, indices_neighbors)
-            indices_neighbors_total = indices_neighbors_total.astype('int')
+                indices_neighbors_total = np.append(
+                    indices_neighbors_total, indices_neighbors
+                )
+            indices_neighbors_total = indices_neighbors_total.astype("int")
             self.neighbor_indices_all[i] = indices_neighbors_total
 
     def _check_indices_refit(self) -> None:
         """Check which spectra show incoherence in their fitted centroid positions and require refitting."""
-        say('\ncheck which spectra require refitting...', logger=self.logger)
+        say("\ncheck which spectra require refitting...", logger=self.logger)
         if self.refitting_iteration == 1:
             self._determine_all_neighbors()
 
@@ -2097,9 +2489,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
             self.locations_refit = self.locations_all.copy()
             return
 
-        self.indices_refit = np.array([i for i in self.indices_all
-                                       if np.count_nonzero(self.mask_refitted[self.neighbor_indices_all[i]])], dtype='int')
-        self.locations_refit = np.take(np.array(self.location), self.indices_refit, axis=0)
+        self.indices_refit = np.array(
+            [
+                i
+                for i in self.indices_all
+                if np.count_nonzero(self.mask_refitted[self.neighbor_indices_all[i]])
+            ],
+            dtype="int",
+        )
+        self.locations_refit = np.take(
+            np.array(self.location), self.indices_refit, axis=0
+        )
 
     def _check_continuity(self) -> None:
         """Check continuity of centroid positions.
@@ -2108,7 +2508,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
         """
         self.refitting_iteration += 1
-        say(f'\nthreshold for required components: {self.min_p:.3f}', logger=self.logger)
+        say(
+            f"\nthreshold for required components: {self.min_p:.3f}", logger=self.logger
+        )
         self.determine_spectra_for_flagging()
         self._check_indices_refit()
         self._refitting()
@@ -2133,23 +2535,27 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
         indices_neighbors = []
         dct_refit = self._check_for_required_components(
             idx=index,
-            dct=self._check_continuity_centroids(idx=index, loc=self.locations_refit[i])
+            dct=self._check_continuity_centroids(
+                idx=index, loc=self.locations_refit[i]
+            ),
         )
 
         if self._finalize:
-            return [index, dct_refit['means_interval'], dct_refit['n_centroids']]
+            return [index, dct_refit["means_interval"], dct_refit["n_centroids"]]
 
-        if len(dct_refit['means_interval'].keys()) == 0:
+        if len(dct_refit["means_interval"].keys()) == 0:
             return [index, None, indices_neighbors, refit]
 
-        dct_refit['indices_refit'] = self._select_neighbors_to_use_for_refit(
+        dct_refit["indices_refit"] = self._select_neighbors_to_use_for_refit(
             # TODO: Check if dct_refit['weights'] >= self.w_min condition was already checked earlier
-            indices=dct_refit['indices_neighbors'][dct_refit['weights'] >= (self.w_1 / np.sqrt(2))],
-            means_interval=dct_refit['means_interval'],
-            n_centroids=dct_refit['n_centroids'],
+            indices=dct_refit["indices_neighbors"][
+                dct_refit["weights"] >= (self.w_1 / np.sqrt(2))
+            ],
+            means_interval=dct_refit["means_interval"],
+            n_centroids=dct_refit["n_centroids"],
         )
 
-        for key, indices_neighbors in dct_refit['indices_refit'].items():
+        for key, indices_neighbors in dct_refit["indices_refit"].items():
             dictResults, refit = self._try_refit_with_individual_neighbors(
                 index=index,
                 spectrum=self.data[index],
@@ -2158,9 +2564,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
                 signal_ranges=self.signalRanges[index],
                 noise_spike_ranges=self.noiseSpikeRanges[index],
                 signal_mask=self.signal_mask[index],
-                interval=dct_refit['means_interval'][key],
-                n_centroids=dct_refit['n_centroids'][key],
-                dct_new_fit=dictResults
+                interval=dct_refit["means_interval"][key],
+                n_centroids=dct_refit["n_centroids"][key],
+                dct_new_fit=dictResults,
             )
 
             if dictResults is not None:

@@ -5,13 +5,15 @@ import numpy as np
 import networkx
 
 
-def get_neighbors(location: Tuple,
-                  exclude_location: bool = True,
-                  shape: Optional[Tuple] = None,
-                  n_neighbors: int = 1,
-                  get_indices: bool = False,
-                  direction: Optional[str] = None,
-                  get_mask: bool = False) -> np.ndarray:
+def get_neighbors(
+    location: Tuple,
+    exclude_location: bool = True,
+    shape: Optional[Tuple] = None,
+    n_neighbors: int = 1,
+    get_indices: bool = False,
+    direction: Optional[str] = None,
+    get_mask: bool = False,
+) -> np.ndarray:
     """Determine pixel coordinates of neighboring pixels.
 
     Includes also all pixels that neighbor diagonally.
@@ -43,13 +45,13 @@ def get_neighbors(location: Tuple,
     # use these to index into np.array([-1, 0, 1]) to get offsets
     offsets = np.r_[range(-(n_neighbors), n_neighbors + 1)].take(offset_idx)
 
-    if direction == 'horizontal':
+    if direction == "horizontal":
         indices = np.where(offsets[:, 0] == 0)
-    elif direction == 'vertical':
+    elif direction == "vertical":
         indices = np.where(offsets[:, 1] == 0)
-    elif direction == 'diagonal_ul':
+    elif direction == "diagonal_ul":
         indices = np.where(offsets[:, 0] == offsets[:, 1])
-    elif direction == 'diagonal_ur':
+    elif direction == "diagonal_ur":
         indices = np.where(offsets[:, 0] == -offsets[:, 1])
 
     if direction is not None:
@@ -70,7 +72,12 @@ def get_neighbors(location: Tuple,
         return valid
 
     if get_indices:
-        return np.array([np.ravel_multi_index(neighbour, shape).astype('int') for neighbour in neighbours])
+        return np.array(
+            [
+                np.ravel_multi_index(neighbour, shape).astype("int")
+                for neighbour in neighbours
+            ]
+        )
 
     return neighbours
 
@@ -107,6 +114,5 @@ def to_graph(l):
 
 def remove_components(lst, remove_indices):
     for idx, sublst in enumerate(lst):
-        lst[idx] = [val for i, val in enumerate(sublst)
-                    if i not in remove_indices]
+        lst[idx] = [val for i, val in enumerate(sublst) if i not in remove_indices]
     return lst

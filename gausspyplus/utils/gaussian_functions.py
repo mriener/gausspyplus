@@ -6,7 +6,7 @@ import numpy as np
 from lmfit import Parameters
 
 
-CONVERSION_STD_TO_FWHM = 2*np.sqrt(2*np.log(2))
+CONVERSION_STD_TO_FWHM = 2 * np.sqrt(2 * np.log(2))
 
 
 # TODO: rename to integrated_area_under_gaussian_curve
@@ -19,10 +19,10 @@ def area_of_gaussian(amp: float, fwhm: float) -> float:
     fwhm : FWHM value of the Gaussian component.
 
     """
-    return amp * fwhm / ((1. / np.sqrt(2*np.pi)) * CONVERSION_STD_TO_FWHM)
+    return amp * fwhm / ((1.0 / np.sqrt(2 * np.pi)) * CONVERSION_STD_TO_FWHM)
 
 
-def gaussian(amp:float , fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
+def gaussian(amp: float, fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
     """Return results of a Gaussian function.
 
     Parameters
@@ -37,13 +37,15 @@ def gaussian(amp:float , fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
     Gaussian function.
 
     """
-    return amp * np.exp(-4. * np.log(2) * (x-mean)**2 / fwhm**2)
+    return amp * np.exp(-4.0 * np.log(2) * (x - mean) ** 2 / fwhm**2)
 
 
-def combined_gaussian(amps: Union[List, np.ndarray],
-                      fwhms: Union[List, np.ndarray],
-                      means: Union[List, np.ndarray],
-                      x: np.ndarray) -> np.ndarray:
+def combined_gaussian(
+    amps: Union[List, np.ndarray],
+    fwhms: Union[List, np.ndarray],
+    means: Union[List, np.ndarray],
+    x: np.ndarray,
+) -> np.ndarray:
     """Return results of the combination of N Gaussian functions.
 
     Parameters
@@ -58,7 +60,7 @@ def combined_gaussian(amps: Union[List, np.ndarray],
     combined_gauss : Combination of N Gaussian functions.
 
     """
-    modelled_spectrum = x * 0.
+    modelled_spectrum = x * 0.0
     for amp, fwhm, mean in zip(amps, fwhms, means):
         modelled_spectrum += gaussian(amp, fwhm, mean, x)
     return modelled_spectrum
@@ -66,7 +68,7 @@ def combined_gaussian(amps: Union[List, np.ndarray],
 
 def split_params(params: List, ncomps: int) -> Tuple[List, List, List]:
     """Split params into amps, fwhms, offsets."""
-    return params[:ncomps], params[ncomps:2*ncomps], params[2*ncomps:3*ncomps]
+    return params[:ncomps], params[ncomps : 2 * ncomps], params[2 * ncomps : 3 * ncomps]
 
 
 def number_of_gaussian_components(params: List) -> int:
@@ -78,7 +80,7 @@ def number_of_gaussian_components(params: List) -> int:
 def single_component_gaussian_model(peak: float, fwhm: float, mean: float) -> Callable:
     """Return a Gaussian function."""
     sigma = fwhm / CONVERSION_STD_TO_FWHM
-    return lambda x: peak * np.exp(-(x - mean)**2 / 2. / sigma**2)
+    return lambda x: peak * np.exp(-((x - mean) ** 2) / 2.0 / sigma**2)
 
 
 def multi_component_gaussian_model(x, *args):
@@ -88,9 +90,11 @@ def multi_component_gaussian_model(x, *args):
     and therefore has len(args) = 3 x N_components.
     """
     ncomps = number_of_gaussian_components(params=args)
-    yout = x * 0.
+    yout = x * 0.0
     for i in range(ncomps):
-        yout = yout + single_component_gaussian_model(peak=args[i], fwhm=args[i+ncomps], mean=args[i+2*ncomps])(x)
+        yout = yout + single_component_gaussian_model(
+            peak=args[i], fwhm=args[i + ncomps], mean=args[i + 2 * ncomps]
+        )(x)
     return yout
 
 
@@ -115,15 +119,19 @@ def errs_vec_from_lmfit(lmfit_params):
     # # TODO: estimate errors via bootstrapping instead of setting them to zero
     # errs = [0 if err is None else err for err in errs]
     # return errs
-    return [0 if value.stderr is None else value.stderr for value in lmfit_params.values()]
+    return [
+        0 if value.stderr is None else value.stderr for value in lmfit_params.values()
+    ]
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
-def paramvec_to_lmfit(paramvec: List,
-                      max_amp: Optional[float] = None,
-                      max_fwhm: Optional[float] = None,
-                      params_min: Optional[List] = None,
-                      params_max: Optional[List] = None):
+def paramvec_to_lmfit(
+    paramvec: List,
+    max_amp: Optional[float] = None,
+    max_fwhm: Optional[float] = None,
+    params_min: Optional[List] = None,
+    params_max: Optional[List] = None,
+):
     """Transform a Python iterable of parameters into a LMFIT Parameters object.
 
     Parameters
@@ -145,17 +153,19 @@ def paramvec_to_lmfit(paramvec: List,
     params = Parameters()
 
     if params_min is None:
-        params_min = len(paramvec)*[0.]
+        params_min = len(paramvec) * [0.0]
 
     if params_max is None:
-        params_max = len(paramvec)*[None]
+        params_max = len(paramvec) * [None]
 
         if max_amp is not None:
-            params_max[:ncomps] = ncomps*[max_amp]
+            params_max[:ncomps] = ncomps * [max_amp]
         if max_fwhm is not None:
-            params_max[ncomps:2*ncomps] = ncomps*[max_fwhm]
+            params_max[ncomps : 2 * ncomps] = ncomps * [max_fwhm]
 
     for i in range(len(paramvec)):
-        params.add(name=f'p{i + 1}', value=paramvec[i], min=params_min[i], max=params_max[i])
+        params.add(
+            name=f"p{i + 1}", value=paramvec[i], min=params_min[i], max=params_max[i]
+        )
 
     return params
