@@ -19,6 +19,7 @@ tqdm = "4.62.3"
 jupyterlab = "3.2.3"
 pytest = "6.2.5"
 black = "22.6.0"
+pre-commit = "2.20.0"
 
 [tool.poetry.scripts]
 streamlit = "poetry_run:streamlit"
