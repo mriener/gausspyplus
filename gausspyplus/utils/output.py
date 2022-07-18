@@ -7,11 +7,7 @@ from typing import Literal, Optional, Union
 
 
 def check_if_value_is_none(
-        condition,
-        value,
-        varname_condition,
-        varname_value,
-        additional_text=''
+    condition, value, varname_condition, varname_value, additional_text=""
 ):
     """Raise error message if no value is supplied for a selected condition.
 
@@ -30,7 +26,9 @@ def check_if_value_is_none(
 
     """
     if condition and (value is None):
-        raise Exception(f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}")
+        raise Exception(
+            f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}"
+        )
 
 
 def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2):
@@ -50,13 +48,13 @@ def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2)
 
     """
     if (value1 is None) and (value2 is None):
-        raise Exception(f"Need to specify either '{varname_value1}' or '{varname_value2}'.")
+        raise Exception(
+            f"Need to specify either '{varname_value1}' or '{varname_value2}'."
+        )
 
 
 def set_up_logger(
-        parentDirname: Union[str, Path],
-        filename: str,
-        method: str = 'g+_decomposition'
+    parentDirname: Union[str, Path], filename: str, method: str = "g+_decomposition"
 ) -> logging.Logger:
     #  setting up logger
     now = datetime.now()
@@ -66,39 +64,45 @@ def set_up_logger(
         str(now.day).zfill(2),
         str(now.hour).zfill(2),
         str(now.minute).zfill(2),
-        str(now.second).zfill(2))
+        str(now.second).zfill(2),
+    )
 
-    dirname = os.path.join(parentDirname, 'gpy_log')
+    dirname = os.path.join(parentDirname, "gpy_log")
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     filename = os.path.splitext(os.path.basename(filename))[0]
 
-    logname = os.path.join(dirname, f'{date_string}_{method}_{filename}.log')
-    logging.basicConfig(filename=logname,
-                        filemode='a',
-                        format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                        datefmt='%H:%M:%S',
-                        level=logging.DEBUG)
+    logname = os.path.join(dirname, f"{date_string}_{method}_{filename}.log")
+    logging.basicConfig(
+        filename=logname,
+        filemode="a",
+        format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+        datefmt="%H:%M:%S",
+        level=logging.DEBUG,
+    )
 
     return logging.getLogger(__name__)
 
 
 def make_pretty_header(string: str) -> str:
     """Return a nicely formatted heading."""
-    line = '=' * len(string)
+    line = "=" * len(string)
     return f"\n{line}\n{string}\n{line}"
 
 
-def say(message: str,
-        task: Optional[Literal["save"]] = None,
-        verbose: bool = True,
-        logger: bool = False,
-        end: Optional[str] = None) -> None:
+def say(
+    message: str,
+    task: Optional[Literal["save"]] = None,
+    verbose: bool = True,
+    logger: bool = False,
+    end: Optional[str] = None,
+) -> None:
     """Diagnostic messages."""
-    note_prefix = {"save": "SAVED FILE: ",
-                   None: ""}
-    stdout_format = {"save": lambda msg: f"\033[92m{note_prefix['save']}\033[0m{msg}",
-                     None: lambda msg: msg}
+    note_prefix = {"save": "SAVED FILE: ", None: ""}
+    stdout_format = {
+        "save": lambda msg: f"\033[92m{note_prefix['save']}\033[0m{msg}",
+        None: lambda msg: msg,
+    }
 
     if logger:
         logger.info(f"{note_prefix[task]} {message}")
@@ -107,5 +111,6 @@ def say(message: str,
 
 
 def format_warning(message, category, filename, lineno, file=None, line=None):
-    sys.stderr.write("\n\033[93mWARNING:\033[0m {}: {}\n".format(
-        category.__name__, message))
+    sys.stderr.write(
+        "\n\033[93mWARNING:\033[0m {}: {}\n".format(category.__name__, message)
+    )

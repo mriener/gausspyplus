@@ -8,31 +8,38 @@ from lmfit import minimize as lmfit_minimize
 
 from gausspyplus.definitions import SettingsImproveFit
 from gausspyplus.model import Model
-from gausspyplus.utils.determine_intervals import check_if_intervals_contain_signal, get_slice_indices_for_interval
+from gausspyplus.utils.determine_intervals import (
+    check_if_intervals_contain_signal,
+    get_slice_indices_for_interval,
+)
 from gausspyplus.utils.fit_quality_checks import determine_significance
 from gausspyplus.utils.gaussian_functions import (
-    combined_gaussian, 
-    area_of_gaussian, 
+    combined_gaussian,
+    area_of_gaussian,
     split_params,
-    number_of_gaussian_components, 
+    number_of_gaussian_components,
     multi_component_gaussian_model,
     vals_vec_from_lmfit,
     errs_vec_from_lmfit,
-    paramvec_to_lmfit
+    paramvec_to_lmfit,
 )
 from gausspyplus.utils.noise_estimation import determine_peaks
 
 
-def _perform_least_squares_fit(spectrum: namedtuple,
-                               params_fit: List,
-                               settings_improve_fit: SettingsImproveFit,
-                               params_min: Optional[List] = None,
-                               params_max: Optional[List] = None) -> Tuple[List, List, int]:
+def _perform_least_squares_fit(
+    spectrum: namedtuple,
+    params_fit: List,
+    settings_improve_fit: SettingsImproveFit,
+    params_min: Optional[List] = None,
+    params_max: Optional[List] = None,
+) -> Tuple[List, List, int]:
     # Objective functions for final fit
     def objective_leastsq(paramslm):
         params = vals_vec_from_lmfit(paramslm)
-        resids = (multi_component_gaussian_model(
-            spectrum.channels, *params).ravel() - spectrum.intensity_values.ravel()) / spectrum.noise_values
+        resids = (
+            multi_component_gaussian_model(spectrum.channels, *params).ravel()
+            - spectrum.intensity_values.ravel()
+        ) / spectrum.noise_values
         return resids
 
     #  get new best fit
@@ -41,11 +48,10 @@ def _perform_least_squares_fit(spectrum: namedtuple,
         max_amp=settings_improve_fit.max_amp,
         max_fwhm=None,
         params_min=params_min,
-        params_max=params_max
+        params_max=params_max,
     )
     try:
-        result = lmfit_minimize(
-            objective_leastsq, lmfit_params, method='leastsq')
+        result = lmfit_minimize(objective_leastsq, lmfit_params, method="leastsq")
         params_fit = vals_vec_from_lmfit(lmfit_params=result.params)
         params_errs = errs_vec_from_lmfit(lmfit_params=result.params)
         # TODO: implement bootstrapping method to estimate error in case
@@ -90,11 +96,13 @@ def remove_components_from_sublists(lst: List, remove_indices: List[int]) -> Lis
     return lst
 
 
-def _remove_components_above_max_ncomps(amps_fit: List,
-                                        fwhms_fit: List,
-                                        ncomps_max: int,
-                                        remove_indices: List[int],
-                                        quality_control: List[int]) -> Tuple[List[int], List[int]]:
+def _remove_components_above_max_ncomps(
+    amps_fit: List,
+    fwhms_fit: List,
+    ncomps_max: int,
+    remove_indices: List[int],
+    quality_control: List[int],
+) -> Tuple[List[int], List[int]]:
     """Remove all fit components above specified limit.
 
     Parameters
@@ -116,7 +124,9 @@ def _remove_components_above_max_ncomps(amps_fit: List,
     ncomps_fit = len(amps_fit)
     if ncomps_fit <= ncomps_max:
         return remove_indices, quality_control
-    integrated_intensities = area_of_gaussian(amp=np.array(amps_fit), fwhm=np.array(fwhms_fit))
+    integrated_intensities = area_of_gaussian(
+        amp=np.array(amps_fit), fwhm=np.array(fwhms_fit)
+    )
     indices = np.array(range(len(integrated_intensities)))
     sort_indices = np.argsort(integrated_intensities)
 
@@ -132,13 +142,15 @@ def _remove_components_above_max_ncomps(amps_fit: List,
     return remove_indices, quality_control
 
 
-def _check_params_fit(spectrum: namedtuple,
-                      params_fit: List,
-                      params_errs: List,
-                      settings_improve_fit: SettingsImproveFit,
-                      quality_control: List[int],
-                      params_min: Optional[List] = None,
-                      params_max: Optional[List] = None) -> Tuple[List, List, int, List, List, List, bool]:
+def _check_params_fit(
+    spectrum: namedtuple,
+    params_fit: List,
+    params_errs: List,
+    settings_improve_fit: SettingsImproveFit,
+    quality_control: List[int],
+    params_min: Optional[List] = None,
+    params_max: Optional[List] = None,
+) -> Tuple[List, List, int, List, List, List, bool]:
     """Perform quality checks for the fitted Gaussians components.
 
     All Gaussian components that are not satisfying the criteria are discarded from the fit.
@@ -175,23 +187,37 @@ def _check_params_fit(spectrum: namedtuple,
     """
     ncomps_fit = number_of_gaussian_components(params=params_fit)
 
-    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
-    amps_errs, fwhms_errs, offsets_errs = split_params(params=params_errs, ncomps=ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(
+        params=params_fit, ncomps=ncomps_fit
+    )
+    amps_errs, fwhms_errs, offsets_errs = split_params(
+        params=params_errs, ncomps=ncomps_fit
+    )
     if params_min is not None:
-        amps_min, fwhms_min, offsets_min = split_params(params=params_min, ncomps=ncomps_fit)
+        amps_min, fwhms_min, offsets_min = split_params(
+            params=params_min, ncomps=ncomps_fit
+        )
     if params_max is not None:
-        amps_max, fwhms_max, offsets_max = split_params(params=params_max, ncomps=ncomps_fit)
+        amps_max, fwhms_max, offsets_max = split_params(
+            params=params_max, ncomps=ncomps_fit
+        )
 
     #  check if Gaussian components satisfy quality criteria
 
     remove_indices = []
     for i, (amp, fwhm, offset) in enumerate(zip(amps_fit, fwhms_fit, offsets_fit)):
-        if settings_improve_fit.max_fwhm is not None and fwhm > settings_improve_fit.max_fwhm:
+        if (
+            settings_improve_fit.max_fwhm is not None
+            and fwhm > settings_improve_fit.max_fwhm
+        ):
             remove_indices.append(i)
             quality_control.append(0)
             continue
 
-        if settings_improve_fit.min_fwhm is not None and fwhm < settings_improve_fit.min_fwhm:
+        if (
+            settings_improve_fit.min_fwhm is not None
+            and fwhm < settings_improve_fit.min_fwhm
+        ):
             remove_indices.append(i)
             quality_control.append(1)
             continue
@@ -208,7 +234,10 @@ def _check_params_fit(spectrum: namedtuple,
         #     continue
 
         #  discard the Gaussian component if it does not satisfy the significance criterion
-        if determine_significance(amp, fwhm, spectrum.rms_noise) < settings_improve_fit.significance:
+        if (
+            determine_significance(amp, fwhm, spectrum.rms_noise)
+            < settings_improve_fit.significance
+        ):
             remove_indices.append(i)
             quality_control.append(3)
             continue
@@ -219,15 +248,20 @@ def _check_params_fit(spectrum: namedtuple,
             quality_control.append(4)
             continue
 
-        if spectrum.signal_intervals and not any(low <= offset <= upp for low, upp in spectrum.signal_intervals):
-            low, upp = get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
+        if spectrum.signal_intervals and not any(
+            low <= offset <= upp for low, upp in spectrum.signal_intervals
+        ):
+            low, upp = get_slice_indices_for_interval(
+                interval_center=offset, interval_half_width=fwhm
+            )
 
             if not check_if_intervals_contain_signal(
-                        spectrum=spectrum.intensity_values,
-                        rms=spectrum.rms_noise,
-                        ranges=[(low, upp)],
-                        snr=settings_improve_fit.snr,
-                        significance=settings_improve_fit.significance):
+                spectrum=spectrum.intensity_values,
+                rms=spectrum.rms_noise,
+                ranges=[(low, upp)],
+                snr=settings_improve_fit.snr,
+                significance=settings_improve_fit.significance,
+            ):
                 remove_indices.append(i)
                 quality_control.append(5)
 
@@ -237,32 +271,31 @@ def _check_params_fit(spectrum: namedtuple,
             fwhms_fit=fwhms_fit,
             ncomps_max=settings_improve_fit.max_ncomps,
             remove_indices=remove_indices,
-            quality_control=quality_control
+            quality_control=quality_control,
         )
 
     refit = False
 
     if remove_indices := list(set(remove_indices)):
         amps_fit, fwhms_fit, offsets_fit = remove_components_from_sublists(
-            lst=[amps_fit, fwhms_fit, offsets_fit],
-            remove_indices=remove_indices)
+            lst=[amps_fit, fwhms_fit, offsets_fit], remove_indices=remove_indices
+        )
         params_fit = amps_fit + fwhms_fit + offsets_fit
 
         amps_errs, fwhms_errs, offsets_errs = remove_components_from_sublists(
-            lst=[amps_errs, fwhms_errs, offsets_errs],
-            remove_indices=remove_indices)
+            lst=[amps_errs, fwhms_errs, offsets_errs], remove_indices=remove_indices
+        )
         params_errs = amps_errs + fwhms_errs + offsets_errs
 
         if params_min is not None:
             amps_min, fwhms_min, offsets_min = remove_components_from_sublists(
-                lst=[amps_min, fwhms_min, offsets_min],
-                remove_indices=remove_indices)
+                lst=[amps_min, fwhms_min, offsets_min], remove_indices=remove_indices
+            )
             params_min = amps_min + fwhms_min + offsets_min
 
         if params_max is not None:
             amps_max, fwhms_max, offsets_max = remove_components_from_sublists(
-                lst=[amps_max, fwhms_max, offsets_max],
-                remove_indices=remove_indices
+                lst=[amps_max, fwhms_max, offsets_max], remove_indices=remove_indices
             )
             params_max = amps_max + fwhms_max + offsets_max
 
@@ -271,18 +304,25 @@ def _check_params_fit(spectrum: namedtuple,
             params_fit=params_fit,
             settings_improve_fit=settings_improve_fit,
             params_min=params_min,
-            params_max=params_max
+            params_max=params_max,
         )
 
         refit = True
 
-    return params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit
+    return (
+        params_fit,
+        params_errs,
+        ncomps_fit,
+        params_min,
+        params_max,
+        quality_control,
+        refit,
+    )
 
 
-def _check_which_gaussian_contains_feature(idx_low: int,
-                                           idx_upp: int,
-                                           fwhms_fit: List,
-                                           offsets_fit: List) -> Optional[int]:
+def _check_which_gaussian_contains_feature(
+    idx_low: int, idx_upp: int, fwhms_fit: List, offsets_fit: List
+) -> Optional[int]:
     """Return index of Gaussian component contained within a range in the spectrum.
 
     The FWHM interval (mean - FWHM, mean + FWHM ) of the Gaussian component has to be fully contained in the range of
@@ -302,26 +342,35 @@ def _check_which_gaussian_contains_feature(idx_low: int,
     index : Index of Gaussian component contained within the spectral range.
 
     """
-    interval_bounds = [get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
-                       for offset, fwhm in zip(offsets_fit, fwhms_fit)]
-    indices_of_contained_intervals = [idx for idx, (lower, upper) in enumerate(interval_bounds)
-                                      if (lower <= idx_low and upper >= idx_upp)]
+    interval_bounds = [
+        get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
+        for offset, fwhm in zip(offsets_fit, fwhms_fit)
+    ]
+    indices_of_contained_intervals = [
+        idx
+        for idx, (lower, upper) in enumerate(interval_bounds)
+        if (lower <= idx_low and upper >= idx_upp)
+    ]
 
     if not indices_of_contained_intervals:
         return
     elif len(indices_of_contained_intervals) == 1:
         return indices_of_contained_intervals[0]
     else:
-        idx_largest_interval = np.argmax(np.array(fwhms_fit)[indices_of_contained_intervals])
+        idx_largest_interval = np.argmax(
+            np.array(fwhms_fit)[indices_of_contained_intervals]
+        )
         return indices_of_contained_intervals[idx_largest_interval]
 
 
-def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
-                                        snr: float,
-                                        significance: float,
-                                        params_fit: List,
-                                        exclude_idx: int,
-                                        offset: float) -> List:
+def _replace_gaussian_with_two_new_ones(
+    spectrum: namedtuple,
+    snr: float,
+    significance: float,
+    params_fit: List,
+    exclude_idx: int,
+    offset: float,
+) -> List:
     """Replace broad Gaussian fit component with initial guesses for two narrower components.
 
     Parameters
@@ -339,7 +388,9 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
 
     """
     ncomps_fit = number_of_gaussian_components(params=params_fit)
-    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(
+        params=params_fit, ncomps=ncomps_fit
+    )
 
     # TODO: check if this is still necessary?
     if exclude_idx is None:
@@ -349,24 +400,28 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
 
     idx_low_residual, idx_upp_residual = get_slice_indices_for_interval(
         interval_center=offsets_fit[exclude_idx],
-        interval_half_width=fwhms_fit[exclude_idx]
+        interval_half_width=fwhms_fit[exclude_idx],
     )
 
     amps_fit.pop(exclude_idx)
     fwhms_fit.pop(exclude_idx)
     offsets_fit.pop(exclude_idx)
 
-    residual = spectrum.intensity_values - combined_gaussian(amps_fit, fwhms_fit, offsets_fit, spectrum.channels)
+    residual = spectrum.intensity_values - combined_gaussian(
+        amps_fit, fwhms_fit, offsets_fit, spectrum.channels
+    )
 
     #  search for residual peaks in new residual
 
-    for low, upp in zip([idx_low_residual, int(offset)], [int(offset), idx_upp_residual]):
+    for low, upp in zip(
+        [idx_low_residual, int(offset)], [int(offset), idx_upp_residual]
+    ):
         amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
             residual=residual[low:upp],
             rms=spectrum.rms_noise,
             snr=snr,
             significance=significance,
-            peak='positive',
+            peak="positive",
         )
 
         if amp_guesses.size == 0:
@@ -381,12 +436,13 @@ def _replace_gaussian_with_two_new_ones(spectrum: namedtuple,
     return amps_fit + fwhms_fit + offsets_fit
 
 
-def _get_initial_guesses(residual: np.ndarray,
-                         rms: float,
-                         snr: float,
-                         significance: float,
-                         peak: Literal['positive', 'negative'] = 'positive'
-                         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _get_initial_guesses(
+    residual: np.ndarray,
+    rms: float,
+    snr: float,
+    significance: float,
+    peak: Literal["positive", "negative"] = "positive",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Get initial guesses of Gaussian fit parameters for residual peaks.
 
     Parameters
@@ -404,7 +460,9 @@ def _get_initial_guesses(residual: np.ndarray,
     offset_guesses : Initial guesses for mean positions of Gaussian fit parameters for residual peaks.
 
     """
-    amp_vals_of_peaks, peak_intervals = determine_peaks(spectrum=residual, peak=peak, amp_threshold=snr * rms)
+    amp_vals_of_peaks, peak_intervals = determine_peaks(
+        spectrum=residual, peak=peak, amp_threshold=snr * rms
+    )
 
     if amp_vals_of_peaks.size == 0:
         return np.array([]), np.array([]), np.array([])
@@ -413,8 +471,12 @@ def _get_initial_guesses(residual: np.ndarray,
     amp_vals_of_peaks = amp_vals_of_peaks[sort]
     peak_intervals = peak_intervals[sort]
 
-    significance_values = np.array([np.sum(np.abs(residual[lower:upper])) / (np.sqrt(upper - lower) * rms)
-                                    for lower, upper in peak_intervals])
+    significance_values = np.array(
+        [
+            np.sum(np.abs(residual[lower:upper])) / (np.sqrt(upper - lower) * rms)
+            for lower, upper in peak_intervals
+        ]
+    )
     is_valid_peak = significance_values > significance
 
     if not any(is_valid_peak):
@@ -425,18 +487,23 @@ def _get_initial_guesses(residual: np.ndarray,
     # significance = amp * np.sqrt(fwhm) / (np.sqrt(8 * np.log(2) / np.pi) * rms)
     # TODO: Using the precise factors instead of the magic value yields slightly different results
     #  The assert statements in the integration tests would have to be updated accordingly
-    fwhm_guesses_for_peaks = (significance_values[is_valid_peak] * rms /
-                              (amp_vals_of_peaks[is_valid_peak] * 0.75269184778925247)) ** 2
+    fwhm_guesses_for_peaks = (
+        significance_values[is_valid_peak]
+        * rms
+        / (amp_vals_of_peaks[is_valid_peak] * 0.75269184778925247)
+    ) ** 2
     # fwhm_guesses_for_peaks = (8 * np.log(2) / np.pi) * (significance_values[is_valid_peak] * rms /
     #                                                     amp_vals_of_peaks[is_valid_peak]) ** 2
 
     return amp_vals_of_peaks[is_valid_peak], fwhm_guesses_for_peaks, peak_positions
 
 
-def get_fully_blended_gaussians(params_fit: List,
-                                get_count: bool = False,
-                                # TODO: Where does this magic factor come from?
-                                separation_factor: float = 0.8493218002991817) -> Union[int, np.ndarray]:
+def get_fully_blended_gaussians(
+    params_fit: List,
+    get_count: bool = False,
+    # TODO: Where does this magic factor come from?
+    separation_factor: float = 0.8493218002991817,
+) -> Union[int, np.ndarray]:
     """Return information about blended Gaussian fit components.
 
     A Gaussian fit component i is blended with another component if the separation of their mean positions is less than the FWHM value of the narrower component multiplied by the 'separation_factor'.
@@ -475,7 +542,7 @@ def get_fully_blended_gaussians(params_fit: List,
     if get_count:
         return N_blended
 
-    indices_blended = np.unique(indices_blended).astype('int')
+    indices_blended = np.unique(indices_blended).astype("int")
     #  sort the identified blended components from lowest to highest amplitude value
     sort = np.argsort(np.array(amps_fit)[indices_blended])
 
@@ -492,8 +559,9 @@ def _return_as_list(var: Any) -> List:
 
 # TODO: Identical function in utils.grouping_functions -> remove redundancy; this function is imported also by
 #  spatial_fitting.py
-def remove_components(params_fit: List,
-                      remove_indices: Union[int, List, np.ndarray]) -> List:
+def remove_components(
+    params_fit: List, remove_indices: Union[int, List, np.ndarray]
+) -> List:
     """Remove parameters of Gaussian fit components.
 
     Parameters
@@ -510,22 +578,29 @@ def remove_components(params_fit: List,
 
     """
     ncomps_fit = number_of_gaussian_components(params_fit)
-    amps_fit, fwhms_fit, offsets_fit = split_params(params=params_fit, ncomps=ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = split_params(
+        params=params_fit, ncomps=ncomps_fit
+    )
 
     remove_indices = _return_as_list(remove_indices)
 
     amps_fit = [amp for idx, amp in enumerate(amps_fit) if idx not in remove_indices]
-    fwhms_fit = [fwhm for idx, fwhm in enumerate(fwhms_fit) if idx not in remove_indices]
-    offsets_fit = [offset for idx, offset in enumerate(offsets_fit) if idx not in remove_indices]
+    fwhms_fit = [
+        fwhm for idx, fwhm in enumerate(fwhms_fit) if idx not in remove_indices
+    ]
+    offsets_fit = [
+        offset for idx, offset in enumerate(offsets_fit) if idx not in remove_indices
+    ]
     return amps_fit + fwhms_fit + offsets_fit
 
 
-def get_best_fit_model(model: Model,  # model is a new instance of Model
-                       params_fit: List,
-                       settings_improve_fit: SettingsImproveFit,
-                       params_min: Optional[List] = None,
-                       params_max: Optional[List] = None,
-                       ) -> Model:
+def get_best_fit_model(
+    model: Model,  # model is a new instance of Model
+    params_fit: List,
+    settings_improve_fit: SettingsImproveFit,
+    params_min: Optional[List] = None,
+    params_max: Optional[List] = None,
+) -> Model:
     """Determine new best fit for spectrum.
 
     Parameters
@@ -552,14 +627,22 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
         params_fit=params_fit,
         settings_improve_fit=settings_improve_fit,
         params_min=params_min,
-        params_max=params_max
+        params_max=params_max,
     )
 
     #  check if fit components satisfy mandatory criteria
     if ncomps_fit > 0:
         refit = True
         while refit:
-            params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit = _check_params_fit(
+            (
+                params_fit,
+                params_errs,
+                ncomps_fit,
+                params_min,
+                params_max,
+                quality_control,
+                refit,
+            ) = _check_params_fit(
                 spectrum=model.spectrum,
                 params_fit=params_fit,
                 params_errs=params_errs,
@@ -577,21 +660,28 @@ def get_best_fit_model(model: Model,  # model is a new instance of Model
 
 
 def choose_better_model_based_on_aicc(old_model: Model, new_model: Model) -> Model:
-    if (new_model.aicc < old_model.aicc) and not np.isclose(new_model.aicc, old_model.aicc, atol=1e-1):
+    if (new_model.aicc < old_model.aicc) and not np.isclose(
+        new_model.aicc, old_model.aicc, atol=1e-1
+    ):
         new_model.new_best_fit = True
-        new_model.quality_control = old_model.quality_control + new_model.quality_control
+        new_model.quality_control = (
+            old_model.quality_control + new_model.quality_control
+        )
         return new_model
     else:
         old_model.new_best_fit = False
-        old_model.quality_control = old_model.quality_control + new_model.quality_control
+        old_model.quality_control = (
+            old_model.quality_control + new_model.quality_control
+        )
         return old_model
 
 
-def check_for_negative_residual(model: Model,
-                                settings_improve_fit: SettingsImproveFit,
-                                get_count: bool = False,
-                                get_idx: bool = False,
-                                ) -> Union[int, Model]:
+def check_for_negative_residual(
+    model: Model,
+    settings_improve_fit: SettingsImproveFit,
+    get_count: bool = False,
+    get_idx: bool = False,
+) -> Union[int, Model]:
     """Check for negative residual features and try to refit them.
 
     We define negative residual features as negative peaks in the residual that were introduced by the fit. These
@@ -624,18 +714,24 @@ def check_for_negative_residual(model: Model,
         rms=model.spectrum.rms_noise,
         snr=settings_improve_fit.snr_negative,
         significance=settings_improve_fit.significance,
-        peak='negative'
+        peak="negative",
     )
 
     #  check if negative residual feature was already present in the data
     remove_indices = [
-        i for i, offset in enumerate(offset_guesses)
-        if model.residual[offset] > (model.spectrum.intensity_values[offset] - settings_improve_fit.snr * model.spectrum.rms_noise)
+        i
+        for i, offset in enumerate(offset_guesses)
+        if model.residual[offset]
+        > (
+            model.spectrum.intensity_values[offset]
+            - settings_improve_fit.snr * model.spectrum.rms_noise
+        )
     ]
 
     if remove_indices:
         amp_guesses, fwhm_guesses, offset_guesses = remove_components_from_sublists(
-            [amp_guesses, fwhm_guesses, offset_guesses], remove_indices)
+            [amp_guesses, fwhm_guesses, offset_guesses], remove_indices
+        )
 
     if get_count:
         return len(amp_guesses)
@@ -650,12 +746,15 @@ def check_for_negative_residual(model: Model,
     offset_guesses = np.array(offset_guesses)[sort]
 
     for amp, fwhm, offset in zip(amp_guesses, fwhm_guesses, offset_guesses):
-        idx_low, idx_up = get_slice_indices_for_interval(interval_center=offset, interval_half_width=fwhm)
+        idx_low, idx_up = get_slice_indices_for_interval(
+            interval_center=offset, interval_half_width=fwhm
+        )
         exclude_idx = _check_which_gaussian_contains_feature(
             idx_low=idx_low,
             idx_upp=idx_up,
             fwhms_fit=model.fwhms,
-            offsets_fit=model.means)
+            offsets_fit=model.means,
+        )
         if get_idx:
             return exclude_idx
         if exclude_idx is None:
@@ -667,18 +766,20 @@ def check_for_negative_residual(model: Model,
             significance=settings_improve_fit.significance,
             params_fit=model.parameters,
             exclude_idx=exclude_idx,
-            offset=offset
+            offset=offset,
         )
 
         new_model = get_best_fit_model(
             model=Model(spectrum=model.spectrum),
             params_fit=params_fit,
-            settings_improve_fit=settings_improve_fit
+            settings_improve_fit=settings_improve_fit,
         )
     return choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
 
-def _try_fit_with_new_components(model: Model, settings_improve_fit: SettingsImproveFit, exclude_idx: int) -> Model:
+def _try_fit_with_new_components(
+    model: Model, settings_improve_fit: SettingsImproveFit, exclude_idx: int
+) -> Model:
     """Exclude Gaussian fit component and try fit with new initial guesses.
 
     First we try a new refit by just removing the component (i) and adding no new components. If this does not work we
@@ -700,8 +801,10 @@ def _try_fit_with_new_components(model: Model, settings_improve_fit: SettingsImp
     #  produce new best fit with excluded components
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
-        params_fit=remove_components(params_fit=model.parameters, remove_indices=exclude_idx),
-        settings_improve_fit=settings_improve_fit
+        params_fit=remove_components(
+            params_fit=model.parameters, remove_indices=exclude_idx
+        ),
+        settings_improve_fit=settings_improve_fit,
     )
 
     model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
@@ -715,7 +818,7 @@ def _try_fit_with_new_components(model: Model, settings_improve_fit: SettingsImp
         rms=new_model.spectrum.rms_noise,
         snr=settings_improve_fit.snr,
         significance=settings_improve_fit.significance,
-        peak='positive'
+        peak="positive",
     )
 
     #  return original best fit list if there are no guesses for new components to fit in the residual
@@ -726,16 +829,23 @@ def _try_fit_with_new_components(model: Model, settings_improve_fit: SettingsImp
 
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
-        params_fit=(new_model.amps + list(amp_guesses) +
-                    new_model.fwhms + list(fwhm_guesses) +
-                    new_model.means + list(offset_guesses)),
-        settings_improve_fit=settings_improve_fit
+        params_fit=(
+            new_model.amps
+            + list(amp_guesses)
+            + new_model.fwhms
+            + list(fwhm_guesses)
+            + new_model.means
+            + list(offset_guesses)
+        ),
+        settings_improve_fit=settings_improve_fit,
     )
 
     return choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
 
 
-def _check_for_broad_feature(model: Model, settings_improve_fit: SettingsImproveFit) -> Model:
+def _check_for_broad_feature(
+    model: Model, settings_improve_fit: SettingsImproveFit
+) -> Model:
     """Check for broad features and try to refit them.
 
     We define broad fit components as having a FWHM value that is bigger by a factor of settings_improve_fit['fwhm_factor'] than the
@@ -776,14 +886,14 @@ def _check_for_broad_feature(model: Model, settings_improve_fit: SettingsImprove
         significance=settings_improve_fit.significance,
         params_fit=model.parameters,
         exclude_idx=exclude_idx,
-        offset=model.means[exclude_idx]
+        offset=model.means[exclude_idx],
     )
 
     if len(params_fit) > 0:
         new_model = get_best_fit_model(
             model=Model(spectrum=model.spectrum),
             params_fit=params_fit,
-            settings_improve_fit=settings_improve_fit
+            settings_improve_fit=settings_improve_fit,
         )
 
         model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
@@ -798,7 +908,9 @@ def _check_for_broad_feature(model: Model, settings_improve_fit: SettingsImprove
     )
 
 
-def _check_for_blended_feature(model: Model, settings_improve_fit: SettingsImproveFit) -> Model:
+def _check_for_blended_feature(
+    model: Model, settings_improve_fit: SettingsImproveFit
+) -> Model:
     """Check for blended features and try to refit them.
 
     We define two fit components as blended if the mean position of one fit component is contained within the standard
@@ -823,7 +935,7 @@ def _check_for_blended_feature(model: Model, settings_improve_fit: SettingsImpro
     exclude_indices = get_fully_blended_gaussians(
         params_fit=model.parameters,
         get_count=False,
-        separation_factor=settings_improve_fit.separation_factor
+        separation_factor=settings_improve_fit.separation_factor,
     )
 
     for exclude_idx in exclude_indices:
@@ -838,12 +950,13 @@ def _check_for_blended_feature(model: Model, settings_improve_fit: SettingsImpro
     return model
 
 
-def check_for_peaks_in_residual(model: Model,
-                                settings_improve_fit: SettingsImproveFit,
-                                fitted_residual_peaks: List,
-                                params_min: Optional[List] = None,
-                                params_max: Optional[List] = None,
-                                ) -> Tuple[Dict, List]:
+def check_for_peaks_in_residual(
+    model: Model,
+    settings_improve_fit: SettingsImproveFit,
+    fitted_residual_peaks: List,
+    params_min: Optional[List] = None,
+    params_max: Optional[List] = None,
+) -> Tuple[Dict, List]:
     """Try fit by adding new components, whose initial parameters were determined from residual peaks.
 
     Parameters
@@ -869,7 +982,7 @@ def check_for_peaks_in_residual(model: Model,
         rms=model.spectrum.rms_noise,
         snr=settings_improve_fit.snr,
         significance=settings_improve_fit.significance,
-        peak='positive'
+        peak="positive",
     )
 
     if (amp_guesses.size == 0) or (list(offset_guesses) in fitted_residual_peaks):
@@ -890,16 +1003,21 @@ def check_for_peaks_in_residual(model: Model,
         params_max=params_max,
     )
 
-    chosen_model = choose_better_model_based_on_aicc(old_model=model, new_model=new_model)
+    chosen_model = choose_better_model_based_on_aicc(
+        old_model=model, new_model=new_model
+    )
 
     return chosen_model, fitted_residual_peaks
 
 
 # TODO: Add function 'log_in_case_of_successful_refit' instead to Model
-def _log_new_fit(new_fit: bool,
-                 log_gplus: List,
-                 mode: Literal['positive_residual_peak', 'negative_residual_peak', 'broad', 'blended'] = 'residual'
-                 ) -> List:
+def _log_new_fit(
+    new_fit: bool,
+    log_gplus: List,
+    mode: Literal[
+        "positive_residual_peak", "negative_residual_peak", "broad", "blended"
+    ] = "residual",
+) -> List:
     """Log the successful refits of a spectrum.
 
     Parameters
@@ -914,14 +1032,20 @@ def _log_new_fit(new_fit: bool,
 
     """
     if new_fit:
-        log_gplus.append({'positive_residual_peak': 1,
-                          'negative_residual_peak': 2,
-                          'broad': 3,
-                          'blended': 4}[mode])
+        log_gplus.append(
+            {
+                "positive_residual_peak": 1,
+                "negative_residual_peak": 2,
+                "broad": 3,
+                "blended": 4,
+            }[mode]
+        )
     return log_gplus
 
 
-def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFit) -> Tuple[Dict, int, int, List]:
+def try_to_improve_fitting(
+    model: Model, settings_improve_fit: SettingsImproveFit
+) -> Tuple[Dict, int, int, List]:
     """Short summary.
 
     Parameters
@@ -943,7 +1067,7 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
         model = get_best_fit_model(
             model=Model(spectrum=model.spectrum),
             params_fit=model.parameters,
-            settings_improve_fit=settings_improve_fit
+            settings_improve_fit=settings_improve_fit,
         )
 
     #  Try to improve fit by searching for peaks in the residual
@@ -957,34 +1081,54 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
         new_fit = True
         while new_fit:
             model.new_best_fit = False
-            model, fitted_residual_peaks = check_for_peaks_in_residual(model, settings_improve_fit, fitted_residual_peaks)
+            model, fitted_residual_peaks = check_for_peaks_in_residual(
+                model, settings_improve_fit, fitted_residual_peaks
+            )
             new_fit = model.new_best_fit
-            log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='positive_residual_peak')
+            log_gplus = _log_new_fit(
+                new_fit=new_fit, log_gplus=log_gplus, mode="positive_residual_peak"
+            )
         n_fitted_residual_peaks_after_check = len(fitted_residual_peaks)
 
         # new_peaks = n_fitted_residual_peaks_before_check != n_fitted_residual_peaks_after_check
         #  stop refitting loop if no new peaks were fit from the residual
         # TODO: should the following two conditions be switched to use short-circuiting for the or?
-        if (not first_run and n_fitted_residual_peaks_before_check == n_fitted_residual_peaks_after_check) or (model.n_components == 0):
+        if (
+            not first_run
+            and n_fitted_residual_peaks_before_check
+            == n_fitted_residual_peaks_after_check
+        ) or (model.n_components == 0):
             break
 
         #  try to refit negative residual feature
         if settings_improve_fit.refit_neg_res_peak:
-            model = check_for_negative_residual(model=model, settings_improve_fit=settings_improve_fit)
+            model = check_for_negative_residual(
+                model=model, settings_improve_fit=settings_improve_fit
+            )
             new_fit = model.new_best_fit
-            log_gplus = _log_new_fit(new_fit=new_fit, log_gplus=log_gplus, mode='negative_residual_peak')
+            log_gplus = _log_new_fit(
+                new_fit=new_fit, log_gplus=log_gplus, mode="negative_residual_peak"
+            )
 
         #  try to refit broad Gaussian components
         while settings_improve_fit.refit_broad:
-            model = _check_for_broad_feature(model=model, settings_improve_fit=settings_improve_fit)
-            log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='broad')
+            model = _check_for_broad_feature(
+                model=model, settings_improve_fit=settings_improve_fit
+            )
+            log_gplus = _log_new_fit(
+                new_fit=model.new_best_fit, log_gplus=log_gplus, mode="broad"
+            )
             if not model.new_best_fit:
                 break
 
         #  try to refit blended Gaussian components
         while settings_improve_fit.refit_blended and model.n_components > 1:
-            model = _check_for_blended_feature(model=model, settings_improve_fit=settings_improve_fit)
-            log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode='blended')
+            model = _check_for_blended_feature(
+                model=model, settings_improve_fit=settings_improve_fit
+            )
+            log_gplus = _log_new_fit(
+                new_fit=model.new_best_fit, log_gplus=log_gplus, mode="blended"
+            )
             if not model.new_best_fit:
                 break
 
@@ -992,12 +1136,14 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
             break
         first_run = False
 
-    N_neg_res_peak = check_for_negative_residual(model=model, settings_improve_fit=settings_improve_fit, get_count=True)
+    N_neg_res_peak = check_for_negative_residual(
+        model=model, settings_improve_fit=settings_improve_fit, get_count=True
+    )
 
     N_blended = get_fully_blended_gaussians(
         params_fit=model.parameters,
         get_count=True,
-        separation_factor=settings_improve_fit.separation_factor
+        separation_factor=settings_improve_fit.separation_factor,
     )
 
     return model.best_fit_info, N_neg_res_peak, N_blended, log_gplus

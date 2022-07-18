@@ -1,11 +1,18 @@
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Literal
 
 import numpy as np
 
 from gausspyplus.spectrum import Spectrum
-from gausspyplus.utils.fit_quality_checks import goodness_of_fit, check_residual_for_normality
-from gausspyplus.utils.gaussian_functions import number_of_gaussian_components, split_params, combined_gaussian
+from gausspyplus.utils.fit_quality_checks import (
+    goodness_of_fit,
+    check_residual_for_normality,
+)
+from gausspyplus.utils.gaussian_functions import (
+    number_of_gaussian_components,
+    split_params,
+    combined_gaussian,
+)
 
 
 @dataclass
@@ -29,6 +36,7 @@ class Model:
     parameters_max_values: List = None  # params_max
     _pvalue: float = None  # pvalue
     _quality_control: List = None  # quality_control
+    _log_gplus: List = None
 
     @property
     def parameters(self) -> List:
@@ -40,33 +48,41 @@ class Model:
         if len(self._parameters) % 3 != 0:
             raise Exception("One or more fit parameters are missing")
         ncomps = number_of_gaussian_components(params=values)
-        self._amps, self._fwhms, self._means = split_params(params=values, ncomps=ncomps)
+        self._amps, self._fwhms, self._means = split_params(
+            params=values, ncomps=ncomps
+        )
         self._n_components = ncomps
         self._modelled_intensity_values = combined_gaussian(
             amps=self._amps,
             fwhms=self._fwhms,
             means=self._means,
-            x=self.spectrum.channels
+            x=self.spectrum.channels,
         )
-        self._residual = self.spectrum.intensity_values - self._modelled_intensity_values
+        self._residual = (
+            self.spectrum.intensity_values - self._modelled_intensity_values
+        )
         self._rchi2, self._aicc = goodness_of_fit(
             data=self.spectrum.intensity_values,
             best_fit_final=self._modelled_intensity_values,
             errors=self.spectrum.noise_values,
             ncomps_fit=self.n_components,
             mask=self.spectrum.signal_mask,
-            get_aicc=True
+            get_aicc=True,
         )
         self._pvalue = check_residual_for_normality(
             data=self._residual,
             errors=self.spectrum.noise_values,
             mask=self.spectrum.signal_mask,
-            noise_spike_mask=self.spectrum.noise_spike_mask
+            noise_spike_mask=self.spectrum.noise_spike_mask,
         )
 
     @property
     def parameter_uncertainties(self) -> List:
-        return [] if self._parameter_uncertainties is None else self._parameter_uncertainties
+        return (
+            []
+            if self._parameter_uncertainties is None
+            else self._parameter_uncertainties
+        )
 
     @parameter_uncertainties.setter
     def parameter_uncertainties(self, values: List) -> None:
@@ -74,8 +90,11 @@ class Model:
             raise Exception("One or more fit uncertainty parameters are missing")
         self._parameter_uncertainties = values
         ncomps = number_of_gaussian_components(params=values)
-        self._amps_uncertainties, self._fwhms_uncertainties, self._means_uncertainties = split_params(
-            params=values, ncomps=ncomps)
+        (
+            self._amps_uncertainties,
+            self._fwhms_uncertainties,
+            self._means_uncertainties,
+        ) = split_params(params=values, ncomps=ncomps)
 
     @property
     def n_components(self) -> int:
@@ -127,7 +146,9 @@ class Model:
 
     @property
     def quality_control(self) -> List:
-        self._quality_control = [] if self._quality_control is None else self._quality_control
+        self._quality_control = (
+            [] if self._quality_control is None else self._quality_control
+        )
         return self._quality_control
 
     @quality_control.setter
@@ -149,5 +170,27 @@ class Model:
             "params_min": self.parameters_min_values,
             "params_max": self.parameters_max_values,
             "pvalue": self.pvalue,
-            "quality_control": self.quality_control
+            "quality_control": self.quality_control,
         }
+
+    def log_in_case_of_successful_refit(
+        self,
+        mode: Literal[
+            "positive_residual_peak", "negative_residual_peak", "broad", "blended"
+        ],
+    ) -> None:
+        if self.new_best_fit:
+            log_gplus = self.log_gplus
+            log_gplus.append(
+                {
+                    "positive_residual_peak": 1,
+                    "negative_residual_peak": 2,
+                    "broad": 3,
+                    "blended": 4,
+                }[mode]
+            )
+            self._log_gplus = log_gplus
+
+    @property
+    def log_gplus(self) -> List:
+        return [] if self._log_gplus is None else self._log_gplus
