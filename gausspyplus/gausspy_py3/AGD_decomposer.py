@@ -400,8 +400,6 @@ def AGD(
 
         ncomps_fit = int(len(params_fit) / 3)
 
-        best_fit_final = multi_component_gaussian_model(vel, *params_fit).ravel()
-
     # Try to improve the fit
     # ----------------------
     if improve_fitting:
@@ -427,7 +425,6 @@ def AGD(
         params_fit = best_fit_info["params_fit"]
         params_errs = best_fit_info["params_errs"]
         ncomps_fit = best_fit_info["ncomps_fit"]
-        best_fit_final = best_fit_info["best_fit_final"]
         rchi2 = best_fit_info["rchi2"]
         aicc = best_fit_info["aicc"]
         pvalue = best_fit_info["pvalue"]
