@@ -256,9 +256,9 @@ def AGD(
     params_guess_phase1 = _sorted_params(
         amps=agd_phase1["amps"], fwhms=agd_phase1["FWHMs"], means=agd_phase1["means"]
     )
-    ncomps_guess_phase1 = agd_phase1["N_components"]
     ncomps_guess_phase2 = 0  # Default
-    ncomps_fit_phase1 = 0  # Default
+    params_fit_phase1 = []  # Default
+    residuals = data  # Default
 
     # ----------------------------#
     # Find phase-two guesses #
@@ -270,12 +270,11 @@ def AGD(
         # Produce the residual signal                               #
         #  -- Either the original data, or intermediate subtraction #
         # ----------------------------------------------------------#
-        if ncomps_guess_phase1 == 0:
+        if agd_phase1["N_components"] == 0:
             say(
                 "Phase 2 with no narrow comps -> No intermediate subtraction... ",
                 verbose=verbose,
             )
-            residuals = data
         else:
             # "Else" Narrow components were found, and Phase == 2, so perform intermediate subtraction...
 
@@ -310,7 +309,6 @@ def AGD(
             )
             result = lmfit_minimize(objectiveD2_leastsq, lmfit_params, method="leastsq")
             params_fit_phase1 = vals_vec_from_lmfit(result.params)
-            ncomps_fit_phase1 = int(len(params_fit_phase1) / 3)
 
             del lmfit_params
             say(f"LMFIT fit took {time.time() - t0} seconds.")
@@ -325,8 +323,6 @@ def AGD(
                 residuals = median_filter(
                     data - intermediate_model, np.int64(median_window)
                 )
-            else:
-                residuals = data
             # Finished producing residual signal # ---------------------------
 
         # Search for phase-two guesses
@@ -414,16 +410,12 @@ def AGD(
             ncomps_guess_final,
             improve_fitting,
             perform_final_fit,
-            ncomps_guess_phase1,
             ncomps_guess_phase2,
             agd_phase1,
-            ncomps_fit_phase1,
             phase,
             residuals,
             agd_phase2,
-            params_guess_phase2,
             best_fit_info=best_fit_info,
-            params_guess_phase1=params_guess_phase1,
             params_fit_phase1=params_fit_phase1,
         )
 

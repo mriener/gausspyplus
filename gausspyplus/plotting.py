@@ -629,30 +629,26 @@ def plot_fit_stages(
     ncomps_guess_final: int,
     improve_fitting: bool,
     perform_final_fit: bool,
-    ncomps_guess_phase1: int,
     ncomps_guess_phase2: int,
     agd_phase1: Dict,
-    ncomps_fit_phase1,
     phase,
     residuals,
     agd_phase2,
-    params_guess_phase2,
     best_fit_info: Optional[Dict] = None,
-    params_guess_phase1: Optional[List] = None,
     params_fit_phase1: Optional[List] = None,
 ):
     #                       P L O T T I N G
     print(("params_fit:", params_fit))
 
-    if ncomps_guess_final == 0:
-        ncomps_fit = 0
-        best_fit_final = data * 0
+    best_fit_final = combined_gaussian(*np.split(np.array(params_fit), 3), vel)
 
     if improve_fitting:
         rchi2 = best_fit_info["rchi2"]
+        name = "GaussPy+"
     else:
+        name = "GaussPy"
         #  TODO: define mask from signal_ranges
-        rchi2 = goodness_of_fit(data, best_fit_final, errors, ncomps_fit)
+        rchi2 = goodness_of_fit(data, best_fit_final, errors, ncomps_guess_final)
 
     # Set up figure
     fig = plt.figure("AGD results", [16, 12])
@@ -662,19 +658,16 @@ def plot_fit_stages(
     ax4 = fig.add_axes([0.5, 0.1, 0.4, 0.4])  # Final fit
 
     # Decorations
-    if improve_fitting:
-        plt.figtext(0.52, 0.47, "Final fit (GaussPy+)")
-    else:
-        plt.figtext(0.52, 0.47, "Final fit (GaussPy)")
+    plt.figtext(0.52, 0.47, f"Final fit ({name}+)")
     if perform_final_fit:
         plt.figtext(0.52, 0.45, f"Reduced Chi2: {rchi2:3.3f}")
-        plt.figtext(0.52, 0.43, f"N components: {ncomps_fit}")
+        plt.figtext(0.52, 0.43, f"N components: {ncomps_guess_final}")
 
     plt.figtext(0.12, 0.47, "Phase-two initial guess")
     plt.figtext(0.12, 0.45, f"N components: {ncomps_guess_phase2}")
 
     plt.figtext(0.12, 0.87, "Phase-one initial guess")
-    plt.figtext(0.12, 0.85, f"N components: {ncomps_guess_phase1}")
+    plt.figtext(0.12, 0.85, f"N components: {agd_phase1['N_components']}")
 
     plt.figtext(0.52, 0.87, "Intermediate fit")
 
@@ -688,13 +681,10 @@ def plot_fit_stages(
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh"], "--k")
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh2"] * u2_scale, "--r")
 
-    for i in range(ncomps_guess_phase1):
-        one_component = single_component_gaussian_model(
-            params_guess_phase1[i],
-            params_guess_phase1[i + ncomps_guess_phase1],
-            params_guess_phase1[i + 2 * ncomps_guess_phase1],
-        )(vel)
-        ax1.plot(vel, one_component, "-g")
+    for amp, fwhm, mean in zip(
+        agd_phase1["amps"], agd_phase1["FWHMs"], agd_phase1["means"]
+    ):
+        ax1.plot(vel, single_component_gaussian_model(amp, fwhm, mean)(vel), "-g")
 
     # Plot intermediate fit components (Panel 2)
     # ------------------------------------------
@@ -702,13 +692,13 @@ def plot_fit_stages(
     ax2.axhline(color="black", linewidth=0.5)
     ax2.plot(vel, data, "-k")
     ax2.yaxis.tick_right()
-    for i in range(ncomps_fit_phase1):
-        one_component = single_component_gaussian_model(
-            params_fit_phase1[i],
-            params_fit_phase1[i + ncomps_fit_phase1],
-            params_fit_phase1[i + 2 * ncomps_fit_phase1],
-        )(vel)
-        ax2.plot(vel, one_component, "-", color="blue")
+    for amp, fwhm, mean in zip(*np.split(np.array(params_fit_phase1), 3)):
+        ax2.plot(
+            vel,
+            single_component_gaussian_model(amp, fwhm, mean)(vel),
+            "-",
+            color="blue",
+        )
 
     # Residual spectrum (Panel 3)
     # -----------------------------
@@ -721,13 +711,11 @@ def plot_fit_stages(
             vel, np.ones(len(vel)) * agd_phase2["thresh2"] * u2_phase2_scale, "--r"
         )
         ax3.plot(vel, agd_phase2["u2"] * u2_phase2_scale, "-r")
-        for i in range(ncomps_guess_phase2):
-            one_component = single_component_gaussian_model(
-                params_guess_phase2[i],
-                params_guess_phase2[i + ncomps_guess_phase2],
-                params_guess_phase2[i + 2 * ncomps_guess_phase2],
-            )(vel)
-            ax3.plot(vel, one_component, "-g")
+
+        for amp, fwhm, mean in zip(
+            agd_phase2["amps"], agd_phase2["FWHMs"], agd_phase2["means"]
+        ):
+            ax3.plot(vel, single_component_gaussian_model(amp, fwhm, mean)(vel), "-g")
 
     # Plot best-fit model (Panel 4)
     # -----------------------------
@@ -735,13 +723,13 @@ def plot_fit_stages(
         ax4.yaxis.tick_right()
         ax4.axhline(color="black", linewidth=0.5)
         ax4.plot(vel, data, label="data", color="black")
-        for i in range(ncomps_fit):
-            one_component = single_component_gaussian_model(
-                params_fit[i],
-                params_fit[i + ncomps_fit],
-                params_fit[i + 2 * ncomps_fit],
-            )(vel)
-            ax4.plot(vel, one_component, "--", color="orange")
+        for amp, fwhm, mean in zip(*np.split(np.array(params_fit), 3)):
+            ax4.plot(
+                vel,
+                single_component_gaussian_model(amp, fwhm, mean)(vel),
+                "--",
+                color="orange",
+            )
         ax4.plot(vel, best_fit_final, "-", color="orange", linewidth=2)
 
     plt.show()
