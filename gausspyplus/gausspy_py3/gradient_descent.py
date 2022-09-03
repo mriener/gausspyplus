@@ -90,7 +90,7 @@ def single_training_example(kwargs):
     )
 
     # Produce initial guesses
-    status, result = AGD_decomposer.AGD(
+    result = AGD_decomposer.AGD(
         vel=kwargs["vel"],
         data=kwargs["data"][j],
         errors=kwargs["errors"][j],
@@ -103,12 +103,6 @@ def single_training_example(kwargs):
         phase=kwargs["phase"],
         SNR2_thresh=kwargs["SNR2_thresh"],
     )
-
-    # TODO: Currently the returned status can never be 0, so the following makes no sense
-    # If nothing was found, skip to next iteration
-    if status == 0:
-        print("Nothing found in this spectrum, continuing...")
-        return 0, 0, true_params / 3
 
     guess_params = result["initial_parameters"]
 
