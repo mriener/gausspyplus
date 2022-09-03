@@ -18,7 +18,6 @@ from gausspyplus.utils.gaussian_functions import (
     area_of_gaussian,
     split_params,
     number_of_gaussian_components,
-    multi_component_gaussian_model,
     vals_vec_from_lmfit,
     errs_vec_from_lmfit,
     paramvec_to_lmfit,
@@ -37,7 +36,7 @@ def _perform_least_squares_fit(
     def objective_leastsq(paramslm):
         params = vals_vec_from_lmfit(paramslm)
         resids = (
-            multi_component_gaussian_model(spectrum.channels, *params).ravel()
+            combined_gaussian(*np.split(np.array(params), 3), spectrum.channels).ravel()
             - spectrum.intensity_values.ravel()
         ) / spectrum.noise_values
         return resids
