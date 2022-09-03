@@ -23,14 +23,12 @@ from gausspyplus.gausspy_py3.gp_plus import try_to_improve_fitting
 from gausspyplus.model import Model
 from gausspyplus.plotting import plot_fit_stages
 from gausspyplus.spectrum import Spectrum
-from gausspyplus.utils.fit_quality_checks import goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
     errs_vec_from_lmfit,
     paramvec_to_lmfit,
-    multi_component_gaussian_model,
-    single_component_gaussian_model,
     vals_vec_from_lmfit,
+    combined_gaussian,
 )
 from gausspyplus.utils.output import say
 
@@ -289,7 +287,7 @@ def AGD(
             # Error function for intermediate optimization
             def objectiveD2_leastsq(paramslm):
                 params = vals_vec_from_lmfit(paramslm)
-                model0 = multi_component_gaussian_model(vel, *params)
+                model0 = combined_gaussian(*np.split(np.array(params), 3), vel)
                 model2 = np.diff(np.diff(model0.ravel())) / dv / dv
                 resids1 = (
                     fitmask[1:-1] * (model2 - agd_phase1["u2"][1:-1]) / errors[1:-1]
@@ -316,9 +314,10 @@ def AGD(
             if result.success:
                 # Compute intermediate residuals
                 # Median filter on 2x effective scale to remove poor subtractions of strong components
-                intermediate_model = multi_component_gaussian_model(
-                    vel, *params_fit_phase1
-                ).ravel()  # Explicit final (narrow) model
+                # Explicit final (narrow) model
+                intermediate_model = combined_gaussian(
+                    *np.split(np.array(params_fit_phase1), 3), vel
+                ).ravel()
                 median_window = 2 * 10 ** ((np.log10(alpha1) + 2.187) / 3.859)
                 residuals = median_filter(
                     data - intermediate_model, np.int64(median_window)
@@ -361,7 +360,8 @@ def AGD(
         def objective_leastsq(paramslm):
             params = vals_vec_from_lmfit(paramslm)
             resids = (
-                multi_component_gaussian_model(vel, *params).ravel() - data.ravel()
+                combined_gaussian(*np.split(np.array(params), 3), vel).ravel()
+                - data.ravel()
             ) / errors
             return resids
 

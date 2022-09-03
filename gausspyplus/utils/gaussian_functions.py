@@ -23,6 +23,7 @@ def area_of_gaussian(amp: float, fwhm: float) -> float:
 
 
 def gaussian(amp: float, fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
+    # TODO: Rename function to single_component_gaussian_model
     """Return results of a Gaussian function.
 
     Parameters
@@ -46,6 +47,7 @@ def combined_gaussian(
     means: Union[List, np.ndarray],
     x: np.ndarray,
 ) -> np.ndarray:
+    # TODO: Rename function to multi_component_gaussian_model
     """Return results of the combination of N Gaussian functions.
 
     Parameters
@@ -74,28 +76,6 @@ def split_params(params: List, ncomps: int) -> Tuple[List, List, List]:
 def number_of_gaussian_components(params: List) -> int:
     """Compute number of Gaussian components."""
     return len(params) // 3
-
-
-# TODO: check if this function is used anywhere (function was called 'gaussian_function' originally)
-def single_component_gaussian_model(peak: float, fwhm: float, mean: float) -> Callable:
-    """Return a Gaussian function."""
-    sigma = fwhm / CONVERSION_STD_TO_FWHM
-    return lambda x: peak * np.exp(-((x - mean) ** 2) / 2.0 / sigma**2)
-
-
-def multi_component_gaussian_model(x, *args):
-    """Return multi-component Gaussian model F(x).
-
-    Parameter vector kargs = [amp1, ..., ampN, width1, ..., widthN, mean1, ..., meanN],
-    and therefore has len(args) = 3 x N_components.
-    """
-    ncomps = number_of_gaussian_components(params=args)
-    yout = x * 0.0
-    for i in range(ncomps):
-        yout = yout + single_component_gaussian_model(
-            peak=args[i], fwhm=args[i + ncomps], mean=args[i + 2 * ncomps]
-        )(x)
-    return yout
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
