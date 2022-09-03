@@ -13,8 +13,6 @@ import numpy as np
 
 import matplotlib
 
-# matplotlib.use('PDF', warn=False)
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
 from astropy import units as u
