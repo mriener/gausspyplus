@@ -398,16 +398,9 @@ def AGD(
         del lmfit_params
         say(f"Final fit took {time.time() - t0} seconds.", verbose=verbose)
 
-        ncomps_fit = int(len(params_fit) / 3)
-
     # Try to improve the fit
     # ----------------------
     if improve_fitting:
-        if ncomps_guess_final == 0:
-            # ncomps_fit = 0
-            # TODO: can the next line be removed?
-            params_fit = []
-        #  TODO: check if ncomps_fit should be ncomps_guess_final
         model = Model(
             spectrum=Spectrum(
                 intensity_values=data,
@@ -417,20 +410,20 @@ def AGD(
                 noise_spike_intervals=noise_spike_ranges,
             )
         )
-        model.parameters = params_fit
+        model.parameters = [] if ncomps_guess_final == 0 else params_fit
         best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
             model=model, settings_improve_fit=settings_improve_fit
         )
 
         params_fit = best_fit_info["params_fit"]
         params_errs = best_fit_info["params_errs"]
-        ncomps_fit = best_fit_info["ncomps_fit"]
+        ncomps_guess_final = best_fit_info["ncomps_fit"]
         rchi2 = best_fit_info["rchi2"]
         aicc = best_fit_info["aicc"]
         pvalue = best_fit_info["pvalue"]
         quality_control = best_fit_info["quality_control"]
 
-        ncomps_guess_final = ncomps_fit
+    # TODO: Simplify the parameters for this function
 
     # TODO: move the plotting functions to plotting.py
     if plot:
