@@ -406,9 +406,6 @@ def AGD(
 
     # TODO: Simplify the parameters for this function
     if plot:
-        params_guess_phase2 = np.concatenate(
-            [agd_phase2["amps"], agd_phase2["FWHMs"], agd_phase2["means"]]
-        )
         plot_fit_stages(
             data,
             errors,
@@ -419,11 +416,9 @@ def AGD(
             perform_final_fit,
             ncomps_guess_phase1,
             ncomps_guess_phase2,
-            agd_phase1["u2"],
             agd_phase1,
             ncomps_fit_phase1,
             phase,
-            agd_phase2["u2"],
             residuals,
             agd_phase2,
             params_guess_phase2,

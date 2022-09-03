@@ -6,7 +6,7 @@ import random
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union, Literal, List
+from typing import Optional, Union, Literal, List, Dict
 
 import astropy
 import numpy as np
@@ -622,26 +622,24 @@ def plot_spectra(
 
 
 def plot_fit_stages(
-    data,
-    errors,
-    vel,
-    params_fit,
-    ncomps_guess_final,
-    improve_fitting,
-    best_fit_info,
-    perform_final_fit,
-    ncomps_guess_phase1,
-    ncomps_guess_phase2,
-    u2,
-    agd_phase1,
-    params_guess_phase1,
-    params_fit_phase1,
+    data: np.ndarray,
+    errors: np.ndarray,
+    vel: np.ndarray,
+    params_fit: List,
+    ncomps_guess_final: int,
+    improve_fitting: bool,
+    perform_final_fit: bool,
+    ncomps_guess_phase1: int,
+    ncomps_guess_phase2: int,
+    agd_phase1: Dict,
     ncomps_fit_phase1,
     phase,
-    u2_phase2,
     residuals,
     agd_phase2,
     params_guess_phase2,
+    best_fit_info: Optional[Dict] = None,
+    params_guess_phase1: Optional[List] = None,
+    params_fit_phase1: Optional[List] = None,
 ):
     #                       P L O T T I N G
     print(("params_fit:", params_fit))
@@ -683,10 +681,10 @@ def plot_fit_stages(
     # Initial Guesses (Panel 1)
     # -------------------------
     ax1.xaxis.tick_top()
-    u2_scale = 1.0 / np.max(np.abs(u2)) * np.max(data) * 0.5
+    u2_scale = 1.0 / np.max(np.abs(agd_phase1["u2"])) * np.max(data) * 0.5
     ax1.axhline(color="black", linewidth=0.5)
     ax1.plot(vel, data, "-k")
-    ax1.plot(vel, u2 * u2_scale, "-r")
+    ax1.plot(vel, agd_phase1["u2"] * u2_scale, "-r")
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh"], "--k")
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh2"] * u2_scale, "--r")
 
@@ -715,14 +713,14 @@ def plot_fit_stages(
     # Residual spectrum (Panel 3)
     # -----------------------------
     if phase == "two":
-        u2_phase2_scale = 1.0 / np.abs(u2_phase2).max() * np.max(residuals) * 0.5
+        u2_phase2_scale = 1.0 / np.abs(agd_phase2["u2"]).max() * np.max(residuals) * 0.5
         ax3.axhline(color="black", linewidth=0.5)
         ax3.plot(vel, residuals, "-k")
         ax3.plot(vel, np.ones(len(vel)) * agd_phase2["thresh"], "--k")
         ax3.plot(
             vel, np.ones(len(vel)) * agd_phase2["thresh2"] * u2_phase2_scale, "--r"
         )
-        ax3.plot(vel, u2_phase2 * u2_phase2_scale, "-r")
+        ax3.plot(vel, agd_phase2["u2"] * u2_phase2_scale, "-r")
         for i in range(ncomps_guess_phase2):
             one_component = single_component_gaussian_model(
                 params_guess_phase2[i],
