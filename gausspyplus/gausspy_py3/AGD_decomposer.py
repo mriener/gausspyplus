@@ -208,7 +208,7 @@ def AGD(
     SNR2_thresh: float = 5.0,
     perform_final_fit: bool = True,
     phase: Literal["one", "two"] = "one",
-) -> Tuple[int, Dict]:
+) -> Dict:
     """Autonomous Gaussian Decomposition."""
     max_amp = (
         settings_improve_fit.max_amp_factor * np.max(data)
@@ -476,4 +476,4 @@ def AGD(
             },
         }
 
-    return 1, odict
+    return odict

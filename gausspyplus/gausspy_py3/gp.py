@@ -74,7 +74,7 @@ class GaussianDecomposer(object):
         noise_spike_ranges: Optional[List] = None,
     ) -> Dict:
         """Decompose a single spectrum using current parameters."""
-        status, results = AGD_decomposer.AGD(
+        results = AGD_decomposer.AGD(
             xdata,
             ydata,
             edata,
