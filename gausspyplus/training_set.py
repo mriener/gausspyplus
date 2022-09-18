@@ -19,7 +19,7 @@ from gausspyplus.utils.determine_intervals import (
 )
 from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
-    combined_gaussian,
+    multi_component_gaussian_model,
     CONVERSION_STD_TO_FWHM,
 )
 from gausspyplus.utils.noise_estimation import (
@@ -269,7 +269,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
             fit_params[2] * CONVERSION_STD_TO_FWHM for fit_params in fit_values
         ]
         mean_values = [fit_params[1] for fit_params in fit_values]
-        modelled_spectrum = combined_gaussian(
+        modelled_spectrum = multi_component_gaussian_model(
             amps=amplitude_values, fwhms=fwhm_values, means=mean_values, x=self.channels
         )
         mask_signal = (

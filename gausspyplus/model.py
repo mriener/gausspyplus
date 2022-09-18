@@ -11,7 +11,7 @@ from gausspyplus.utils.fit_quality_checks import (
 from gausspyplus.utils.gaussian_functions import (
     number_of_gaussian_components,
     split_params,
-    combined_gaussian,
+    multi_component_gaussian_model,
 )
 
 
@@ -52,7 +52,7 @@ class Model:
             params=values, ncomps=ncomps
         )
         self._n_components = ncomps
-        self._modelled_intensity_values = combined_gaussian(
+        self._modelled_intensity_values = multi_component_gaussian_model(
             amps=self._amps,
             fwhms=self._fwhms,
             means=self._means,

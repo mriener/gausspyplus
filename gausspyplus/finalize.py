@@ -14,8 +14,8 @@ from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians
 from gausspyplus.utils.fit_quality_checks import negative_residuals
 from gausspyplus.utils.gaussian_functions import (
-    gaussian,
-    combined_gaussian,
+    single_component_gaussian_model,
+    multi_component_gaussian_model,
     area_of_gaussian,
     CONVERSION_STD_TO_FWHM,
 )
@@ -201,7 +201,7 @@ class Finalize(object):
         fit_e_means = self.decomposition["means_fit_err"][idx]
         error = self.pickled_data["error"][idx][0]
 
-        residual = spectrum - combined_gaussian(
+        residual = spectrum - multi_component_gaussian_model(
             amps=fit_amps,
             fwhms=fit_fwhms,
             means=fit_means,
@@ -623,7 +623,9 @@ class Finalize(object):
 
             if mode == "main_component" and ncomps > 0:
                 j = amps.index(max(amps))
-                array[:, yi, xi] = gaussian(amps[j], fwhms[j], means[j], self.channels)
+                array[:, yi, xi] = single_component_gaussian_model(
+                    amps[j], fwhms[j], means[j], self.channels
+                )
             elif mode == "integrated_intensity" and ncomps > 0:
                 for j in range(ncomps):
                     integrated_intensity = area_of_gaussian(
@@ -633,7 +635,9 @@ class Finalize(object):
                     if self.channels[0] <= channel <= self.channels[-1]:
                         array[channel, yi, xi] += integrated_intensity
             elif mode == "full_decomposition":
-                array[:, yi, xi] = combined_gaussian(amps, fwhms, means, self.channels)
+                array[:, yi, xi] = multi_component_gaussian_model(
+                    amps, fwhms, means, self.channels
+                )
 
             nans = self.nan_mask[:, yi, xi]
             array[:, yi, xi][nans] = np.NAN

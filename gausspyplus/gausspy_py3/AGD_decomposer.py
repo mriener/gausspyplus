@@ -19,7 +19,7 @@ from gausspyplus.utils.gaussian_functions import (
     errs_vec_from_lmfit,
     paramvec_to_lmfit,
     vals_vec_from_lmfit,
-    combined_gaussian,
+    multi_component_gaussian_model,
 )
 from gausspyplus.utils.output import say
 
@@ -276,7 +276,9 @@ def AGD(
             # Error function for intermediate optimization
             def objectiveD2_leastsq(paramslm):
                 params = vals_vec_from_lmfit(paramslm)
-                model0 = combined_gaussian(*np.split(np.array(params), 3), vel)
+                model0 = multi_component_gaussian_model(
+                    *np.split(np.array(params), 3), vel
+                )
                 model2 = np.diff(np.diff(model0.ravel())) / dv / dv
                 resids1 = (
                     fitmask[1:-1] * (model2 - agd_phase1["u2"][1:-1]) / errors[1:-1]
@@ -304,7 +306,7 @@ def AGD(
                 # Compute intermediate residuals
                 # Median filter on 2x effective scale to remove poor subtractions of strong components
                 # Explicit final (narrow) model
-                intermediate_model = combined_gaussian(
+                intermediate_model = multi_component_gaussian_model(
                     *np.split(np.array(params_fit_phase1), 3), vel
                 ).ravel()
                 median_window = 2 * 10 ** ((np.log10(alpha1) + 2.187) / 3.859)
@@ -349,7 +351,9 @@ def AGD(
         def objective_leastsq(paramslm):
             params = vals_vec_from_lmfit(paramslm)
             resids = (
-                combined_gaussian(*np.split(np.array(params), 3), vel).ravel()
+                multi_component_gaussian_model(
+                    *np.split(np.array(params), 3), vel
+                ).ravel()
                 - data.ravel()
             ) / errors
             return resids
