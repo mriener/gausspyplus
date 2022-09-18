@@ -74,7 +74,7 @@ def _determine_derivatives(
     return u, u2, u3, u4
 
 
-def initialGuess(
+def _initial_guess(
     vel: np.ndarray,
     data: np.ndarray,
     errors: Optional[float] = None,
@@ -91,7 +91,7 @@ def initialGuess(
     SNR_thresh = 5.0  Initial Spectrum S/N threshold
     SNR2_thresh =   S/N threshold for Second derivative
     """
-    say("\n\n  --> initialGuess() \n", verbose=verbose)
+    say("\n\n  --> _initial_guess() \n", verbose=verbose)
     say("Algorithm parameters: ", verbose=verbose)
     say(f"alpha = {alpha}", verbose=verbose)
     say(f"SNR_thesh = {SNR_thresh}", verbose=verbose)
@@ -226,11 +226,11 @@ def AGD(
 
     dv = np.abs(vel[1] - vel[0])
 
-    # TODO: put this in private function -> combine it with phase 2 guesses -> maybe rename initialGuess?
+    # TODO: put this in private function -> combine it with phase 2 guesses -> maybe rename _initial_guess?
     # -------------------------------------- #
     # Find phase-one guesses                 #
     # -------------------------------------- #
-    agd_phase1 = initialGuess(
+    agd_phase1 = _initial_guess(
         vel,
         data,
         errors=errors[0],
@@ -316,7 +316,7 @@ def AGD(
             # Finished producing residual signal # ---------------------------
 
         # Search for phase-two guesses
-        agd_phase2 = initialGuess(
+        agd_phase2 = _initial_guess(
             vel,
             residuals,
             errors=errors[0],
