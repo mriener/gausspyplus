@@ -21,6 +21,7 @@ from gausspyplus.utils.gaussian_functions import (
     vals_vec_from_lmfit,
     errs_vec_from_lmfit,
     paramvec_to_lmfit,
+    sort_parameters,
 )
 from gausspyplus.utils.noise_estimation import determine_peaks
 
@@ -741,12 +742,10 @@ def check_for_negative_residual(
         return model
 
     #  in case of multiple negative residual features, sort them in order of increasing amplitude values
-    sort = np.argsort(amp_guesses)
-    amp_guesses = np.array(amp_guesses)[sort]
-    fwhm_guesses = np.array(fwhm_guesses)[sort]
-    offset_guesses = np.array(offset_guesses)[sort]
-
-    for amp, fwhm, offset in zip(amp_guesses, fwhm_guesses, offset_guesses):
+    sorted_parameters = sort_parameters(
+        amps=amp_guesses, fwhms=fwhm_guesses, means=offset_guesses, descending=False
+    )
+    for amp, fwhm, offset in zip(*np.split(sorted_parameters, 3)):
         idx_low, idx_up = get_slice_indices_for_interval(
             interval_center=offset, interval_half_width=fwhm
         )

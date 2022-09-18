@@ -20,6 +20,7 @@ from gausspyplus.utils.gaussian_functions import (
     paramvec_to_lmfit,
     vals_vec_from_lmfit,
     multi_component_gaussian_model,
+    sort_parameters,
 )
 from gausspyplus.utils.output import say
 
@@ -179,18 +180,6 @@ def _initial_guess(
     }
 
 
-def _sorted_params(amps, fwhms, means):
-    """Parameters are sorted according to the amplitude values."""
-    sort_oder = np.argsort(amps)[::-1]
-    return np.concatenate(
-        [
-            np.array(amps)[sort_oder],
-            np.array(fwhms)[sort_oder],
-            np.array(means)[sort_oder],
-        ]
-    )
-
-
 def AGD(
     vel: np.ndarray,
     data: np.ndarray,
@@ -240,7 +229,7 @@ def AGD(
         SNR2_thresh=SNR2_thresh,
     )
 
-    params_guess_phase1 = _sorted_params(
+    params_guess_phase1 = sort_parameters(
         amps=agd_phase1["amps"], fwhms=agd_phase1["fwhms"], means=agd_phase1["means"]
     )
     ncomps_guess_phase2 = 0  # Default
@@ -332,7 +321,7 @@ def AGD(
     # Check for phase two components, make final guess list
     # ------------------------------------------------------
     if phase == "two" and (ncomps_guess_phase2 > 0):
-        params_guess_final = _sorted_params(
+        params_guess_final = sort_parameters(
             amps=np.append(agd_phase1["amps"], agd_phase2["amps"]),
             fwhms=np.append(agd_phase1["fwhms"], agd_phase2["fwhms"]),
             means=np.append(agd_phase1["means"], agd_phase2["means"]),
