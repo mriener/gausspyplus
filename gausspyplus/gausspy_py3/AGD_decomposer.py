@@ -1,20 +1,11 @@
-# @Author: Robert Lindner
-# @Date:   Nov 10, 2014
-# @Filename: AGD_decomposer.py
-# @Last modified by:   riener
-# @Last modified time: 18-05-2020
-
-# Standard Libs
 import time
 
-# Standard Third Party
 from typing import Optional, Dict, Literal, Tuple, List, Union
 
 import numpy as np
 from scipy.interpolate import interp1d
 from lmfit import minimize as lmfit_minimize
 
-import matplotlib.pyplot as plt
 from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
@@ -39,30 +30,42 @@ def _create_fitmask(size: int, offsets_i: np.ndarray, di: np.ndarray) -> np.ndar
     fitmask = (0,1)
     """
     fitmask = np.zeros(size)
-    for i in range(len(offsets_i)):
-        fitmask[int(offsets_i[i] - di[i]) : int(offsets_i[i] + di[i])] = 1.0
+    for offset, d in zip(offsets_i, di):
+        fitmask[int(offset - d) : int(offset + d)] = 1
     return fitmask.astype(bool)
 
 
 def _determine_derivatives(
-    data: np.ndarray, dv: Union[int, float], alpha: float
+    data: np.ndarray, dv: Union[int, float], gauss_sigma: float
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    gauss_sigma = alpha
+    """
+
+    Parameters
+    ----------
+    data
+    dv: x-spacing in absolute units
+    gauss_sigma
+
+    Returns
+    -------
+
+    """
     gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
     gauss_dn = gauss_sigma_int * 6
 
-    xx = np.arange(2 * gauss_dn + 2) - (gauss_dn) - 0.5
-    gauss = np.exp(-(xx**2) / 2.0 / gauss_sigma**2)
+    xx = np.arange(2 * gauss_dn + 2) - gauss_dn - 0.5
+    gauss = np.exp(-(xx**2) / 2 / gauss_sigma**2)
     gauss = gauss / np.sum(gauss)
     gauss1 = np.diff(gauss) / dv
-    gauss3 = np.diff(np.diff(gauss1)) / dv**2
+    gauss3 = np.diff(gauss1, 2) / dv**2
 
-    xx2 = np.arange(2 * gauss_dn + 1) - (gauss_dn)
-    gauss2 = np.exp(-(xx2**2) / 2.0 / gauss_sigma**2)
+    xx2 = np.arange(2 * gauss_dn + 1) - gauss_dn
+    gauss2 = np.exp(-(xx2**2) / 2 / gauss_sigma**2)
     gauss2 = gauss2 / np.sum(gauss2)
+    # TODO: Should the following two lines be `np.diff(gauss2, 2) / dv**2`?
     gauss2 = np.diff(gauss2) / dv
     gauss2 = np.diff(gauss2) / dv
-    gauss4 = np.diff(np.diff(gauss2)) / dv**2
+    gauss4 = np.diff(gauss2, 2) / dv**2
 
     u = convolve(data, gauss1, mode="wrap")
     u2 = convolve(data, gauss2, mode="wrap")
@@ -98,16 +101,12 @@ def initialGuess(
         print("NaN-values in data, cannot continue.")
         return
 
-    # Data inspection
-    vel = np.array(vel)
-    data = np.array(data)
-    dv = np.abs(vel[1] - vel[0])  # x-spacing in absolute units
-    fvel = interp1d(np.arange(len(vel)), vel)  # Converts from index -> x domain
-
     # Take regularized derivatives
     t0 = time.time()
     say(f"Convolution sigma [pixels]: {alpha}", verbose=verbose)
-    u, u2, u3, u4 = _determine_derivatives(data, dv, alpha)
+    u, u2, u3, u4 = _determine_derivatives(
+        data, dv=np.abs(vel[1] - vel[0]), gauss_sigma=alpha
+    )
     say(
         "...took {0:4.2f} seconds per derivative.".format((time.time() - t0) / 4.0),
         verbose=verbose,
@@ -118,10 +117,8 @@ def initialGuess(
         errors = np.std(data[data < abs(np.min(data))])  # added by M.Riener
 
     thresh = SNR_thresh * errors
-    mask1 = np.array(data > thresh, dtype="int")[1:]  # Raw Data S/N
-    mask3 = np.array(u4.copy()[1:] > 0.0, dtype="int")  # Positive 4th derivative
 
-    if SNR2_thresh > 0.0:
+    if SNR2_thresh > 0:
         wsort = np.argsort(np.abs(u2))
         RMSD2 = (
             np.std(u2[wsort[: int(0.5 * len(u2))]]) / 0.377
@@ -130,64 +127,56 @@ def initialGuess(
         thresh2 = -RMSD2 * SNR2_thresh
         say(f"Second derivative threshold: {thresh2}", verbose=verbose)
     else:
-        thresh2 = 0.0
-    mask4 = np.array(u2.copy()[1:] < thresh2, dtype="int")  # Negative second derivative
+        thresh2 = 0
 
     # Find optima of second derivative
     # --------------------------------
-    zeros = np.abs(np.diff(np.sign(u3)))
-    zeros = zeros * mask1 * mask3 * mask4
-    indices_of_offsets = np.array(np.where(zeros)).ravel()  # Index offsets
+    mask = np.all(
+        (
+            data[1:] > thresh,  # Raw Data S/N
+            u4[1:] > 0,  # Positive 4th derivative
+            u2[1:] < thresh2,  # # Negative second derivative
+        ),
+        axis=0,
+    )
+    indices_of_offsets = np.flatnonzero(
+        np.abs(np.diff(np.sign(u3))) * mask
+    )  # Index offsets
+    fvel = interp1d(np.arange(len(vel)), vel)  # Converts from index -> x domain
     offsets = fvel(indices_of_offsets + 0.5)  # Velocity offsets
     N_components = len(offsets)
     say(f"Components found for alpha={alpha}: {N_components}", verbose=verbose)
 
-    # Check if nothing was found, if so, return null
-    # ----------------------------------------------
-    if N_components == 0:
-        odict = {
-            "means": [],
-            "FWHMs": [],
-            "amps": [],
-            "u2": u2,
-            "errors": errors,
-            "thresh2": thresh2,
-            "thresh": thresh,
-            "N_components": N_components,
-        }
+    if not N_components:
+        amps, offsets, fwhms = [], [], []
+    else:
+        # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
+        fwhms = np.sqrt(np.abs(data / u2)[indices_of_offsets]) * CONVERSION_STD_TO_FWHM
 
-        return odict
+        amps = data[indices_of_offsets]
 
-    # Find Relative widths, then measure peak-to-inflection distance for sharpest peak
-    FWHMs = np.sqrt(np.abs(data / u2)[indices_of_offsets]) * CONVERSION_STD_TO_FWHM
+        # Attempt deblending. If Deblending results in all non-negative answers, keep.
+        FF_matrix = np.zeros((N_components, N_components))
+        for i in range(FF_matrix.shape[0]):
+            for j in range(FF_matrix.shape[1]):
+                FF_matrix[i, j] = np.exp(
+                    -((offsets[i] - offsets[j]) ** 2)
+                    / 2
+                    / (fwhms[j] / CONVERSION_STD_TO_FWHM) ** 2
+                )
+        amps_new = lstsq(FF_matrix, amps, rcond=None)[0]
+        if np.all(amps_new > 0):
+            amps = amps_new
 
-    amps = np.array(data[indices_of_offsets])
-
-    # Attempt deblending. If Deblending results in all non-negative answers, keep.
-    FF_matrix = np.zeros([len(amps), len(amps)])
-    for i in range(FF_matrix.shape[0]):
-        for j in range(FF_matrix.shape[1]):
-            FF_matrix[i, j] = np.exp(
-                -((offsets[i] - offsets[j]) ** 2)
-                / 2.0
-                / (FWHMs[j] / CONVERSION_STD_TO_FWHM) ** 2
-            )
-    amps_new = lstsq(FF_matrix, amps, rcond=None)[0]
-    if np.all(amps_new > 0):
-        amps = amps_new
-
-    odict = {
+    return {
         "means": offsets,
-        "FWHMs": FWHMs,
+        "fwhms": fwhms,
         "amps": amps,
         "u2": u2,
-        "errors": errors,
         "thresh2": thresh2,
         "thresh": thresh,
         "N_components": N_components,
     }
-
-    return odict
 
 
 def _sorted_params(amps, fwhms, means):
@@ -252,7 +241,7 @@ def AGD(
     )
 
     params_guess_phase1 = _sorted_params(
-        amps=agd_phase1["amps"], fwhms=agd_phase1["FWHMs"], means=agd_phase1["means"]
+        amps=agd_phase1["amps"], fwhms=agd_phase1["fwhms"], means=agd_phase1["means"]
     )
     ncomps_guess_phase2 = 0  # Default
     params_fit_phase1 = []  # Default
@@ -281,7 +270,7 @@ def AGD(
             fitmask = _create_fitmask(
                 size=len(vel),
                 offsets_i=v_to_i(agd_phase1["means"]),
-                di=agd_phase1["FWHMs"] / dv / CONVERSION_STD_TO_FWHM * 0.9,
+                di=agd_phase1["fwhms"] / dv / CONVERSION_STD_TO_FWHM * 0.9,
             )
 
             # Error function for intermediate optimization
@@ -343,7 +332,7 @@ def AGD(
     if phase == "two" and (ncomps_guess_phase2 > 0):
         params_guess_final = _sorted_params(
             amps=np.append(agd_phase1["amps"], agd_phase2["amps"]),
-            fwhms=np.append(agd_phase1["FWHMs"], agd_phase2["FWHMs"]),
+            fwhms=np.append(agd_phase1["fwhms"], agd_phase2["fwhms"]),
             means=np.append(agd_phase1["means"], agd_phase2["means"]),
         )
         ncomps_guess_final = agd_phase1["N_components"] + agd_phase2["N_components"]
