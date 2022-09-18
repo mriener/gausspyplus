@@ -1,6 +1,5 @@
 """Gaussian functions."""
-import sys
-from typing import List, Tuple, Callable, Optional, Union
+from typing import List, Tuple, Optional, Union
 
 import numpy as np
 from lmfit import Parameters
@@ -22,8 +21,9 @@ def area_of_gaussian(amp: float, fwhm: float) -> float:
     return amp * fwhm / ((1.0 / np.sqrt(2 * np.pi)) * CONVERSION_STD_TO_FWHM)
 
 
-def gaussian(amp: float, fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
-    # TODO: Rename function to single_component_gaussian_model
+def single_component_gaussian_model(
+    amp: float, fwhm: float, mean: float, x: np.ndarray
+) -> np.ndarray:
     """Return results of a Gaussian function.
 
     Parameters
@@ -41,13 +41,12 @@ def gaussian(amp: float, fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
     return amp * np.exp(-4.0 * np.log(2) * (x - mean) ** 2 / fwhm**2)
 
 
-def combined_gaussian(
+def multi_component_gaussian_model(
     amps: Union[List, np.ndarray],
     fwhms: Union[List, np.ndarray],
     means: Union[List, np.ndarray],
     x: np.ndarray,
 ) -> np.ndarray:
-    # TODO: Rename function to multi_component_gaussian_model
     """Return results of the combination of N Gaussian functions.
 
     Parameters
@@ -59,12 +58,12 @@ def combined_gaussian(
 
     Returns
     -------
-    combined_gauss : Combination of N Gaussian functions.
+    modelled_spectrum : Combination of N Gaussian functions.
 
     """
-    modelled_spectrum = x * 0.0
+    modelled_spectrum = np.zeros(x.size)
     for amp, fwhm, mean in zip(amps, fwhms, means):
-        modelled_spectrum += gaussian(amp, fwhm, mean, x)
+        modelled_spectrum += single_component_gaussian_model(amp, fwhm, mean, x)
     return modelled_spectrum
 
 
@@ -78,7 +77,6 @@ def number_of_gaussian_components(params: List) -> int:
     return len(params) // 3
 
 
-# TODO: Identical function in AGD_decomposer -> remove redundancy
 def vals_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter values from LMFIT Parameters object."""
     # if (sys.version_info >= (3, 0)):
@@ -89,7 +87,6 @@ def vals_vec_from_lmfit(lmfit_params):
     return [value.value for value in lmfit_params.values()]
 
 
-# TODO: Identical function in AGD_decomposer -> remove redundancy
 def errs_vec_from_lmfit(lmfit_params):
     """Return Python list of parameter uncertainties from LMFIT Parameters object."""
     # if (sys.version_info >= (3, 0)):

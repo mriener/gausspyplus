@@ -20,8 +20,8 @@ from tqdm import tqdm
 
 from gausspyplus.utils.fit_quality_checks import goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
-    gaussian,
-    combined_gaussian,
+    single_component_gaussian_model,
+    multi_component_gaussian_model,
 )
 from gausspyplus.utils.spectral_cube_functions import get_spectral_axis, correct_header
 from gausspyplus.definitions import Spectrum
@@ -223,7 +223,7 @@ def _plot_individual_components(ax, spectral_channels, channels, spectrum, gauss
     for amp, fwhm, mean in zip(
         spectrum.amplitude_values, spectrum.fwhm_values, spectrum.mean_values
     ):
-        gauss = gaussian(amp, fwhm, mean, channels)
+        gauss = single_component_gaussian_model(amp, fwhm, mean, channels)
         ax.plot(spectral_channels, gauss, ls="solid", lw=1, color="orangered")
 
 
@@ -544,7 +544,7 @@ def plot_spectra(
         )
 
         if data.decomposition or data.training_set:
-            modelled_spectrum = combined_gaussian(
+            modelled_spectrum = multi_component_gaussian_model(
                 amps=spectrum.amplitude_values,
                 fwhms=spectrum.fwhm_values,
                 means=spectrum.mean_values,
@@ -637,7 +637,9 @@ def plot_fit_stages(
     #                       P L O T T I N G
     print(("params_fit:", params_fit))
 
-    best_fit_final = combined_gaussian(*np.split(np.array(params_fit), 3), vel)
+    best_fit_final = multi_component_gaussian_model(
+        *np.split(np.array(params_fit), 3), vel
+    )
 
     if improve_fitting:
         rchi2 = best_fit_info["rchi2"]
@@ -681,7 +683,7 @@ def plot_fit_stages(
     for amp, fwhm, mean in zip(
         agd_phase1["amps"], agd_phase1["FWHMs"], agd_phase1["means"]
     ):
-        ax1.plot(vel, gaussian(amp, fwhm, mean, vel), "-g")
+        ax1.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
 
     # Plot intermediate fit components (Panel 2)
     # ------------------------------------------
@@ -692,7 +694,7 @@ def plot_fit_stages(
     for amp, fwhm, mean in zip(*np.split(np.array(params_fit_phase1), 3)):
         ax2.plot(
             vel,
-            gaussian(amp, fwhm, mean, vel),
+            single_component_gaussian_model(amp, fwhm, mean, vel),
             "-",
             color="blue",
         )
@@ -712,7 +714,7 @@ def plot_fit_stages(
         for amp, fwhm, mean in zip(
             agd_phase2["amps"], agd_phase2["FWHMs"], agd_phase2["means"]
         ):
-            ax3.plot(vel, gaussian(amp, fwhm, mean, vel), "-g")
+            ax3.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
 
     # Plot best-fit model (Panel 4)
     # -----------------------------
@@ -723,7 +725,7 @@ def plot_fit_stages(
         for amp, fwhm, mean in zip(*np.split(np.array(params_fit), 3)):
             ax4.plot(
                 vel,
-                gaussian(amp, fwhm, mean, vel),
+                single_component_gaussian_model(amp, fwhm, mean, vel),
                 "--",
                 color="orange",
             )

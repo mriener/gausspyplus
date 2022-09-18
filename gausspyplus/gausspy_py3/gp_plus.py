@@ -14,7 +14,7 @@ from gausspyplus.utils.determine_intervals import (
 )
 from gausspyplus.utils.fit_quality_checks import determine_significance
 from gausspyplus.utils.gaussian_functions import (
-    combined_gaussian,
+    multi_component_gaussian_model,
     area_of_gaussian,
     split_params,
     number_of_gaussian_components,
@@ -36,7 +36,9 @@ def _perform_least_squares_fit(
     def objective_leastsq(paramslm):
         params = vals_vec_from_lmfit(paramslm)
         resids = (
-            combined_gaussian(*np.split(np.array(params), 3), spectrum.channels).ravel()
+            multi_component_gaussian_model(
+                *np.split(np.array(params), 3), spectrum.channels
+            ).ravel()
             - spectrum.intensity_values.ravel()
         ) / spectrum.noise_values
         return resids
@@ -406,7 +408,7 @@ def _replace_gaussian_with_two_new_ones(
     fwhms_fit.pop(exclude_idx)
     offsets_fit.pop(exclude_idx)
 
-    residual = spectrum.intensity_values - combined_gaussian(
+    residual = spectrum.intensity_values - multi_component_gaussian_model(
         amps_fit, fwhms_fit, offsets_fit, spectrum.channels
     )
 
