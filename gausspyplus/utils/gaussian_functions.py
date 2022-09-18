@@ -146,3 +146,15 @@ def paramvec_to_lmfit(
         )
 
     return params
+
+
+def sort_parameters(amps, fwhms, means, descending: bool = True):
+    """Parameters are sorted according to the amplitude values."""
+    sort_oder = np.argsort(amps)[::-1] if descending else np.argsort(amps)
+    return np.concatenate(
+        [
+            np.array(amps)[sort_oder],
+            np.array(fwhms)[sort_oder],
+            np.array(means)[sort_oder],
+        ]
+    )
