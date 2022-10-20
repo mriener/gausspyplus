@@ -5,7 +5,7 @@ import os
 import pickle
 import textwrap
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple, Union
+from typing import Dict, Optional, List, Tuple, Union, Callable
 
 import numpy as np
 import scipy.ndimage as ndimage
@@ -266,7 +266,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             self._determine_spectra_for_refitting()
 
     def _define_mask(
-        self, key: str, limit: Union[int, float], flag: bool
+        self,
+        key: str,
+        limit: Union[int, float],
+        flag: bool,
+        comparison_func: Callable = np.greater,
     ) -> np.ndarray:
         """Create boolean mask with data values exceeding the defined limits set to 'True'.
 
@@ -277,28 +281,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         key : Dictionary key of the parameter: 'N_blended', 'N_neg_res_peak', or 'best_fit_rchi2'.
         limit : Upper limit of the corresponding value.
         flag : User-defined flag for the corresponding dictionary parameter.
+        comparison_func : Function that compares the array to limit, e.g. np.less or np.greater
 
         Returns
         -------
         mask : Boolean mask with values exceeding 'limit' set to 'True'.
 
         """
-        if not flag:
-            return np.zeros(self.length).astype("bool")
-
-        array = np.array(self.decomposition[key])
-        array[self.nanMask] = 0
-        return array > limit
-
-    def _define_mask_residual(
-        self, key: str, limit: Union[int, float], flag: bool
-    ) -> np.ndarray:
-        if not flag:
-            return np.zeros(self.length).astype("bool")
-
-        array = np.array(self.decomposition[key])
-        array[self.nanMask] = limit
-        return array < limit
+        return (
+            comparison_func(
+                np.where(self.nanMask, limit, self.decomposition[key]),
+                limit,
+            )
+            if flag
+            else np.zeros(self.length, dtype=bool)
+        )
 
     def _define_mask_broad_limit(self) -> np.ndarray:
         # TODO: Can _define_mask_broad_limit be combined with _broad_components?
@@ -432,8 +429,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self.mask_rchi2_flagged = self._define_mask(
             "best_fit_rchi2", self.rchi2_limit, self.flag_rchi2
         )
-        self.mask_residual = self._define_mask_residual(
-            "pvalue", self.min_pvalue, self.flag_residual
+        self.mask_residual = self._define_mask(
+            "pvalue", self.min_pvalue, self.flag_residual, comparison_func=np.less
         )
         self.mask_broad_flagged = (
             self._define_mask_broad()
