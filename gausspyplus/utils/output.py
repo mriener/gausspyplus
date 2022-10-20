@@ -6,53 +6,6 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 
 
-def check_if_value_is_none(
-    condition, value, varname_condition, varname_value, additional_text=""
-):
-    """Raise error message if no value is supplied for a selected condition.
-
-    The error message is raised if the condition is 'True' and the value is 'None'.
-
-    Parameters
-    ----------
-    condition : bool
-        Selected condition.
-    value : type
-        Value for the condition.
-    varname_condition : str
-        Variable name of `condition`.
-    varname_value : str
-        Variable name of `value`.
-
-    """
-    if condition and (value is None):
-        raise Exception(
-            f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}"
-        )
-
-
-def check_if_all_values_are_none(value1, value2, varname_value1, varname_value2):
-    # TODO: refactor check_if_all_values_are_none with f strings to avoid repeated variable name
-    """Raise error message if both values are 'None'.
-
-    Parameters
-    ----------
-    value1 : type
-        Description of parameter `value1`.
-    value2 : type
-        Description of parameter `value2`.
-    varname_value1 : str
-        Variable name of `value1`.
-    varname_value2 : str
-        Variable name of `value2`.
-
-    """
-    if (value1 is None) and (value2 is None):
-        raise Exception(
-            f"Need to specify either '{varname_value1}' or '{varname_value2}'."
-        )
-
-
 def set_up_logger(
     parentDirname: Union[str, Path], filename: str, method: str = "g+_decomposition"
 ) -> logging.Logger:

@@ -23,6 +23,7 @@ from gausspyplus.gausspy_py3.gp_plus import (
     get_best_fit_model,
 )
 from gausspyplus.model import Model
+from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     merge_overlapping_intervals,
     get_slice_indices_for_interval,
@@ -39,7 +40,7 @@ from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 from gausspyplus.definitions import SettingsDefault, SettingsSpatialFitting
 
 
-class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
+class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def __init__(
         self,
         path_to_pickle_file: Optional[Union[str, Path]] = None,
@@ -63,69 +64,51 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting):
 
     def _check_settings(self) -> None:
         """Check user settings and raise error messages or apply corrections."""
-        if self.path_to_pickle_file is None:
-            raise Exception("Need to specify 'path_to_pickle_file'")
-        if self.path_to_decomp_file is None:
-            raise Exception("Need to specify 'path_to_decomp_file'")
+        self.raise_exception_if_attribute_is_none("path_to_pickle_file")
+        self.raise_exception_if_attribute_is_none("path_to_decomp_file")
         self.decomp_dirname = os.path.dirname(self.path_to_decomp_file)
         self.file = os.path.basename(self.path_to_decomp_file)
         self.filename, self.file_extension = os.path.splitext(self.file)
 
         if self.fin_filename is None:
-            suffix = "_sf-p1"
-            self.fin_filename = (
-                self.filename + suffix + ("" if self.suffix is None else self.suffix)
+            self.fin_filename = f"{self.filename}_sf-p1" + (
+                "" if self.suffix is None else self.suffix
             )
+
             if self.phase_two:
-                suffix = "_sf-p2"
                 if self.filename.endswith("_sf-p1"):
                     self.fin_filename = self.filename.replace("_sf-p1", "_sf-p2") + (
                         "" if self.suffix is None else self.suffix
                     )
                 else:
-                    self.fin_filename = (
-                        self.filename
-                        + suffix
-                        + ("" if self.suffix is None else self.suffix)
+                    self.fin_filename = f"{self.filename}_sf-p2" + (
+                        "" if self.suffix is None else self.suffix
                     )
 
-        if self.dirpath_gpy is None:
-            self.dirpath_gpy = os.path.dirname(self.decomp_dirname)
-
-        if self.rchi2_limit_refit is None:
-            self.rchi2_limit_refit = self.rchi2_limit
-        if self.fwhm_factor_refit is None:
-            self.fwhm_factor_refit = self.fwhm_factor
-
-        if all(
-            refit is False
-            for refit in [
-                self.refit_blended,
-                self.refit_neg_res_peak,
-                self.refit_rchi2,
-                self.refit_residual,
-                self.refit_broad,
-                self.refit_ncomps,
+        self.set_attribute_if_none("dirpath_gpy", os.path.dirname(self.decomp_dirname))
+        self.set_attribute_if_none("rchi2_limit_refit", self.rchi2_limit)
+        self.set_attribute_if_none("fwhm_factor_refit", self.fwhm_factor)
+        self.set_attribute_if_none("flag_blended", self.refit_blended)
+        self.set_attribute_if_none("flag_neg_res_peak", self.refit_neg_res_peak)
+        self.set_attribute_if_none("flag_rchi2", self.refit_rchi2)
+        self.set_attribute_if_none("flag_residual", self.refit_residual)
+        self.set_attribute_if_none("flag_broad", self.refit_broad)
+        self.set_attribute_if_none("flag_ncomps", self.refit_ncomps)
+        self.raise_exception_if_all_attributes_are_none_or_false(
+            [
+                "refit_blended",
+                "refit_neg_res_peak",
+                "refit_rchi2",
+                "refit_residual",
+                "refit_broad",
+                "refit_ncomps",
             ]
-        ):
-            raise Exception("Need to set at least one 'refit_*' parameter to 'True'")
-
-        if self.flag_blended is None:
-            self.flag_blended = self.refit_blended
-        if self.flag_neg_res_peak is None:
-            self.flag_neg_res_peak = self.refit_neg_res_peak
-        if self.flag_rchi2 is None:
-            self.flag_rchi2 = self.refit_rchi2
-        if self.flag_rchi2 and (self.rchi2_limit is None):
-            raise Exception(
-                "Need to set 'rchi2_limit' if 'flag_rchi2=True' or 'refit_rchi2=True'"
+        )
+        if self.flag_rchi2:
+            self.raise_exception_if_attribute_is_none(
+                "rchi2_limit",
+                error_message="You need to set 'rchi2_limit' if 'flag_rchi2=True' or 'refit_rchi2=True'.",
             )
-        if self.flag_residual is None:
-            self.flag_residual = self.refit_residual
-        if self.flag_broad is None:
-            self.flag_broad = self.refit_broad
-        if self.flag_ncomps is None:
-            self.flag_ncomps = self.refit_ncomps
 
     def _initialize(self) -> None:
         """Read in data files and initialize parameters."""

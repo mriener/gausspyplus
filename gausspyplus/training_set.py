@@ -13,6 +13,7 @@ from astropy.modeling import models, fitting, optimizers
 from scipy.signal import argrelextrema
 
 from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     get_signal_ranges,
     get_noise_spike_ranges,
@@ -34,7 +35,7 @@ from gausspyplus.definitions import FitResults, SettingsDefault, SettingsTrainin
 optimizers.DEFAULT_MAXITER = 1000  # set maximum iterations for SLSQPLSQFitter
 
 
-class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
+class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
     def __init__(self, config_file=""):
         self.path_to_file = None
         self.path_to_noise_map = None
@@ -77,9 +78,9 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
 
     @functools.cached_property
     def filename_in(self):
-        return (
-            self.filename if self.filename is not None else Path(self.path_to_file).stem
-        )
+        return Path(
+            self.filename if self.filename is not None else Path(self.path_to_file)
+        ).stem
 
     @functools.cached_property
     def input_file_type(self):
@@ -179,10 +180,8 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining):
         print(f"\n\033[92mSAVED FILE:\033[0m '{filename}' in '{str(dirpath_out)}'")
 
     def decompose_spectra(self):
-        if self.path_to_file is None:
-            raise Exception("'path_to_file' needs to be specified")
-        if self.rchi2_limit is None:
-            raise Exception("'rchi2_limit' needs to be specified")
+        self.raise_exception_if_attribute_is_none("path_to_file")
+        self.raise_exception_if_attribute_is_none("rchi2_limit")
         if self.verbose:
             print(f"decompose {self.n_spectra} spectra ...")
         if self.random_seed is not None:

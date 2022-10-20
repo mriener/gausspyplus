@@ -16,18 +16,60 @@ from astropy.wcs import WCS
 from datetime import datetime, timezone
 from tqdm import tqdm
 
-from gausspyplus.utils.output import (
-    check_if_value_is_none,
-    check_if_all_values_are_none,
-    format_warning,
-    say,
-)
+from gausspyplus.utils.output import format_warning, say
 from gausspyplus.utils.noise_estimation import (
     determine_maximum_consecutive_channels,
     determine_noise,
 )
 
 warnings.showwarning = format_warning
+
+
+def _check_if_value_is_none(
+    condition, value, varname_condition, varname_value, additional_text=""
+):
+    """Raise error message if no value is supplied for a selected condition.
+
+    The error message is raised if the condition is 'True' and the value is 'None'.
+
+    Parameters
+    ----------
+    condition : bool
+        Selected condition.
+    value : type
+        Value for the condition.
+    varname_condition : str
+        Variable name of `condition`.
+    varname_value : str
+        Variable name of `value`.
+
+    """
+    if condition and (value is None):
+        raise Exception(
+            f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}"
+        )
+
+
+def _check_if_all_values_are_none(value1, value2, varname_value1, varname_value2):
+    # TODO: refactor _check_if_all_values_are_none with f strings to avoid repeated variable name
+    """Raise error message if both values are 'None'.
+
+    Parameters
+    ----------
+    value1 : type
+        Description of parameter `value1`.
+    value2 : type
+        Description of parameter `value2`.
+    varname_value1 : str
+        Variable name of `value1`.
+    varname_value2 : str
+        Variable name of `value2`.
+
+    """
+    if (value1 is None) and (value2 is None):
+        raise Exception(
+            f"Need to specify either '{varname_value1}' or '{varname_value2}'."
+        )
 
 
 def _transform_header_from_crota_to_pc(header: fits.Header) -> fits.Header:
@@ -406,8 +448,8 @@ def _get_axis(
         The (unitless) wcs axis of the spectral cube, converted to 'to_unit' (if specified).
 
     """
-    check_if_all_values_are_none(header, wcs, "header", "wcs")
-    check_if_all_values_are_none(header, channels, "header", "channels")
+    _check_if_all_values_are_none(header, wcs, "header", "wcs")
+    _check_if_all_values_are_none(header, channels, "header", "channels")
     if header:
         wcs = WCS(header)
         key = f"NAXIS{axis}"
@@ -603,7 +645,7 @@ def get_list_slice_params(
         List containing slicing parameters for all three axes ('NAXIS1', 'NAXIS2', 'NAXIS3') of the FITS cube.
 
     """
-    check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
+    _check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
 
     if path_to_file is not None:
         hdu = fits.open(path_to_file)[0]
@@ -877,8 +919,8 @@ def spatial_smoothing(
         Updated header of the FITS cube.
 
     """
-    check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
-    check_if_all_values_are_none(
+    _check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
+    _check_if_all_values_are_none(
         current_resolution, target_resolution, "current_resolution", "target_resolution"
     )
 
@@ -991,7 +1033,7 @@ def spectral_smoothing(
         Updated header of the FITS cube.
 
     """
-    check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
+    _check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
 
     wcs = WCS(header)
     # cube = SpectralCube(data=data, wcs=wcs, header=header)
@@ -1112,7 +1154,7 @@ def add_noise(
     """
     print(f"\nadding noise (rms = {average_rms}) to data...")
 
-    check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
+    _check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
 
     np.random.seed(random_seed)
 
@@ -1222,7 +1264,7 @@ def make_subcube(
     """
     print(f"\nmaking subcube with the slice parameters {slice_params}...")
 
-    check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
+    _check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
 
     if path_to_file is not None:
         hdu = fits.open(path_to_file)[0]
@@ -1562,8 +1604,8 @@ def moment_map(
     """
     print(f"\ncreate a moment{order} fits file from the cube")
 
-    check_if_value_is_none(restore_nans, nan_mask, "restore_nans", "nan_mask")
-    check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
+    _check_if_value_is_none(restore_nans, nan_mask, "restore_nans", "nan_mask")
+    _check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
 
     if hdu is None:
         hdu = open_fits_file(path_to_file, get_hdu=True)
@@ -1724,7 +1766,7 @@ def pv_map(
     """
     print("\ncreate a PV fits file from the cube")
 
-    check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
+    _check_if_all_values_are_none(hdu, path_to_file, "hdu", "path_to_file")
 
     if hdu is None:
         hdu = open_fits_file(path_to_file, get_hdu=True)
@@ -1869,7 +1911,7 @@ def combine_fields(
         FITS header of the combined mosaic.
 
     """
-    check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
+    _check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
 
     combined_rows = []
 
