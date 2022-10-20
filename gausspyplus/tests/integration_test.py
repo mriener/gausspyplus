@@ -155,11 +155,11 @@ def test_spatial_fitting_phase_1():
     #  changed substantially with np.allclose -> if not, the values from the previous iteration should be kept
     # TODO: check whether refit_iteration tracks the number of how often a spectrum has been refit
     expected_values = [
-        2,
-        274,
-        4120.289339690797,
-        603.782311784271,
-        42,
+        1,
+        272,
+        4210.279292558555,
+        572.5082530900359,
+        0,
     ]
     actual_values = [
         sp.refitting_iteration,
@@ -206,11 +206,11 @@ def test_spatial_fitting_phase_2():
         data_spatial_fitted_phase_2 = pickle.load(pfile)
 
     expected_values = [
-        8,
-        273,
-        4121.091273601258,
-        592.8518512079702,
-        2,
+        6,
+        272,
+        4210.279292558555,
+        572.5082530900359,
+        0,
     ]
     actual_values = [
         sp.refitting_iteration,

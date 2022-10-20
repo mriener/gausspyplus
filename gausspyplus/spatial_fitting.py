@@ -135,6 +135,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self.noiseSpikeRanges = pickledData["noise_spike_ranges"]
 
         with open(self.path_to_decomp_file, "rb") as pickle_file:
+            # TODO: It could make sense to already cast quantities to numpy arrays here
             self.decomposition = pickle.load(pickle_file, encoding="latin1")
 
         self.nIndices = len(self.decomposition["index_fit"])
@@ -378,47 +379,36 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         """
         if not flag:
-            return np.zeros(self.length).astype("bool"), None, None
+            return np.zeros(self.length, dtype=bool), None, None
 
-        nanmask_1d = self.nanMask
-        nanmask_2d = nanmask_1d.reshape(self.shape)
-        ncomps_1d = np.empty(self.length)
-        ncomps_1d.fill(np.nan)
-        ncomps_1d[~self.nanMask] = np.array(self.decomposition["N_components"])[
-            ~self.nanMask
-        ]
-        ncomps_2d = ncomps_1d.astype("float").reshape(self.shape)
-        ncomps_2d[nanmask_2d] = np.nan
-
-        mask_neighbor = np.zeros(self.length)
+        self.ncomps = np.where(
+            self.nanMask,
+            np.nan,
+            np.array(self.decomposition["N_components"], dtype=float),
+        )
 
         ncomps_wmedian = ndimage.generic_filter(
-            input=ncomps_2d,
+            input=self.ncomps.reshape(self.shape),
             function=weighted_median,
             footprint=np.ones((3, 3)),
             mode="constant",
             cval=np.nan,
         ).flatten()
-        mask_neighbor[~self.nanMask] = (
-            ncomps_wmedian[~self.nanMask] > self.max_diff_comps
-        )
 
         ncomps_jumps = ndimage.generic_filter(
-            input=ncomps_2d,
+            input=self.ncomps.reshape(self.shape),
             function=number_of_component_jumps,
             footprint=np.ones((3, 3)),
             mode="reflect",
             cval=np.nan,
             extra_arguments=(self.max_jump_comps,),
         ).flatten()
-        mask_neighbor[~self.nanMask] = (
-            ncomps_jumps[~self.nanMask] > self.n_max_jump_comps
+
+        mask_neighbor = np.logical_or(
+            np.where(self.nanMask, False, ncomps_wmedian > self.max_diff_comps),
+            np.where(self.nanMask, False, ncomps_jumps > self.n_max_jump_comps),
         )
-
-        mask_neighbor = mask_neighbor.astype("bool")
-
-        # TODO: check the return type: above 3 params are returned but in the following 4??
-        return mask_neighbor, ncomps_wmedian, ncomps_jumps, ncomps_1d
+        return mask_neighbor, ncomps_wmedian, ncomps_jumps
 
     def determine_spectra_for_flagging(self) -> None:
         """Flag spectra not satisfying user-defined flagging criteria."""
@@ -446,7 +436,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             self.mask_ncomps,
             self.ncomps_wmedian,
             self.ncomps_jumps,
-            self.ncomps,
+            # self.ncomps,
         ) = self._define_mask_neighbor_ncomps(self.flag_ncomps)
 
         if self._finalize:
