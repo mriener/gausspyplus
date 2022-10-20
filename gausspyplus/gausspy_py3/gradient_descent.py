@@ -1,9 +1,3 @@
-# @Author: Robert Lindner
-# @Date:   Nov 10, 2014
-# @Filename: gradient_descent.py
-# @Last modified by:   riener
-# @Last modified time: 2019-04-08T10:50:41+02:00
-
 # Script to train parameters alpha1 and alpha2
 
 import inspect
@@ -11,7 +5,7 @@ import multiprocessing
 import numpy as np
 
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
-from . import AGD_decomposer
+from gausspyplus.gausspy_py3 import AGD_decomposer
 import signal
 
 from gausspyplus.utils.output import say
@@ -46,14 +40,10 @@ def compare_parameters(guess_params, true_params):
     true_params  = list of 3xN parameters for the N true Gaussians"""
 
     # Extract parameters
-    n_true = int(len(true_params) / 3)
-    n_guess = int(len(guess_params) / 3)
-    guess_amps = guess_params[0:n_guess]
-    guess_FWHMs = guess_params[n_guess : 2 * n_guess]
-    guess_offsets = guess_params[2 * n_guess : 3 * n_guess]
-    true_amps = true_params[0:n_true]
-    true_FWHMs = true_params[n_true : 2 * n_true]
-    true_offsets = true_params[2 * n_true : 3 * n_true]
+    n_true = len(true_params) // 3
+    n_guess = len(guess_params) // 3
+    guess_amps, guess_FWHMs, guess_offsets = np.split(np.array(guess_params), 3)
+    true_amps, true_FWHMs, true_offsets = np.split(np.array(true_params), 3)
 
     truth_matrix = np.zeros([n_true, n_guess], dtype="int")
     # truth_matrix[i,j] = 1 if guess "j" is a correct match to true component "i"
@@ -162,7 +152,7 @@ def objective_function(
     return -np.log(accuracy)
 
 
-class gradient_descent(object):
+class GradientDescent(object):
     """Bookkeeping object."""
 
     def __init__(self, iterations):
@@ -245,7 +235,7 @@ def train(
     amps = training_data["amplitudes"]
 
     # Initialize book-keeping object
-    gd = gradient_descent(iterations)
+    gd = GradientDescent(iterations)
     gd.alpha1_trace[0] = alpha1_initial
     gd.alpha2_trace[0] = alpha2_initial
 
@@ -418,7 +408,3 @@ def train(
 
     # Return best-fit alphas, and bookkeeping object
     return gd.alpha1means1[i], gd.alpha2means1[i], gd
-
-
-if __name__ == "__main__":
-    pass
