@@ -12,6 +12,7 @@ from astropy.wcs import WCS
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians
+from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.fit_quality_checks import negative_residuals
 from gausspyplus.utils.gaussian_functions import (
     single_component_gaussian_model,
@@ -30,7 +31,7 @@ from gausspyplus.utils.spectral_cube_functions import (
 from gausspyplus.spatial_fitting import SpatialFitting
 
 
-class Finalize(object):
+class Finalize(BaseChecks):
     def __init__(
         self,
         path_to_pickle_file: Optional[Union[str, Path]] = None,
@@ -71,23 +72,14 @@ class Finalize(object):
 
     def check_settings(self):
         """Check user settings and raise error messages or apply corrections."""
-        if self.path_to_pickle_file is None:
-            raise Exception("Need to specify 'path_to_pickle_file'")
-        if self.path_to_decomp_file is None:
-            raise Exception("Need to specify 'path_to_decomp_file'")
+        self.raise_exception_if_attribute_is_none("path_to_pickle_file")
+        self.raise_exception_if_attribute_is_none("path_to_decomp_file")
         self.decomp_dirname = os.path.dirname(self.path_to_decomp_file)
         self.file = os.path.basename(self.path_to_decomp_file)
         self.filename, self.file_extension = os.path.splitext(self.file)
-
-        if self.fin_filename is None:
-            suffix = "_finalized"
-            self.fin_filename = self.filename + suffix
-
-        if self.dirpath_gpy is None:
-            self.dirpath_gpy = os.path.dirname(self.decomp_dirname)
-
-        if self.dirpath_table is None:
-            self.dirpath_table = self.decomp_dirname
+        self.set_attribute_if_none("fin_filename", f"{self.filename}_finalized")
+        self.set_attribute_if_none("dirpath_gpy", os.path.dirname(self.decomp_dirname))
+        self.set_attribute_if_none("dirpath_table", self.decomp_dirname)
 
     def initialize(self):
         """Read in data files and initialize parameters."""

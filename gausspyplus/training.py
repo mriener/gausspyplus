@@ -3,23 +3,20 @@
 #  lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must
 #  specify 'dtype=object' when creating the ndarray.
 import functools
-import warnings
 from pathlib import Path
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3 import gp as gp
+from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.output import (
-    format_warning,
     set_up_logger,
     say,
     make_pretty_header,
 )
 from gausspyplus.definitions import SettingsDefault, SettingsTraining
 
-warnings.showwarning = format_warning
 
-
-class GaussPyTraining(SettingsDefault, SettingsTraining):
+class GaussPyTraining(SettingsDefault, SettingsTraining, BaseChecks):
     def __init__(self, config_file=""):
         self.path_to_training_set = None
         self.gpy_dirpath = None
@@ -42,18 +39,9 @@ class GaussPyTraining(SettingsDefault, SettingsTraining):
         )
 
     def training(self):
-        if self.path_to_training_set is None:
-            raise Exception("Need to specify 'path_to_training_set'")
-        if self.alpha1_initial is None:
-            self.alpha1_initial = 3.0
-            warnings.warn(
-                f"No value for 'alpha1_initial' supplied. Setting {self.alpha1_initial=}."
-            )
-        if self.two_phase_decomposition and self.alpha2_initial is None:
-            self.alpha2_initial = 6.0
-            warnings.warn(
-                f"No value for 'alpha2_initial' supplied. Setting {self.alpha2_initial=}."
-            )
+        self.raise_exception_if_attribute_is_none("path_to_training_set")
+        self.set_attribute_if_none("alpha1_initial", 3.0, show_warning=True)
+        self.set_attribute_if_none("alpha2_initial", 6.0, show_warning=True)
         say(
             message=make_pretty_header("GaussPy training"),
             verbose=self.verbose,

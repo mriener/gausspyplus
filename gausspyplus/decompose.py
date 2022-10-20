@@ -8,6 +8,7 @@ from astropy import units as u
 from astropy.wcs import WCS
 
 from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.spectral_cube_functions import correct_header
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 from gausspyplus.definitions import (
@@ -17,7 +18,7 @@ from gausspyplus.definitions import (
 )
 
 
-class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
+class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
     """Decompose spectra with GaussPy+."""
 
     def __init__(self, path_to_pickle_file=None, config_file=""):
@@ -166,8 +167,7 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
                 self.use_ncpus = 1
 
     def check_settings(self):
-        if self.path_to_pickle_file is None:
-            raise Exception("Need to specify 'path_to_pickle_file'")
+        self.raise_exception_if_attribute_is_none("path_to_pickle_file")
 
         if self.main_beam_efficiency is None:
             warnings.warn(
@@ -193,10 +193,10 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
                 os.remove("batchdecomp_temp.pickle")
 
     def decomposition_settings(self):
-        self.snr_negative = self.snr if self.snr_negative is None else self.snr_negative
-        self.snr_fit = self.snr / 2 if self.snr_fit is None else self.snr_fit
-        self.snr_thresh = self.snr if self.snr_thresh is None else self.snr_thresh
-        self.snr2_thresh = self.snr if self.snr2_thresh is None else self.snr2_thresh
+        self.set_attribute_if_none("snr_negative", self.snr)
+        self.set_attribute_if_none("snr_fit", self.snr / 2)
+        self.set_attribute_if_none("snr_thresh", self.snr)
+        self.set_attribute_if_none("snr2_thresh", self.snr)
 
         string_gausspy = str(
             "\ndecomposition settings:"
@@ -223,11 +223,9 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition):
         say(string_gausspy_plus, logger=self.logger)
 
     def start_decomposition(self):
-        if self.alpha1 is None:
-            raise Exception("Need to specify 'alpha1' for decomposition.")
-
-        if self.two_phase_decomposition and (self.alpha2 is None):
-            raise Exception("Need to specify 'alpha2' for 'two_phase_decomposition'.")
+        self.raise_exception_if_attribute_is_none("alpha1")
+        if self.two_phase_decomposition:
+            self.raise_exception_if_attribute_is_none("alpha2")
 
         self.decomposition_settings()
         say("\ndecomposing data...", logger=self.logger)

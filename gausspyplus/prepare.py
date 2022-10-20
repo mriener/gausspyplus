@@ -14,6 +14,7 @@ from gausspyplus.definitions import (
     SettingsDefault,
     SettingsPreparation,
 )
+from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     get_signal_ranges,
     get_noise_spike_ranges,
@@ -26,8 +27,6 @@ from gausspyplus.utils.noise_estimation import (
 )
 from gausspyplus.utils.output import (
     set_up_logger,
-    check_if_all_values_are_none,
-    check_if_value_is_none,
     say,
     make_pretty_header,
 )
@@ -39,7 +38,7 @@ from gausspyplus.utils.spectral_cube_functions import (
 )
 
 
-class GaussPyPrepare(SettingsDefault, SettingsPreparation):
+class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
     def __init__(
         self,
         path_to_file=None,
@@ -58,23 +57,21 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation):
             get_values_from_config_file(self, config_file, config_key="preparation")
 
     def check_settings(self):
-        text = "specify 'data_location' as (y, x) for 'testing'"
-        check_if_value_is_none(
-            self.testing,
-            self.data_location,
-            "testing",
-            "data_location",
-            additional_text=text,
+        if self.testing:
+            self.raise_exception_if_attribute_is_none(
+                "data_location",
+                error_message="You need to specify 'data_location' as (y_pixel, x_pixel) for 'testing'.",
+            )
+        if self.simulation:
+            self.raise_exception_if_attribute_is_none("average_rms")
+        self.raise_exception_if_all_attributes_are_none_or_false(
+            ["path_to_file", "hdu"]
         )
-        check_if_value_is_none(
-            self.simulation, self.average_rms, "simulation", "average_rms"
+        self.raise_exception_if_all_attributes_are_none_or_false(
+            ["path_to_file", "dirpath_gpy"]
         )
-        check_if_all_values_are_none(self.path_to_file, self.hdu, "path_to_file", "hdu")
-        check_if_all_values_are_none(
-            self.path_to_file, self.dirpath_gpy, "path_to_file", "dirpath_gpy"
-        )
-        check_if_all_values_are_none(
-            self.path_to_file, self.filename, "path_to_file", "filename"
+        self.raise_exception_if_all_attributes_are_none_or_false(
+            ["path_to_file", "filename"]
         )
 
         if self.testing:
@@ -89,18 +86,14 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation):
 
     @functools.cached_property
     def filename_in(self):
-        return (
-            self.filename if self.filename is not None else Path(self.path_to_file).stem
-        )
+        self.set_attribute_if_none("filename", Path(self.path_to_file).stem)
+        return self.filename
 
     @functools.cached_property
     def dirpath(self):
         # TODO: homogenize attributes self.dirpath_gpy (used here) and self.gpy_dirpath (used in training_set)
-        return (
-            self.dirpath_gpy
-            if self.dirpath_gpy is not None
-            else Path(self.path_to_file).parent
-        )
+        self.set_attribute_if_none("dirpath_gpy", Path(self.path_to_file).parent)
+        return self.dirpath_gpy
 
     @functools.cached_property
     def logger(self):
