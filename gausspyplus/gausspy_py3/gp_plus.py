@@ -99,8 +99,7 @@ def remove_components_from_sublists(lst: List, remove_indices: List[int]) -> Lis
 
 
 def _remove_components_above_max_ncomps(
-    amps_fit: List,
-    fwhms_fit: List,
+    params_fit: List,
     ncomps_max: int,
     remove_indices: List[int],
     quality_control: List[int],
@@ -123,16 +122,14 @@ def _remove_components_above_max_ncomps(
         fulfilled.
 
     """
+    amps_fit, fwhms_fit, _ = np.split(np.array(params_fit), 3)
     ncomps_fit = len(amps_fit)
     if ncomps_fit <= ncomps_max:
         return remove_indices, quality_control
-    integrated_intensities = area_of_gaussian(
-        amp=np.array(amps_fit), fwhm=np.array(fwhms_fit)
-    )
-    indices = np.array(range(len(integrated_intensities)))
+    integrated_intensities = area_of_gaussian(amp=amps_fit, fwhm=fwhms_fit)
     sort_indices = np.argsort(integrated_intensities)
 
-    for index in indices[sort_indices]:
+    for index in np.arange(ncomps_fit)[sort_indices]:
         if index in remove_indices:
             continue
         remove_indices.append(index)
@@ -148,7 +145,7 @@ def _check_params_fit(
     spectrum: namedtuple,
     params_fit: List,
     params_errs: List,
-    settings_improve_fit: SettingsImproveFit,
+    settings: SettingsImproveFit,
     quality_control: List[int],
     params_min: Optional[List] = None,
     params_max: Optional[List] = None,
@@ -187,58 +184,29 @@ def _check_params_fit(
         quality control parameters.
 
     """
-    ncomps_fit = number_of_gaussian_components(params=params_fit)
-
-    amps_fit, fwhms_fit, offsets_fit = split_params(
-        params=params_fit, ncomps=ncomps_fit
-    )
-    amps_errs, fwhms_errs, offsets_errs = split_params(
-        params=params_errs, ncomps=ncomps_fit
-    )
-    if params_min is not None:
-        amps_min, fwhms_min, offsets_min = split_params(
-            params=params_min, ncomps=ncomps_fit
-        )
-    if params_max is not None:
-        amps_max, fwhms_max, offsets_max = split_params(
-            params=params_max, ncomps=ncomps_fit
-        )
-
     #  check if Gaussian components satisfy quality criteria
-
     remove_indices = []
-    for i, (amp, fwhm, offset) in enumerate(zip(amps_fit, fwhms_fit, offsets_fit)):
-        if (
-            settings_improve_fit.max_fwhm is not None
-            and fwhm > settings_improve_fit.max_fwhm
-        ):
+    for i, (amp, fwhm, offset) in enumerate(zip(*np.split(np.array(params_fit), 3))):
+        if settings.max_fwhm is not None and fwhm > settings.max_fwhm:
             remove_indices.append(i)
             quality_control.append(0)
             continue
 
-        if (
-            settings_improve_fit.min_fwhm is not None
-            and fwhm < settings_improve_fit.min_fwhm
-        ):
+        if settings.min_fwhm is not None and fwhm < settings.min_fwhm:
             remove_indices.append(i)
             quality_control.append(1)
             continue
 
         #  discard the Gaussian component if its amplitude value does not satisfy the required minimum S/N value or is larger than the limit
-        if amp < settings_improve_fit.snr_fit * spectrum.rms_noise:
+        if amp < settings.snr_fit * spectrum.rms_noise:
             remove_indices.append(i)
             quality_control.append(2)
             continue
 
-        # if amp > settings_improve_fit.max_amp:
-        #     remove_indices.append(i)
-        #     quality_control.append(3)
-        #     continue
-
         #  discard the Gaussian component if it does not satisfy the significance criterion
         if (
             determine_significance(amp, fwhm, spectrum.rms_noise)
-            < settings_improve_fit.significance
+            < settings.significance
         ):
             remove_indices.append(i)
             quality_control.append(3)
@@ -261,17 +229,16 @@ def _check_params_fit(
                 spectrum=spectrum.intensity_values,
                 rms=spectrum.rms_noise,
                 ranges=[(low, upp)],
-                snr=settings_improve_fit.snr,
-                significance=settings_improve_fit.significance,
+                snr=settings.snr,
+                significance=settings.significance,
             ):
                 remove_indices.append(i)
                 quality_control.append(5)
 
-    if settings_improve_fit.max_ncomps is not None:
+    if settings.max_ncomps is not None:
         remove_indices, quality_control = _remove_components_above_max_ncomps(
-            amps_fit=amps_fit,
-            fwhms_fit=fwhms_fit,
-            ncomps_max=settings_improve_fit.max_ncomps,
+            params_fit=params_fit,
+            ncomps_max=settings.max_ncomps,
             remove_indices=remove_indices,
             quality_control=quality_control,
         )
@@ -279,32 +246,18 @@ def _check_params_fit(
     refit = False
 
     if remove_indices := list(set(remove_indices)):
-        amps_fit, fwhms_fit, offsets_fit = remove_components_from_sublists(
-            lst=[amps_fit, fwhms_fit, offsets_fit], remove_indices=remove_indices
-        )
-        params_fit = amps_fit + fwhms_fit + offsets_fit
-
-        amps_errs, fwhms_errs, offsets_errs = remove_components_from_sublists(
-            lst=[amps_errs, fwhms_errs, offsets_errs], remove_indices=remove_indices
-        )
-        params_errs = amps_errs + fwhms_errs + offsets_errs
+        params_fit = remove_components(params_fit, remove_indices=remove_indices)
 
         if params_min is not None:
-            amps_min, fwhms_min, offsets_min = remove_components_from_sublists(
-                lst=[amps_min, fwhms_min, offsets_min], remove_indices=remove_indices
-            )
-            params_min = amps_min + fwhms_min + offsets_min
+            params_min = remove_components(params_min, remove_indices=remove_indices)
 
         if params_max is not None:
-            amps_max, fwhms_max, offsets_max = remove_components_from_sublists(
-                lst=[amps_max, fwhms_max, offsets_max], remove_indices=remove_indices
-            )
-            params_max = amps_max + fwhms_max + offsets_max
+            params_max = remove_components(params_max, remove_indices=remove_indices)
 
         params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
             spectrum=spectrum,
             params_fit=params_fit,
-            settings_improve_fit=settings_improve_fit,
+            settings_improve_fit=settings,
             params_min=params_min,
             params_max=params_max,
         )
@@ -314,7 +267,7 @@ def _check_params_fit(
     return (
         params_fit,
         params_errs,
-        ncomps_fit,
+        len(params_fit) // 3,
         params_min,
         params_max,
         quality_control,
@@ -527,13 +480,12 @@ def get_fully_blended_gaussians(
         Indices of fitted Gaussian components that satisfy the criterion for blendedness, sorted from lowest to highest amplitude values.
 
     """
-    ncomps_fit = number_of_gaussian_components(params_fit)
-    amps_fit, fwhms_fit, offsets_fit = split_params(params_fit, ncomps_fit)
+    amps_fit, fwhms_fit, offsets_fit = np.split(np.array(params_fit), 3)
     indices_blended = np.array([])
 
     N_blended = 0
 
-    for idx1, idx2 in itertools.combinations(range(ncomps_fit), 2):
+    for idx1, idx2 in itertools.combinations(range(amps_fit.size), 2):
         min_separation = min(fwhms_fit[idx1], fwhms_fit[idx2]) * separation_factor
         separation = abs(offsets_fit[idx1] - offsets_fit[idx2])
 
@@ -551,49 +503,34 @@ def get_fully_blended_gaussians(
     return indices_blended[sort]
 
 
-def _return_as_list(var: Any) -> List:
-    if isinstance(var, np.ndarray):
-        var = list(var)
-    elif not isinstance(var, list):
-        var = [var]
-    return var
-
-
 # TODO: Identical function in utils.grouping_functions -> remove redundancy; this function is imported also by
 #  spatial_fitting.py
 def remove_components(
-    params_fit: List, remove_indices: Union[int, List, np.ndarray]
+    params: Union[List, np.ndarray], remove_indices: Union[int, List, np.ndarray]
 ) -> List:
     """Remove parameters of Gaussian fit components.
 
     Parameters
     ----------
-    params_fit : list
+    params : list
         Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
     remove_indices : int, list, np.ndarray
         Indices of Gaussian fit components, whose parameters should be removed from params_fit.
 
     Returns
     -------
-    params_fit : list
+    params : list
         Updated list from which the parameters of the selected Gaussian fit components were removed.
 
     """
-    ncomps_fit = number_of_gaussian_components(params_fit)
-    amps_fit, fwhms_fit, offsets_fit = split_params(
-        params=params_fit, ncomps=ncomps_fit
+    amps, fwhms, offsets = np.split(np.array(params), 3)
+    if not isinstance(remove_indices, (np.ndarray, list)):
+        remove_indices = [remove_indices]
+    return (
+        [amp for idx, amp in enumerate(amps) if idx not in remove_indices]
+        + [fwhm for idx, fwhm in enumerate(fwhms) if idx not in remove_indices]
+        + [offset for idx, offset in enumerate(offsets) if idx not in remove_indices]
     )
-
-    remove_indices = _return_as_list(remove_indices)
-
-    amps_fit = [amp for idx, amp in enumerate(amps_fit) if idx not in remove_indices]
-    fwhms_fit = [
-        fwhm for idx, fwhm in enumerate(fwhms_fit) if idx not in remove_indices
-    ]
-    offsets_fit = [
-        offset for idx, offset in enumerate(offsets_fit) if idx not in remove_indices
-    ]
-    return amps_fit + fwhms_fit + offsets_fit
 
 
 def get_best_fit_model(
@@ -648,7 +585,7 @@ def get_best_fit_model(
                 spectrum=model.spectrum,
                 params_fit=params_fit,
                 params_errs=params_errs,
-                settings_improve_fit=settings_improve_fit,
+                settings=settings_improve_fit,
                 quality_control=quality_control,
             )
 
@@ -801,9 +738,7 @@ def _try_fit_with_new_components(
     #  produce new best fit with excluded components
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
-        params_fit=remove_components(
-            params_fit=model.parameters, remove_indices=exclude_idx
-        ),
+        params_fit=remove_components(model.parameters, remove_indices=exclude_idx),
         settings_improve_fit=settings_improve_fit,
     )
 
