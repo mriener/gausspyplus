@@ -436,43 +436,34 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             self.mask_ncomps,
             self.ncomps_wmedian,
             self.ncomps_jumps,
-            # self.ncomps,
         ) = self._define_mask_neighbor_ncomps(self.flag_ncomps)
 
         if self._finalize:
             return
 
-        mask_flagged = (
-            self.mask_blended
-            + self.mask_neg_res_peak
-            + self.mask_broad_flagged
-            + self.mask_rchi2_flagged
-            + self.mask_residual
-            + self.mask_ncomps
+        self.count_flags = np.sum(
+            (
+                self.mask_blended,
+                self.mask_neg_res_peak,
+                self.mask_broad_flagged,
+                self.mask_rchi2_flagged,
+                self.mask_residual,
+                self.mask_ncomps,
+            ),
+            axis=0,
         )
-
-        self.count_flags = (
-            self.mask_blended.astype("int")
-            + self.mask_neg_res_peak.astype("int")
-            + self.mask_broad_flagged.astype("int")
-            + self.mask_rchi2_flagged.astype("int")
-            + self.mask_residual.astype("int")
-            + self.mask_ncomps.astype("int")
-        )
-
-        self.indices_flagged = np.array(self.decomposition["index_fit"])[mask_flagged]
 
         if self.phase_two:
             text = textwrap.dedent(
                 f"""
                 Flags:
-                - {np.count_nonzero(self.mask_blended)} spectra w/ blended components
-                - {np.count_nonzero(self.mask_neg_res_peak)} spectra w/ negative residual feature
-                - {np.count_nonzero(self.mask_broad_flagged)} spectra w/ broad feature
-                \t (info: {np.count_nonzero(self.mask_broad_limit)} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
-                - {np.count_nonzero(self.mask_rchi2_flagged)} spectra w/ high rchi2 value
-                - {np.count_nonzero(self.mask_residual)} spectra w/ residual not passing normality test
-                - {np.count_nonzero(self.mask_ncomps)} spectra w/ differing number of components"""
+                - {self.mask_blended.sum()} spectra w/ blended components
+                - {self.mask_neg_res_peak.sum()} spectra w/ negative residual feature
+                - {self.mask_broad_flagged.sum()} spectra w/ broad feature
+                \t (info: {self.mask_broad_limit.sum()} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
+                - {self.mask_rchi2_flagged.sum()} spectra w/ high rchi2 value
+                - {self.mask_residual.sum()} spectra w/ residual not passing normality test
+                - {self.mask_ncomps.sum()} spectra w/ differing number of components"""
             )
             say(text, logger=self.logger)
 
@@ -719,7 +710,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
         indices_bad = (
-            self.indices_flagged if self.exclude_flagged else self.indices_refit
+            np.array(self.decomposition["index_fit"])[self.count_flags.astype(bool)]
+            if self.exclude_flagged
+            else self.indices_refit
         )
 
         # Use only neighboring spectra for refitting that are not masked out and have fit components
