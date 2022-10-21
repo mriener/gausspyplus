@@ -469,89 +469,68 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
     def _define_mask_refit(self) -> None:
         """Select spectra to refit in phase 1 of the spatially coherent refitting."""
-        mask_refit = np.zeros(self.length).astype("bool")
-        # TODO: The masks are always defined so the if conditions are obsolote and the masks can be summed directly
-        if self.refit_blended:
-            mask_refit += self.mask_blended
-        if self.refit_neg_res_peak:
-            mask_refit += self.mask_neg_res_peak
-        if self.refit_broad:
-            mask_refit += self.mask_broad_refit
-        if self.refit_rchi2:
-            mask_refit += self.mask_rchi2_refit
-        if self.refit_residual:
-            mask_refit += self.mask_residual
-        if self.refit_ncomps:
-            mask_refit += self.mask_ncomps
-
+        mask_refit = np.sum(
+            (
+                self.mask_blended * self.refit_blended,
+                self.mask_neg_res_peak * self.refit_neg_res_peak,
+                self.mask_broad_refit * self.refit_broad,
+                self.mask_rchi2_refit * self.refit_rchi2,
+                self.mask_residual * self.refit_residual,
+                self.mask_ncomps * self.refit_ncomps,
+            ),
+            axis=0,
+            dtype=bool,
+        )
         self.indices_refit = np.array(self.decomposition["index_fit"])[mask_refit]
         # self.indices_refit = self.indices_refit[886:888]  # for debugging
         self.locations_refit = np.take(
             np.array(self.location), self.indices_refit, axis=0
         )
 
-    def _get_n_refit(self, flag: bool, n_refit: int) -> int:
-        return n_refit if flag else 0
-
     def _determine_spectra_for_refitting(self) -> None:
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
         say("\ndetermine spectra that need refitting...", logger=self.logger)
 
-        #  flag spectra based on user-defined criteria
+        # Flag spectra based on user-defined criteria
         self.determine_spectra_for_flagging()
 
-        #  determine new masks for spectra that do not satisfy the user-defined criteria for broad components and
-        #  reduced chi-square values; this is done because users can opt to use different values for flagging and
-        #  refitting for these two criteria
+        # Determine new masks for spectra that do not satisfy the user-defined criteria for broad components and
+        # reduced chi-square values. This is done because users can opt to use different values for flagging and
+        # refitting for these two criteria.
         self.mask_broad_refit = (
-            self._define_mask_broad() if self.refit_broad else np.zeros(self.length)
+            self._define_mask_broad()
+            if self.refit_broad
+            else np.zeros(self.length, dtype=bool)
         )
         self.mask_rchi2_refit = self._define_mask(
             key="best_fit_rchi2", limit=self.rchi2_limit_refit, flag=self.refit_rchi2
         )
 
-        #  select spectra for refitting based on user-defined criteria
+        # Select spectra for refitting based on user-defined criteria
         self._define_mask_refit()
 
-        #  print the results of the flagging/refitting selections to the terminal
+        n_flagged_blended = self.mask_blended.sum()
+        n_flagged_neg_res_peak = self.mask_neg_res_peak.sum()
+        n_flagged_broad = self.mask_broad_flagged.sum()
+        n_flagged_rchi2 = self.mask_rchi2_flagged.sum()
+        n_flagged_residual = self.mask_residual.sum()
+        n_flagged_ncomps = self.mask_ncomps.sum()
+
+        n_refit_list = [
+            n_refit_blended := n_flagged_blended * self.refit_blended,
+            n_refit_neg_res_peak := n_flagged_neg_res_peak * self.refit_neg_res_peak,
+            n_refit_broad := self.mask_broad_refit.sum() * self.refit_broad,
+            n_refit_rchi2 := self.mask_rchi2_refit.sum() * self.refit_rchi2,
+            n_refit_residual := n_flagged_residual * self.refit_residual,
+            n_refit_ncomps := n_flagged_ncomps * self.refit_ncomps,
+        ]
 
         n_spectra = sum(x is not None for x in self.decomposition["N_components"])
         n_indices_refit = len(self.indices_refit)
-        n_flagged_blended = np.count_nonzero(self.mask_blended)
-        n_flagged_neg_res_peak = np.count_nonzero(self.mask_neg_res_peak)
-        n_flagged_broad = np.count_nonzero(self.mask_broad_flagged)
-        n_flagged_rchi2 = np.count_nonzero(self.mask_rchi2_flagged)
-        n_flagged_residual = np.count_nonzero(self.mask_residual)
-        n_flagged_ncomps = np.count_nonzero(self.mask_ncomps)
-
-        n_refit_blended = self._get_n_refit(self.refit_blended, n_flagged_blended)
-        n_refit_neg_res_peak = self._get_n_refit(
-            self.refit_neg_res_peak, n_flagged_neg_res_peak
-        )
-        n_refit_broad = self._get_n_refit(
-            self.refit_broad, np.count_nonzero(self.mask_broad_refit)
-        )
-        n_refit_rchi2 = self._get_n_refit(
-            self.refit_rchi2, np.count_nonzero(self.mask_rchi2_refit)
-        )
-        n_refit_residual = self._get_n_refit(
-            self.refit_residual, np.count_nonzero(self.mask_residual)
-        )
-        n_refit_ncomps = self._get_n_refit(self.refit_ncomps, n_flagged_ncomps)
-
         try:
             n_fraction_refit = n_indices_refit / n_spectra
         except ZeroDivisionError:
             n_fraction_refit = 0
-
-        n_refit_list = [
-            n_refit_blended,
-            n_refit_neg_res_peak,
-            n_refit_broad,
-            n_refit_rchi2,
-            n_refit_residual,
-            n_refit_ncomps,
-        ]
 
         text = textwrap.dedent(
             f"""
@@ -559,15 +538,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
              - {n_refit_blended} spectra w/ blended components ({n_flagged_blended} flagged)
              - {n_refit_neg_res_peak} spectra w/ negative residual feature ({n_flagged_neg_res_peak} flagged)
              - {n_refit_broad} spectra w/ broad feature ({n_flagged_broad} flagged)
-             \t (info: {np.count_nonzero(self.mask_broad_limit)} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
+             \t (info: {self.mask_broad_limit.sum()} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
              - {n_refit_rchi2} spectra w/ high rchi2 value ({n_flagged_rchi2} flagged)
              - {n_refit_residual} spectra w/ residual not passing normality test ({n_flagged_residual} flagged)
              - {n_refit_ncomps} spectra w/ differing number of components ({n_flagged_ncomps} flagged)"""
         )
         say(text, logger=self.logger)
 
-        #  check if the stopping criterion is fulfilled
-
+        # Check if the stopping criterion is fulfilled
         if self.only_print_flags:
             return
         elif self._stopping_criterion(n_refit_list):
