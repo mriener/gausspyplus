@@ -15,6 +15,10 @@ DATA = fits.getdata(filepath)
 #  used if an intermediate stage fails and later tests seem to pass even though they should not
 
 
+def is_not_none(x):
+    return x is not None
+
+
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_prepare_cube():
     from ..prepare import GaussPyPrepare
@@ -30,16 +34,16 @@ def test_prepare_cube():
         ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle", "rb"
     ) as pfile:
         data_prepared = pickle.load(pfile)
-    # print(
-    #     "0",
-    #     prepare.average_rms,
-    #     sum(rms[0] for rms in data_prepared["error"] if rms[0] is not None)
-    # )
-    assert np.allclose(prepare.average_rms, 0.10315973929242594)
-    assert np.allclose(
-        sum(rms[0] for rms in data_prepared["error"] if rms[0] is not None),
+
+    expected_values = [
+        0.10315973929242594,
         10.212814189950166,
-    )
+    ]
+    actual_values = [
+        prepare.average_rms,
+        sum(rms[0] for rms in data_prepared["error"] if rms[0] is not None),
+    ]
+    assert np.allclose(expected_values, actual_values)
 
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
@@ -63,24 +67,18 @@ def test_decompose_cube_gausspy():
         "rb",
     ) as pfile:
         data_decomposed = pickle.load(pfile)
-    # print(
-    #     "1",
-    #     sum(ncomps for ncomps in data_decomposed["N_components"] if ncomps is not None),
-    #     sum(sum(lst) for lst in data_decomposed["fwhms_fit"] if lst is not None),
-    #     sum(sum(lst) for lst in data_decomposed["fwhms_fit_err"] if lst is not None)
-    # )
-    assert (
-        sum(ncomps for ncomps in data_decomposed["N_components"] if ncomps is not None)
-        == 181
-    )
-    assert np.allclose(
-        sum(sum(lst) for lst in data_decomposed["fwhms_fit"] if lst is not None),
+
+    expected_values = [
+        181,
         2821.8647475612247,
-    )
-    assert np.allclose(
-        sum(sum(lst) for lst in data_decomposed["fwhms_fit_err"] if lst is not None),
         302.183306677499,
-    )
+    ]
+    actual_values = [
+        sum(filter(is_not_none, data_decomposed["N_components"])),
+        sum(map(sum, filter(is_not_none, data_decomposed["fwhms_fit"]))),
+        sum(map(sum, filter(is_not_none, data_decomposed["fwhms_fit_err"]))),
+    ]
+    assert np.allclose(expected_values, actual_values)
 
     decompose.improve_fitting = True
     decompose.suffix = "_g+"
@@ -90,63 +88,32 @@ def test_decompose_cube_gausspy():
         "rb",
     ) as pfile:
         data_decomposed_gplus = pickle.load(pfile)
-    # print(
-    #     "2",
-    #     sum(ncomps for ncomps in data_decomposed_gplus["N_components"] if ncomps is not None),
-    #     sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit"] if lst is not None),
-    #     sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit_err"] if lst is not None),
-    #     sum(x for x in data_decomposed_gplus["pvalue"] if x is not None),
-    #     sum(x for x in data_decomposed_gplus["best_fit_rchi2"] if x is not None),
-    #     sum(x for x in data_decomposed_gplus["best_fit_aicc"] if x is not None),
-    #     sum(sum(lst) for lst in data_decomposed_gplus["log_gplus"] if lst is not None),
-    #     sum(len(x) for x in data_decomposed_gplus["log_gplus"] if x is not None and bool(x)),
-    #     sum(sum(lst) for lst in data_decomposed_gplus["quality_control"] if lst is not None),
-    # )
-    assert (
-        sum(
-            ncomps
-            for ncomps in data_decomposed_gplus["N_components"]
-            if ncomps is not None
-        )
-        == 272
-    )
-    assert np.allclose(
-        sum(sum(lst) for lst in data_decomposed_gplus["fwhms_fit"] if lst is not None),
+
+    expected_values = [
+        272,
         4210.279681986788,
-    )
-    assert np.allclose(
-        sum(
-            sum(lst)
-            for lst in data_decomposed_gplus["fwhms_fit_err"]
-            if lst is not None
-        ),
         572.5082893844038,
-    )
-    assert np.allclose(
-        sum(x for x in data_decomposed_gplus["pvalue"] if x is not None),
         14.174536904795435,
-    )
-    assert np.allclose(
-        sum(x for x in data_decomposed_gplus["best_fit_rchi2"] if x is not None),
         117.25885765551081,
-    )
-    assert np.allclose(
-        sum(x for x in data_decomposed_gplus["best_fit_aicc"] if x is not None),
         -46522.959923033035,
-    )
-    assert (
-        sum(sum(lst) for lst in data_decomposed_gplus["log_gplus"] if lst is not None)
-        == 107
-    )
-    assert (
+        107,
+        70,
+    ]
+    actual_values = [
+        sum(filter(is_not_none, data_decomposed_gplus["N_components"])),
+        sum(map(sum, filter(is_not_none, data_decomposed_gplus["fwhms_fit"]))),
+        sum(map(sum, filter(is_not_none, data_decomposed_gplus["fwhms_fit_err"]))),
+        sum(filter(is_not_none, data_decomposed_gplus["pvalue"])),
+        sum(filter(is_not_none, data_decomposed_gplus["best_fit_rchi2"])),
+        sum(filter(is_not_none, data_decomposed_gplus["best_fit_aicc"])),
+        sum(map(sum, filter(is_not_none, data_decomposed_gplus["log_gplus"]))),
         sum(
             len(x)
             for x in data_decomposed_gplus["log_gplus"]
             if x is not None and bool(x)
-        )
-        == 70
-    )
-    # assert sum(sum(lst) for lst in data_decomposed_gplus["quality_control"] if lst is not None) == 159
+        ),
+    ]
+    assert np.allclose(expected_values, actual_values)
 
     # TODO: test a new decomposition round with n_max_comps
 
@@ -187,40 +154,23 @@ def test_spatial_fitting_phase_1():
     #  is still increased -> it's better in such cases to compare whether the number of components or fit values have
     #  changed substantially with np.allclose -> if not, the values from the previous iteration should be kept
     # TODO: check whether refit_iteration tracks the number of how often a spectrum has been refit
-    # print(
-    #     "3",
-    #     sp.refitting_iteration,
-    #     sum(ncomps for ncomps in data_spatial_fitted_phase_1["N_components"] if ncomps is not None),
-    #     sum(sum(lst) for lst in data_spatial_fitted_phase_1["fwhms_fit"] if lst is not None),
-    #     sum(sum(lst) for lst in data_spatial_fitted_phase_1["fwhms_fit_err"] if lst is not None),
-    #     sum(data_spatial_fitted_phase_1["refit_iteration"])
-    # )
-    assert sp.refitting_iteration == 2
-    assert (
-        sum(
-            ncomps
-            for ncomps in data_spatial_fitted_phase_1["N_components"]
-            if ncomps is not None
-        )
-        == 274
-    )
-    assert np.allclose(
-        sum(
-            sum(lst)
-            for lst in data_spatial_fitted_phase_1["fwhms_fit"]
-            if lst is not None
-        ),
+    expected_values = [
+        2,
+        274,
         4120.289339690797,
-    )
-    assert np.allclose(
-        sum(
-            sum(lst)
-            for lst in data_spatial_fitted_phase_1["fwhms_fit_err"]
-            if lst is not None
-        ),
         603.782311784271,
-    )
-    assert sum(data_spatial_fitted_phase_1["refit_iteration"]) == 42
+        42,
+    ]
+    actual_values = [
+        sp.refitting_iteration,
+        sum(filter(is_not_none, data_spatial_fitted_phase_1["N_components"])),
+        sum(map(sum, filter(is_not_none, data_spatial_fitted_phase_1["fwhms_fit"]))),
+        sum(
+            map(sum, filter(is_not_none, data_spatial_fitted_phase_1["fwhms_fit_err"]))
+        ),
+        sum(data_spatial_fitted_phase_1["refit_iteration"]),
+    ]
+    assert np.allclose(expected_values, actual_values)
 
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
@@ -255,40 +205,23 @@ def test_spatial_fitting_phase_2():
     ) as pfile:
         data_spatial_fitted_phase_2 = pickle.load(pfile)
 
-    # print(
-    #     "4",
-    #     sp.refitting_iteration,
-    #     sum(ncomps for ncomps in data_spatial_fitted_phase_2["N_components"] if ncomps is not None),
-    #     sum(sum(lst) for lst in data_spatial_fitted_phase_2["fwhms_fit"] if lst is not None),
-    #     sum(sum(lst) for lst in data_spatial_fitted_phase_2["fwhms_fit_err"] if lst is not None),
-    #     sum(data_spatial_fitted_phase_2["refit_iteration"])
-    # )
-    assert sp.refitting_iteration == 8
-    assert (
-        sum(
-            ncomps
-            for ncomps in data_spatial_fitted_phase_2["N_components"]
-            if ncomps is not None
-        )
-        == 273
-    )
-    assert np.allclose(
-        sum(
-            sum(lst)
-            for lst in data_spatial_fitted_phase_2["fwhms_fit"]
-            if lst is not None
-        ),
+    expected_values = [
+        8,
+        273,
         4121.091273601258,
-    )
-    assert np.allclose(
-        sum(
-            sum(lst)
-            for lst in data_spatial_fitted_phase_2["fwhms_fit_err"]
-            if lst is not None
-        ),
         592.8518512079702,
-    )
-    assert sum(data_spatial_fitted_phase_2["refit_iteration"]) == 2
+        2,
+    ]
+    actual_values = [
+        sp.refitting_iteration,
+        sum(filter(is_not_none, data_spatial_fitted_phase_2["N_components"])),
+        sum(map(sum, filter(is_not_none, data_spatial_fitted_phase_2["fwhms_fit"]))),
+        sum(
+            map(sum, filter(is_not_none, data_spatial_fitted_phase_2["fwhms_fit_err"]))
+        ),
+        sum(data_spatial_fitted_phase_2["refit_iteration"]),
+    ]
+    assert np.allclose(expected_values, actual_values)
 
 
 if __name__ == "__main__":
