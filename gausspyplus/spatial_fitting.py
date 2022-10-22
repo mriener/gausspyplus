@@ -35,9 +35,11 @@ from gausspyplus.utils.ndimage_functions import (
     number_of_component_jumps,
     broad_components,
 )
-from gausspyplus.utils.noise_estimation import mask_channels
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 from gausspyplus.definitions import SettingsDefault, SettingsSpatialFitting
+
+
+# TODO: Rename `spectrum` to `intensity_values`
 
 
 class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
@@ -153,19 +155,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         if self.pixel_range is not None:
             self._mask_out_beyond_pixel_range()
-
-        self.nanIndices = np.array(self.decomposition["index_fit"])[self.nanMask]
-
-        self.signal_mask = [None for _ in range(self.nIndices)]
-        for i, (noiseSpikeRanges, signalRanges) in enumerate(
-            zip(self.noiseSpikeRanges, self.signalRanges)
-        ):
-            if signalRanges is not None:
-                self.signal_mask[i] = mask_channels(
-                    n_channels=self.n_channels,
-                    ranges=signalRanges,
-                    remove_intervals=noiseSpikeRanges,
-                )
 
         #  starting condition so that refitting iteration can start
         # self.mask_refitted = np.ones(1)
@@ -747,17 +736,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         """
         refit = False
         dictResults = None
-        flags = []
-
-        spectrum = self.data[index]
-        rms = self.errors[index][0]
-        signal_ranges = self.signalRanges[index]
-        noise_spike_ranges = self.noiseSpikeRanges[index]
-        signal_mask = self.signal_mask[index]
-
-        #  determine all neighbors that should be used for the refitting
 
         neighbors = get_neighbors(location=self.locations_refit[i], shape=self.shape)
+        # Determine all neighbors that should be used for the refitting
         # TODO: Is it okay, that flagged spectra are not included here?
         indices_neighbors, all_neighbors = self._determine_neighbor_indices(
             neighbors=neighbors, include_flagged=False
@@ -766,22 +747,30 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if (indices_neighbors.size == 0) or (
             all_neighbors and not self.use_all_neighors
         ):
-            return [index, None, indices_neighbors, refit]
+            return [index, dictResults, indices_neighbors, refit]
 
         # skip refitting if there were no changes to the last iteration
         if (
             np.array_equal(indices_neighbors, self.neighbor_indices[index])
             and self.mask_refitted[indices_neighbors].sum() < 1
         ):
-            return [index, None, indices_neighbors, refit]
+            return [index, dictResults, indices_neighbors, refit]
 
+        spectrum = Spectrum(
+            intensity_values=self.data[index],
+            channels=self.channels,
+            rms_noise=self.errors[index][0],
+            signal_intervals=self.signalRanges[index],
+            noise_spike_intervals=self.noiseSpikeRanges[index],
+        )
+
+        flags = []
         if self.refit_neg_res_peak and self.mask_neg_res_peak[index]:
             flags.append("residual")
         elif self.refit_broad and self.mask_broad_refit[index]:
             flags.append("broad")
         elif self.refit_blended and self.mask_blended[index]:
             flags.append("blended")
-
         flags.append("None")
 
         #  try to refit the spectrum with fit solution of individual unflagged neighboring spectra
@@ -790,11 +779,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             dictResults, refit = self._try_refit_with_individual_neighbors(
                 index=index,
                 spectrum=spectrum,
-                rms=rms,
                 indices_neighbors=indices_neighbors,
-                signal_ranges=signal_ranges,
-                noise_spike_ranges=noise_spike_ranges,
-                signal_mask=signal_mask,
                 flag=flag,
             )
 
@@ -807,15 +792,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             dictResults, refit = self._try_refit_with_grouping(
                 index=index,
                 spectrum=spectrum,
-                rms=rms,
                 indices_neighbors=indices_neighbors,
-                signal_ranges=signal_ranges,
-                noise_spike_ranges=noise_spike_ranges,
-                signal_mask=signal_mask,
             )
 
         if not all_neighbors and self.use_all_neighors:
-            #  even though we now use indices_neighbors_all we still return indices_neighbors to avoid repeating the refitting
+            # Even though we now use indices_neighbors_all we still return indices_neighbors to avoid
+            # repeating the refitting
             indices_neighbors_all, all_neighbors = self._determine_neighbor_indices(
                 neighbors=neighbors, include_flagged=True
             )
@@ -830,11 +812,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 dictResults, refit = self._try_refit_with_individual_neighbors(
                     index=index,
                     spectrum=spectrum,
-                    rms=rms,
                     indices_neighbors=indices_neighbors_flagged,
-                    signal_ranges=signal_ranges,
-                    noise_spike_ranges=noise_spike_ranges,
-                    signal_mask=signal_mask,
                     flag=flag,
                 )
 
@@ -845,11 +823,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 dictResults, refit = self._try_refit_with_grouping(
                     index=index,
                     spectrum=spectrum,
-                    rms=rms,
                     indices_neighbors=indices_neighbors_all,
-                    signal_ranges=signal_ranges,
-                    noise_spike_ranges=noise_spike_ranges,
-                    signal_mask=signal_mask,
                 )
 
         return [index, dictResults, indices_neighbors, refit]
@@ -857,12 +831,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def _try_refit_with_grouping(
         self,
         index: int,
-        spectrum: np.ndarray,
-        rms: float,
+        spectrum: Spectrum,
         indices_neighbors: np.ndarray,
-        signal_ranges: List,
-        noise_spike_ranges: List,
-        signal_mask: np.ndarray,
     ) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum by grouping all neighboring unflagged fit solutions.
 
@@ -870,14 +840,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ----------
         index : Index ('index_fit' keyword) of the spectrum that will be refit.
         spectrum : Spectrum to refit.
-        rms : Root-mean-square noise value of the spectrum.
         indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
             grouping.
-        signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
-            The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-        noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain
-            noise spike features. These will get masked out from goodness-of-fit calculations.
-        signal_mask : Boolean array containing the information of signal_ranges.
 
         Returns
         -------
@@ -900,19 +864,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=split_fwhm
             )
             dictComps = self._determine_average_values(
-                spectrum=spectrum, rms=rms, dictComps=dictComps
+                spectrum=spectrum.intensity_values,
+                rms=spectrum.rms_noise,
+                dictComps=dictComps,
             )
 
             #  try refit with the new average fit solution values
 
             if len(dictComps.keys()) > 0:
                 dictResults = self._gaussian_fitting(
-                    spectrum=spectrum,
-                    rms=rms,
+                    spectrum=spectrum.intensity_values,
+                    rms=spectrum.rms_noise,
                     dictComps=dictComps,
-                    signal_ranges=signal_ranges,
-                    noise_spike_ranges=noise_spike_ranges,
-                    signal_mask=signal_mask,
+                    signal_ranges=spectrum.signal_intervals,
+                    noise_spike_ranges=spectrum.noise_spike_intervals,
+                    signal_mask=spectrum.signal_mask,
                 )
                 refit = True
                 if dictResults is None:
@@ -951,12 +917,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def _try_refit_with_individual_neighbors(
         self,
         index: int,
-        spectrum: np.ndarray,
-        rms: float,
+        spectrum: Spectrum,
         indices_neighbors: np.ndarray,
-        signal_ranges: List,
-        noise_spike_ranges: List,
-        signal_mask: np.ndarray,
         interval: Optional[List] = None,
         n_centroids: Optional[int] = None,
         flag: str = "none",
@@ -968,14 +930,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ----------
         index : Index ('index_fit' keyword) of the spectrum that will be refit.
         spectrum : Spectrum to refit.
-        rms : Root-mean-square noise value of the spectrum.
         indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
             grouping.
-        signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
-            The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-        noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain
-            noise spike features. These will get masked out from goodness-of-fit calculations.
-        signal_mask : Boolean array containing the information of signal_ranges.
         interval : List specifying the interval of spectral channels containing the flagged feature in the form of
             [lower, upper]. Only used in phase 2 of the spatially coherent refitting.
         n_centroids : Number of centroid positions that should be present in interval.
@@ -1007,22 +963,22 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 dictComps = self._replace_flagged_interval(
                     index=index,
                     index_neighbor=index_neighbor,
-                    spectrum=spectrum,
-                    rms=rms,
+                    spectrum=spectrum.intensity_values,
+                    rms=spectrum.rms_noise,
                     flag=flag,
                 )
             elif interval is not None:
                 dictComps = self._replace_flagged_interval(
                     index=index,
                     index_neighbor=index_neighbor,
-                    spectrum=spectrum,
-                    rms=rms,
+                    spectrum=spectrum.intensity_values,
+                    rms=spectrum.rms_noise,
                     interval=interval,
                     dct_new_fit=dct_new_fit,
                 )
             else:
                 dictComps = self._get_initial_values_from_neighbor(
-                    i=index_neighbor, spectrum=spectrum
+                    i=index_neighbor, spectrum=spectrum.intensity_values
                 )
 
             if dictComps is None:
@@ -1031,12 +987,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             #  try to refit with new fit solution
 
             dictResults = self._gaussian_fitting(
-                spectrum=spectrum,
-                rms=rms,
+                spectrum=spectrum.intensity_values,
+                rms=spectrum.rms_noise,
                 dictComps=dictComps,
-                signal_ranges=signal_ranges,
-                noise_spike_ranges=noise_spike_ranges,
-                signal_mask=signal_mask,
+                signal_ranges=spectrum.signal_intervals,
+                noise_spike_ranges=spectrum.noise_spike_intervals,
+                signal_mask=spectrum.signal_mask,
             )
             refit = True
             if dictResults is None:
@@ -2499,12 +2455,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         for key, indices_neighbors in dct_refit["indices_refit"].items():
             dictResults, refit = self._try_refit_with_individual_neighbors(
                 index=index,
-                spectrum=self.data[index],
-                rms=self.errors[index][0],
+                spectrum=Spectrum(
+                    intensity_values=self.data[index],
+                    channels=self.channels,
+                    rms_noise=self.errors[index][0],
+                    signal_intervals=self.signalRanges[index],
+                    noise_spike_intervals=self.noiseSpikeRanges[index],
+                ),
                 indices_neighbors=indices_neighbors,
-                signal_ranges=self.signalRanges[index],
-                noise_spike_ranges=self.noiseSpikeRanges[index],
-                signal_mask=self.signal_mask[index],
                 interval=dct_refit["means_interval"][key],
                 n_centroids=dct_refit["n_centroids"][key],
                 dct_new_fit=dictResults,
