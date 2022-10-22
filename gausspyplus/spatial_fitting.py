@@ -800,20 +800,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum by grouping all neighboring unflagged fit solutions.
 
-        Parameters
-        ----------
-        index : Index ('index_fit' keyword) of the spectrum that will be refit.
-        spectrum : Spectrum to refit.
-        indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
-            grouping.
-
-        Returns
-        -------
-        fit_results : Information about the new best fit solution in case of a successful refit. Otherwise 'None' is
-            returned.
-        is_successful_refit : Information of whether there was a new successful refit.
-
+        :param index: Index ('index_fit' keyword) of the spectrum that will be refit.
+        :param spectrum: Spectrum to refit.
+        :param indices_neighbors: Array containing the indices of all neighboring fit solutions that should be used
+        for the grouping.
+        :return: tuple (fit_results, is_successful_refit)
+            - fit_results: contains information about the new best fit solution in case of a successful refit,
+            otherwise it is `None`.
+            - is_successful_refit: states whether the refit was successful.
         """
+
         #  prepare fit parameter values of all unflagged neighboring fit solutions for the grouping
         amps, means, fwhms = self._get_initial_values(indices_neighbors)
         is_successful_refit = False
@@ -854,16 +850,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         We want to exclude (most likely futile) refits with initial guesses from the fit solutions of neighboring
         spectra if the same fit solutions were already used in a previous iteration.
 
-        Parameters
-        ----------
-        index : Index ('index_fit' keyword) of the spectrum that will be refit.
-        index_neighbor : Index ('index_fit' keyword) of the neighboring fit solution.
-
-        Returns
-        -------
-        Whether to skip the neighboring fit solution for an attempted refit.
-
+        :param index: Index (`index_fit` keyword) of the spectrum that will be refit.
+        :param index_neighbor: Index (`index_fit` keyword) of the neighboring fit solution.
+        :return: Whether to skip the neighboring fit solution for an attempted refit.
         """
+
         return (
             self.refitting_iteration > 1
             #  check if spectrum was selected for refitting in any of the  previous iterations
