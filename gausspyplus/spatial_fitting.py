@@ -1744,7 +1744,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             key="best_fit_aicc", index=index, updated_fit_results=updated_fit_results
         )
         aicc_new = fit_results["best_fit_aicc"]
-        # residual_signal_mask = fit_results['residual_signal_mask']
         pvalue = fit_results["pvalue"]
 
         return (aicc_new <= aicc_old) or (pvalue >= self.min_pvalue)
@@ -2069,7 +2068,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             **{
                 "best_fit_rchi2": model.rchi2,
                 "best_fit_aicc": model.aicc,
-                "residual_signal_mask": model.residual[spectrum.signal_mask],
                 "pvalue": model.pvalue,
                 "N_components": model.n_components,
                 "N_blended": N_blended,
