@@ -112,16 +112,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def _initialize(self) -> None:
         """Read in data files and initialize parameters."""
         with open(self.path_to_pickle_file, "rb") as pickle_file:
-            pickledData = pickle.load(pickle_file, encoding="latin1")
+            pickled_data = pickle.load(pickle_file, encoding="latin1")
 
-        self.indexList = pickledData["index"]
-        self.data = pickledData["data_list"]
-        self.errors = pickledData["error"]
-        if "header" in pickledData.keys():
-            self.header = pickledData["header"]
+        self.indexList = pickled_data["index"]
+        self.data = pickled_data["data_list"]
+        self.errors = pickled_data["error"]
+        if "header" in pickled_data.keys():
+            self.header = pickled_data["header"]
             self.shape = (self.header["NAXIS2"], self.header["NAXIS1"])
             self.length = self.header["NAXIS2"] * self.header["NAXIS1"]
-            self.location = pickledData["location"]
+            self.location = pickled_data["location"]
             self.n_channels = self.header["NAXIS3"]
         else:
             self.length = len(self.data)
@@ -130,21 +130,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if self.max_fwhm is None:
             self.max_fwhm = int(self.n_channels / 3)
 
-        self.signalRanges = pickledData["signal_ranges"]
-        self.noiseSpikeRanges = pickledData["noise_spike_ranges"]
+        self.signal_intervals = pickled_data["signal_ranges"]
+        self.noise_spike_intervals = pickled_data["noise_spike_ranges"]
 
         with open(self.path_to_decomp_file, "rb") as pickle_file:
             # TODO: It could make sense to already cast quantities to numpy arrays here
             self.decomposition = pickle.load(pickle_file, encoding="latin1")
 
-        self.nIndices = len(self.decomposition["index_fit"])
+        self.n_indices = len(self.decomposition["index_fit"])
 
-        self.decomposition["refit_iteration"] = [0] * self.nIndices
+        self.decomposition["refit_iteration"] = [0] * self.n_indices
 
-        self.neighbor_indices = np.array([None] * self.nIndices)
-        self.neighbor_indices_all = np.array([None] * self.nIndices)
+        self.neighbor_indices = np.array([None] * self.n_indices)
+        self.neighbor_indices_all = np.array([None] * self.n_indices)
 
-        self.nanMask = np.isnan(
+        self.nan_mask = np.isnan(
             [np.nan if i is None else i for i in self.decomposition["N_components"]]
         )
 
@@ -153,7 +153,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         #  starting condition so that refitting iteration can start
         # self.mask_refitted = np.ones(1)
-        self.mask_refitted = np.array([1] * self.nIndices)
+        self.mask_refitted = np.array([1] * self.n_indices)
         self.list_n_refit = []
         self.refitting_iteration = 0
 
@@ -172,7 +172,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         for idx, loc in enumerate(self.location):
             if loc not in locations:
-                self.nanMask[idx] = np.nan
+                self.nan_mask[idx] = np.nan
 
     def _info_text(self, refit=False):
         text_phase_1 = (
@@ -275,7 +275,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         """
         return (
             comparison_func(
-                np.where(self.nanMask, limit, self.decomposition[key]),
+                np.where(self.nan_mask, limit, self.decomposition[key]),
                 limit,
             )
             if flag
@@ -339,8 +339,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             .flatten()
             .astype("bool")
         )
-        # TODO: is nanMask masking needed if _mask_out_beyond_pixel_range is set?
-        # is_broad_compared_to_other_fit_components_in_spectrum[self.nanMask] = False
+        # TODO: is nan_mask masking needed if _mask_out_beyond_pixel_range is set?
+        # is_broad_compared_to_other_fit_components_in_spectrum[self.nan_mask] = False
         return (
             is_broad_compared_to_other_fit_components_in_spectrum
             | is_broad_compared_to_fit_components_of_neighbors
@@ -366,7 +366,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return np.zeros(self.length, dtype=bool), None, None
 
         self.ncomps = np.where(
-            self.nanMask,
+            self.nan_mask,
             np.nan,
             np.array(self.decomposition["N_components"], dtype=float),
         )
@@ -389,8 +389,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ).flatten()
 
         mask_neighbor = np.logical_or(
-            np.where(self.nanMask, False, ncomps_wmedian > self.max_diff_comps),
-            np.where(self.nanMask, False, ncomps_jumps > self.n_max_jump_comps),
+            np.where(self.nan_mask, False, ncomps_wmedian > self.max_diff_comps),
+            np.where(self.nan_mask, False, ncomps_jumps > self.n_max_jump_comps),
         )
         return mask_neighbor, ncomps_wmedian, ncomps_jumps
 
@@ -578,7 +578,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return results_list
 
         #  reset the mask for spectra selected for refitting
-        self.mask_refitted = np.array([0] * self.nIndices)
+        self.mask_refitted = np.array([0] * self.n_indices)
 
         keys = [
             "amplitudes_fit",
@@ -633,7 +633,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             if self._stopping_criterion([count_refitted]):
                 self.min_p -= self.w_2
                 self.list_n_refit = [[self.length]]
-                self.mask_refitted = np.array([1] * self.nIndices)
+                self.mask_refitted = np.array([1] * self.n_indices)
             else:
                 self.list_n_refit.append([count_refitted])
 
@@ -718,8 +718,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             intensity_values=self.data[index],
             channels=self.channels,
             rms_noise=self.errors[index][0],
-            signal_intervals=self.signalRanges[index],
-            noise_spike_intervals=self.noiseSpikeRanges[index],
+            signal_intervals=self.signal_intervals[index],
+            noise_spike_intervals=self.noise_spike_intervals[index],
         )
 
         flags = []
@@ -2283,7 +2283,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ).astype("bool")
         self.indices_all = np.array(self.decomposition["index_fit"])[mask_all]
         if self.pixel_range is not None:
-            self.indices_all = np.array(self.decomposition["index_fit"])[~self.nanMask]
+            self.indices_all = np.array(self.decomposition["index_fit"])[~self.nan_mask]
         self.locations_all = np.take(np.array(self.location), self.indices_all, axis=0)
 
         for i, loc in tqdm(zip(self.indices_all, self.locations_all)):
@@ -2395,8 +2395,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                     intensity_values=self.data[index],
                     channels=self.channels,
                     rms_noise=self.errors[index][0],
-                    signal_intervals=self.signalRanges[index],
-                    noise_spike_intervals=self.noiseSpikeRanges[index],
+                    signal_intervals=self.signal_intervals[index],
+                    noise_spike_intervals=self.noise_spike_intervals[index],
                 ),
                 indices_neighbors=indices_neighbors,
                 interval=spatial_coherence_refit_requirements["means_interval"][key],
