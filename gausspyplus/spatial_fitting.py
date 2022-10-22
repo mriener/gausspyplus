@@ -654,68 +654,44 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         :return: Selection of valid neighboring spectra.
         """
 
-        # TODO: Refactor code so includes_flagged_neighbors is not needed anymore
-        includes_flagged_neighbors = False
-
-        # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
-        indices_bad = (
-            np.array(self.decomposition["index_fit"])[self.count_flags.astype(bool)]
-            if self.exclude_flagged
-            else self.indices_refit
-        )
+        # Here we select all indices of spectra that are not NaN and have fit components
+        valid_indices = np.array(self.decomposition["index_fit"])[
+            np.flatnonzero(self.decomposition["N_components"])
+        ]
+        if not include_flagged:
+            # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
+            indices_flagged = (
+                np.array(self.decomposition["index_fit"])[self.count_flags.astype(bool)]
+                if self.exclude_flagged
+                else self.indices_refit
+            )
+            valid_indices = np.setdiff1d(valid_indices, indices_flagged)
 
         # Use only neighboring spectra for refitting that are not masked out and have fit components
-        indices_neighbors = np.array(
-            [
-                idx
-                for idx in indices_of_all_neighbors
-                if (
-                    idx not in indices_bad
-                    and idx not in self.nanIndices
-                    and self.decomposition["N_components"][idx] > 0
-                )
-            ]
-        )
+        indices_neighbors = np.intersect1d(indices_of_all_neighbors, valid_indices)
 
         if indices_neighbors.size > 1:
             # Sort neighboring fit solutions according to lowest value of reduced chi-square.
             # TODO: change this so that this gets sorted according to the lowest difference of the reduced chi-square
             #  values to the ideal value of 1 to prevent using fit solutions that 'overfit' the data
-            sort = np.argsort(
-                np.array(self.decomposition["best_fit_rchi2"])[indices_neighbors]
+            sort_criterion = (
+                self.count_flags[indices_neighbors]
+                if include_flagged
+                else np.array(self.decomposition["best_fit_rchi2"])[indices_neighbors]
             )
-            indices_neighbors = indices_neighbors[sort]
+            indices_neighbors = indices_neighbors[np.argsort(sort_criterion)]
 
-        elif (indices_neighbors.size == 0) or include_flagged:
-            #  in case there are no unflagged neighbors, use all flagged neighbors instead
-            includes_flagged_neighbors = True
-            indices_neighbors = np.array(
-                [
-                    idx
-                    for idx in indices_of_all_neighbors
-                    if (idx not in self.nanIndices)
-                    and (self.decomposition["N_components"][idx] != 0)
-                ]
-            )
-            sort = np.argsort(self.count_flags[indices_neighbors])
-            indices_neighbors = indices_neighbors[sort]
-
-        return indices_neighbors, includes_flagged_neighbors
+        return indices_neighbors
 
     def refit_spectrum_phase_1(self, index: int, i: int) -> List:
         """Refit a spectrum based on neighboring unflagged fit solutions.
 
-        Parameters
-        ----------
-        index : Index ('index_fit' keyword) of the spectrum that will be refit.
-        i : List index of the entry in the list that is handed over to the multiprocessing routine
-
-        Returns
-        -------
-        A list in the form of [index, fit_results, indices_neighbors, is_successful_refit] in case of a successful refit; otherwise
-            [index, 'None', indices_neighbors, is_successful_refit] is returned.
-
+        :param index: Index ('index_fit' keyword) of the spectrum that will be refit.
+        :param i: List index of the entry in the list that is handed over to the multiprocessing routine.
+        :return: A list in the form of [index, fit_results, indices_neighbors, is_successful_refit] in case of a
+        successful refit; otherwise [index, 'None', indices_neighbors, is_successful_refit] is returned.
         """
+
         is_successful_refit = False
         fit_results = None
 
@@ -724,16 +700,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         )
         # Determine all neighbors that should be used for the refitting
         # TODO: Is it okay, that flagged spectra are not included here?
-        (
-            indices_neighbors,
-            includes_flagged_neighbors,
-        ) = self._determine_neighbor_indices(
+        indices_neighbors = self._determine_neighbor_indices(
             indices_of_all_neighbors=indices_neighbors_, include_flagged=False
         )
 
-        if (indices_neighbors.size == 0) or (
-            includes_flagged_neighbors and not self.use_all_neighors
-        ):
+        if indices_neighbors.size == 0 and not self.use_all_neighors:
             return [index, fit_results, indices_neighbors, is_successful_refit]
 
         # skip refitting if there were no changes to the last iteration
@@ -785,13 +756,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 indices_neighbors=indices_neighbors,
             )
 
-        if not includes_flagged_neighbors and self.use_all_neighors:
+        if self.use_all_neighors:
             # Even though we now use indices_of_all_neighbors we still return indices_neighbors to avoid
             # repeating the refitting
-            (
-                indices_of_all_neighbors,
-                includes_flagged_neighbors,
-            ) = self._determine_neighbor_indices(
+            indices_of_all_neighbors = self._determine_neighbor_indices(
                 indices_of_all_neighbors=indices_neighbors_, include_flagged=True
             )
             indices_neighbors_flagged = np.setdiff1d(
