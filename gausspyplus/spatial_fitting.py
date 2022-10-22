@@ -873,12 +873,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
             if len(dictComps.keys()) > 0:
                 dictResults = self._gaussian_fitting(
-                    spectrum=spectrum.intensity_values,
-                    rms=spectrum.rms_noise,
+                    spectrum=spectrum,
                     dictComps=dictComps,
-                    signal_ranges=spectrum.signal_intervals,
-                    noise_spike_ranges=spectrum.noise_spike_intervals,
-                    signal_mask=spectrum.signal_mask,
                 )
                 refit = True
                 if dictResults is None:
@@ -987,12 +983,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             #  try to refit with new fit solution
 
             dictResults = self._gaussian_fitting(
-                spectrum=spectrum.intensity_values,
-                rms=spectrum.rms_noise,
+                spectrum=spectrum,
                 dictComps=dictComps,
-                signal_ranges=spectrum.signal_intervals,
-                noise_spike_ranges=spectrum.noise_spike_intervals,
-                signal_mask=spectrum.signal_mask,
             )
             refit = True
             if dictResults is None:
@@ -1187,17 +1179,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 mean_bound=max(self.mean_separation, mean_err),
             )
 
-        channels = np.arange(len(spectrum[idx_lower:idx_upper]))
-
         dictFit = self._gaussian_fitting(
-            spectrum=spectrum[idx_lower:idx_upper],
-            rms=rms,
+            spectrum=Spectrum(
+                intensity_values=spectrum[idx_lower:idx_upper],
+                channels=np.arange(len(spectrum[idx_lower:idx_upper])),
+                rms_noise=rms,
+            ),
             dictComps=dictCompsInterval,
-            signal_ranges=None,
-            noise_spike_ranges=None,
-            signal_mask=None,
             params_only=True,
-            channels=channels,
         )
 
         if dictFit is None:
@@ -1971,43 +1960,28 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
     def _gaussian_fitting(
         self,
-        spectrum: np.ndarray,
-        rms: float,
+        spectrum: Spectrum,
         dictComps: Dict,
-        signal_ranges: List,
-        noise_spike_ranges: List,
-        signal_mask: np.ndarray,
         params_only: bool = False,
-        channels: Optional[np.ndarray] = None,
     ) -> Dict:
         """Perform a new Gaussian decomposition with updated initial guesses.
 
         Parameters
         ----------
         spectrum : Spectrum to refit.
-        rms : Root-mean-square noise value of the spectrum.
         dictComps : Dictionary containing information about new initial guesses for fit components.
-        signal_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain signal.
-            The goodness-of-fit calculations are only performed for the spectral channels within these ranges.
-        noise_spike_ranges : Nested list containing info about ranges of the spectrum that were estimated to contain
-            noise spike features. These will get masked out from goodness-of-fit calculations.
-        signal_mask : Boolean array containing the information of signal_ranges.
         params_only : If set to 'True', the returned dictionary of the fit results will only contain information about
             the amplitudes, FWHM values and mean positions of the fitted components.
-        channels : Array containing the number of spectral channels.
 
         Returns
         -------
         dictResults : Dictionary containing information about the fit results.
 
         """
-        if channels is None:
-            channels = self.channels
-
         #  correct dictionary key
         settings_improve_fit = self.decomposition["improve_fit_settings"]
         settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(
-            spectrum
+            spectrum.intensity_values
         )
 
         #  set limits for fit parameters
@@ -2020,15 +1994,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         #  get new best fit
         model = get_best_fit_model(
-            model=Model(
-                spectrum=Spectrum(
-                    intensity_values=spectrum,
-                    channels=channels,
-                    rms_noise=rms,
-                    signal_intervals=signal_ranges,
-                    noise_spike_intervals=noise_spike_ranges,
-                )
-            ),
+            model=Model(spectrum=spectrum),
             params_fit=params,
             settings_improve_fit=settings_improve_fit,
             params_min=params_min,
@@ -2086,7 +2052,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             **{
                 "best_fit_rchi2": model.rchi2,
                 "best_fit_aicc": model.aicc,
-                "residual_signal_mask": model.residual[signal_mask],
+                "residual_signal_mask": model.residual[spectrum.signal_mask],
                 "gaussians_rchi2": rchi2_gauss,
                 "gaussians_aicc": aicc_gauss,
                 "pvalue": model.pvalue,
