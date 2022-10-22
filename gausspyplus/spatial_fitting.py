@@ -140,8 +140,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self.nIndices = len(self.decomposition["index_fit"])
 
         self.decomposition["refit_iteration"] = [0] * self.nIndices
-        self.decomposition["gaussians_rchi2"] = [None] * self.nIndices
-        self.decomposition["gaussians_aicc"] = [None] * self.nIndices
 
         self.neighbor_indices = np.array([None] * self.nIndices)
         self.neighbor_indices_all = np.array([None] * self.nIndices)
@@ -592,8 +590,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             "best_fit_rchi2",
             "best_fit_aicc",
             "N_components",
-            "gaussians_rchi2",
-            "gaussians_aicc",
             "pvalue",
             "N_neg_res_peak",
             "N_blended",
@@ -2057,13 +2053,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if params_only:
             return fit_results
 
-        # mask = mask_covering_gaussians(
-        #     means, fwhms, n_channels, remove_intervals=noise_spike_ranges)
-        # rchi2_gauss, aicc_gauss = goodness_of_fit(
-        #     spectrum, best_fit, rms, ncomps, mask=mask, get_aicc=True)
-        # TODO: completely remove rchi2_gauss and aicc_gauss (the function mask_covering_gaussians is already removed)
-        rchi2_gauss, aicc_gauss = None, None
-
         N_blended = get_fully_blended_gaussians(
             params_fit=model.parameters,
             get_count=True,
@@ -2081,8 +2070,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 "best_fit_rchi2": model.rchi2,
                 "best_fit_aicc": model.aicc,
                 "residual_signal_mask": model.residual[spectrum.signal_mask],
-                "gaussians_rchi2": rchi2_gauss,
-                "gaussians_aicc": aicc_gauss,
                 "pvalue": model.pvalue,
                 "N_components": model.n_components,
                 "N_blended": N_blended,
