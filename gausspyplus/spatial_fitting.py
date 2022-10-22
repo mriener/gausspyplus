@@ -1270,9 +1270,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         fwhm: float,
         buffer_factor: float = 1.0,
     ) -> float:
-        stddev = fwhm / CONVERSION_STD_TO_FWHM
         idx_low, idx_upp = get_slice_indices_for_interval(
-            interval_center=mean, interval_half_width=stddev
+            interval_center=mean,
+            # TODO: is this correct or should interval_half_width be fwhm / 2?
+            interval_half_width=fwhm / CONVERSION_STD_TO_FWHM,
         )
         return buffer_factor * np.max(intensity_values[idx_low:idx_upp])
 
@@ -1708,26 +1709,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return False
 
         #  compute total flag values
-
-        n_flags_old = (
-            flag_blended_old
-            + flag_neg_res_peak_old
-            + flag_broad_old
-            + flag_rchi2_old
-            + flag_residual_old
-            + flag_ncomps_old
-            + flag_centroids_old
-        )
-
-        n_flags_new = (
-            flag_blended_new
-            + flag_neg_res_peak_new
-            + flag_broad_new
-            + flag_rchi2_new
-            + flag_residual_new
-            + flag_ncomps_new
-            + flag_centroids_new
-        )
+        n_flags_old, n_flags_new = np.array(
+            [
+                (flag_blended_old, flag_blended_new),
+                (flag_neg_res_peak_old, flag_neg_res_peak_new),
+                (flag_broad_old, flag_broad_new),
+                (flag_rchi2_old, flag_rchi2_new),
+                (flag_residual_old, flag_residual_new),
+                (flag_ncomps_old, flag_ncomps_new),
+                (flag_centroids_old, flag_centroids_new),
+            ]
+        ).sum(axis=0)
 
         #  do not accept new fit if the total flag value increased
         if n_flags_new > n_flags_old:
