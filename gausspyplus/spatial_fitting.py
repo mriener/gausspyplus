@@ -39,9 +39,6 @@ from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 from gausspyplus.definitions import SettingsDefault, SettingsSpatialFitting
 
 
-# TODO: Rename `spectrum` to `intensity_values`
-
-
 class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def __init__(
         self,
@@ -864,7 +861,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=split_fwhm
             )
             dictComps = self._determine_average_values(
-                spectrum=spectrum.intensity_values,
+                intensity_values=spectrum.intensity_values,
                 rms=spectrum.rms_noise,
                 dictComps=dictComps,
             )
@@ -959,7 +956,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 dictComps = self._replace_flagged_interval(
                     index=index,
                     index_neighbor=index_neighbor,
-                    spectrum=spectrum.intensity_values,
+                    intensity_values=spectrum.intensity_values,
                     rms=spectrum.rms_noise,
                     flag=flag,
                 )
@@ -967,14 +964,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 dictComps = self._replace_flagged_interval(
                     index=index,
                     index_neighbor=index_neighbor,
-                    spectrum=spectrum.intensity_values,
+                    intensity_values=spectrum.intensity_values,
                     rms=spectrum.rms_noise,
                     interval=interval,
                     dct_new_fit=dct_new_fit,
                 )
             else:
                 dictComps = self._get_initial_values_from_neighbor(
-                    i=index_neighbor, spectrum=spectrum.intensity_values
+                    i=index_neighbor, intensity_values=spectrum.intensity_values
                 )
 
             if dictComps is None:
@@ -1002,7 +999,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
     def _get_refit_interval(
         self,
-        spectrum: np.ndarray,
+        intensity_values: np.ndarray,
         rms: float,
         amps: List,
         fwhms: List,
@@ -1013,7 +1010,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         Parameters
         ----------
-        spectrum : Spectrum to refit.
+        intensity_values : Intensity values of spectrum to refit.
         rms : Root-mean-square noise value of the spectrum.
         amps : List of amplitude values of the fitted components.
         fwhms : List of FWHM values of the fitted components.
@@ -1047,7 +1044,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             idx = check_for_negative_residual(
                 model=Model(
                     spectrum=Spectrum(
-                        intensity_values=spectrum, channels=self.channels, rms_noise=rms
+                        intensity_values=intensity_values,
+                        channels=self.channels,
+                        rms_noise=rms,
                     )
                 ),
                 settings_improve_fit=settings_improve_fit,
@@ -1065,7 +1064,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self,
         index: int,
         index_neighbor: int,
-        spectrum: np.ndarray,
+        intensity_values: np.ndarray,
         rms: float,
         flag: str = "none",
         interval: Optional[List] = None,
@@ -1077,7 +1076,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ----------
         index : Index ('index_fit' keyword) of the spectrum that will be refit.
         index_neighbor : Index ('index_fit' keyword) of the neighboring fit solution.
-        spectrum : Spectrum to refit.
+        intensity_values : Intensity values of spectrum to refit.
         rms : Root-mean-square noise value of the spectrum.
         flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
         interval : List specifying the interval of spectral channels containing the flagged feature in the form of
@@ -1112,7 +1111,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         if interval is None:
             interval = self._get_refit_interval(
-                spectrum=spectrum,
+                intensity_values=intensity_values,
                 rms=rms,
                 amps=amps,
                 fwhms=fwhms,
@@ -1172,7 +1171,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ):
             dictCompsInterval = self._add_initial_value_to_dict(
                 dictComps=dictCompsInterval,
-                spectrum=spectrum[idx_lower:idx_upper],
+                intensity_values=intensity_values[idx_lower:idx_upper],
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean - idx_lower,
@@ -1181,8 +1180,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         dictFit = self._gaussian_fitting(
             spectrum=Spectrum(
-                intensity_values=spectrum[idx_lower:idx_upper],
-                channels=np.arange(len(spectrum[idx_lower:idx_upper])),
+                intensity_values=intensity_values[idx_lower:idx_upper],
+                channels=np.arange(len(intensity_values[idx_lower:idx_upper])),
                 rms_noise=rms,
             ),
             dictComps=dictCompsInterval,
@@ -1203,7 +1202,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ):
             dictComps = self._add_initial_value_to_dict(
                 dictComps=dictComps,
-                spectrum=spectrum,
+                intensity_values=intensity_values,
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean + idx_lower,
@@ -1213,7 +1212,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         for amp, fwhm, mean, mean_err in zip(amps, fwhms, means, means_err):
             dictComps = self._add_initial_value_to_dict(
                 dictComps=dictComps,
-                spectrum=spectrum,
+                intensity_values=intensity_values,
                 amp=amp,
                 fwhm=fwhm,
                 mean=mean,
@@ -1264,18 +1263,21 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     @staticmethod
     # TODO: move this to another general module
     def upper_limit_for_amplitude(
-        spectrum: np.ndarray, mean: float, fwhm: float, buffer_factor: float = 1.0
+        intensity_values: np.ndarray,
+        mean: float,
+        fwhm: float,
+        buffer_factor: float = 1.0,
     ) -> float:
         stddev = fwhm / CONVERSION_STD_TO_FWHM
         idx_low, idx_upp = get_slice_indices_for_interval(
             interval_center=mean, interval_half_width=stddev
         )
-        return buffer_factor * np.max(spectrum[idx_low:idx_upp])
+        return buffer_factor * np.max(intensity_values[idx_low:idx_upp])
 
     def _add_initial_value_to_dict(
         self,
         dictComps: Dict,
-        spectrum: np.ndarray,
+        intensity_values: np.ndarray,
         amp: float,
         fwhm: float,
         mean: float,
@@ -1286,7 +1288,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         Parameters
         ----------
         dictComps : Dictionary of fit components.
-        spectrum : Spectrum to refit.
+        intensity_values : Intensity values of spectrum to refit.
         amp : Amplitude value of fit component.
         fwhm : FWHM value of fit component.
         mean : Mean position value of fit component.
@@ -1306,7 +1308,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             "amp_bounds": [
                 0.0,
                 SpatialFitting.upper_limit_for_amplitude(
-                    spectrum, mean, fwhm, buffer_factor=1.1
+                    intensity_values, mean, fwhm, buffer_factor=1.1
                 ),
             ],
             "mean_bounds": [max(0.0, mean - mean_bound), mean + mean_bound],
@@ -1836,13 +1838,15 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         return dictCompsOrdered
 
-    def _get_initial_values_from_neighbor(self, i: int, spectrum: np.ndarray) -> Dict:
+    def _get_initial_values_from_neighbor(
+        self, i: int, intensity_values: np.ndarray
+    ) -> Dict:
         """Get dictionary with information about all fit components from neighboring fit solution.
 
         Parameters
         ----------
         i : Index of neighboring fit solution.
-        spectrum : Spectrum to refit.
+        intensity_values : Intensity values of spectrum to refit.
 
         Returns
         -------
@@ -1876,7 +1880,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 "amp_bounds": [
                     0.0,
                     SpatialFitting.upper_limit_for_amplitude(
-                        spectrum, mean, fwhm, buffer_factor=1.1
+                        intensity_values, mean, fwhm, buffer_factor=1.1
                     ),
                 ],
                 "mean_bounds": [mean_min, mean_max],
@@ -1886,13 +1890,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         return dictComps
 
     def _determine_average_values(
-        self, spectrum: np.ndarray, rms: float, dictComps: collections.OrderedDict
+        self,
+        intensity_values: np.ndarray,
+        rms: float,
+        dictComps: collections.OrderedDict,
     ) -> collections.OrderedDict:
         """Determine average values for fit components obtained by grouping.
 
         Parameters
         ----------
-        spectrum : Spectrum to refit.
+        intensity_values : Intensity values of spectrum to refit.
         rms : Root-mean-square noise value of the spectrum.
         dictComps : Ordered dictionary containing results of the grouping.
 
@@ -1918,7 +1925,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
             if (
                 amp_max := SpatialFitting.upper_limit_for_amplitude(
-                    spectrum, mean_ini, fwhm_ini
+                    intensity_values, mean_ini, fwhm_ini
                 )
             ) < self.snr * rms:
                 dictComps.pop(key)
