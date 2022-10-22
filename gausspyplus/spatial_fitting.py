@@ -1137,10 +1137,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         fwhms_new = self.decomposition["fwhms_fit"][index_neighbor]
         means_new = self.decomposition["means_fit"][index_neighbor]
 
-        # TODO: This seems to be a bug, the actual values instead of the errors are used
-        amps_err_new = self.decomposition["amplitudes_fit"][index_neighbor]
-        fwhms_err_new = self.decomposition["fwhms_fit"][index_neighbor]
-        means_err_new = self.decomposition["means_fit"][index_neighbor]
+        amps_err_new = self.decomposition["amplitudes_fit_err"][index_neighbor]
+        fwhms_err_new = self.decomposition["fwhms_fit_err"][index_neighbor]
+        means_err_new = self.decomposition["means_fit_err"][index_neighbor]
 
         #  check which of the neighboring fit components overlap with the interval containing the flagged feature(s)
         indices, interval = self._components_in_interval(
