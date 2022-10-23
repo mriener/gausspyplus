@@ -645,28 +645,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             self._determine_spectra_for_refitting()
 
     def _determine_neighbor_indices(
-        self, neighbors: List, include_flagged: bool = False
-    ) -> Tuple[np.ndarray, bool]:
+        self, indices_of_all_neighbors: np.ndarray, include_flagged: bool = False
+    ) -> np.ndarray:
         """Determine indices of all valid neighboring pixels.
 
-        Parameters
-        ----------
-        neighbors : List containing information about the location of N neighboring spectra in the form
-            [(y1, x1), ..., (yN, xN)].
-
-        Returns
-        -------
-        indices_neighbors : Array containing the corresponding indices of the N neighboring spectra in the form
-            [idx1, ..., idxN].
-
+        :param indices_of_all_neighbors: Indices of all valid neighboring spectra in the form [idx1, ..., idxN]
+        :param include_flagged: Whether to keep neighboring spectra that were flagged.
+        :return: Selection of valid neighboring spectra.
         """
-        all_neighbors = False
-        indices_neighbors_all = np.array(
-            [
-                np.ravel_multi_index(neighbor, self.shape).astype("int")
-                for neighbor in neighbors
-            ]
-        )
+
+        # TODO: Refactor code so includes_flagged_neighbors is not needed anymore
+        includes_flagged_neighbors = False
 
         # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
         indices_bad = (
@@ -679,7 +668,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         indices_neighbors = np.array(
             [
                 idx
-                for idx in indices_neighbors_all
+                for idx in indices_of_all_neighbors
                 if (
                     idx not in indices_bad
                     and idx not in self.nanIndices
@@ -689,9 +678,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         )
 
         if indices_neighbors.size > 1:
-            #  sort neighboring fit solutions according to lowest value of reduced chi-square
-            #  TODO: change this so that this gets sorted according to the lowest difference of the reduced chi-square
-            #   values to the ideal value of 1 to prevent using fit solutions that 'overfit' the data
+            # Sort neighboring fit solutions according to lowest value of reduced chi-square.
+            # TODO: change this so that this gets sorted according to the lowest difference of the reduced chi-square
+            #  values to the ideal value of 1 to prevent using fit solutions that 'overfit' the data
             sort = np.argsort(
                 np.array(self.decomposition["best_fit_rchi2"])[indices_neighbors]
             )
@@ -699,11 +688,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         elif (indices_neighbors.size == 0) or include_flagged:
             #  in case there are no unflagged neighbors, use all flagged neighbors instead
-            all_neighbors = True
+            includes_flagged_neighbors = True
             indices_neighbors = np.array(
                 [
                     idx
-                    for idx in indices_neighbors_all
+                    for idx in indices_of_all_neighbors
                     if (idx not in self.nanIndices)
                     and (self.decomposition["N_components"][idx] != 0)
                 ]
@@ -711,7 +700,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             sort = np.argsort(self.count_flags[indices_neighbors])
             indices_neighbors = indices_neighbors[sort]
 
-        return indices_neighbors, all_neighbors
+        return indices_neighbors, includes_flagged_neighbors
 
     def refit_spectrum_phase_1(self, index: int, i: int) -> List:
         """Refit a spectrum based on neighboring unflagged fit solutions.
@@ -730,15 +719,20 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         is_successful_refit = False
         fit_results = None
 
-        neighbors = get_neighbors(location=self.locations_refit[i], shape=self.shape)
+        indices_neighbors_ = get_neighbors(
+            location=self.locations_refit[i], shape=self.shape
+        )
         # Determine all neighbors that should be used for the refitting
         # TODO: Is it okay, that flagged spectra are not included here?
-        indices_neighbors, all_neighbors = self._determine_neighbor_indices(
-            neighbors=neighbors, include_flagged=False
+        (
+            indices_neighbors,
+            includes_flagged_neighbors,
+        ) = self._determine_neighbor_indices(
+            indices_of_all_neighbors=indices_neighbors_, include_flagged=False
         )
 
         if (indices_neighbors.size == 0) or (
-            all_neighbors and not self.use_all_neighors
+            includes_flagged_neighbors and not self.use_all_neighors
         ):
             return [index, fit_results, indices_neighbors, is_successful_refit]
 
@@ -791,14 +785,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 indices_neighbors=indices_neighbors,
             )
 
-        if not all_neighbors and self.use_all_neighors:
-            # Even though we now use indices_neighbors_all we still return indices_neighbors to avoid
+        if not includes_flagged_neighbors and self.use_all_neighors:
+            # Even though we now use indices_of_all_neighbors we still return indices_neighbors to avoid
             # repeating the refitting
-            indices_neighbors_all, all_neighbors = self._determine_neighbor_indices(
-                neighbors=neighbors, include_flagged=True
+            (
+                indices_of_all_neighbors,
+                includes_flagged_neighbors,
+            ) = self._determine_neighbor_indices(
+                indices_of_all_neighbors=indices_neighbors_, include_flagged=True
             )
             indices_neighbors_flagged = np.setdiff1d(
-                indices_neighbors_all, indices_neighbors
+                indices_of_all_neighbors, indices_neighbors
             ).astype("int")
 
             if indices_neighbors_flagged.size == 0:
@@ -818,11 +815,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 if fit_results is not None:
                     return [index, fit_results, indices_neighbors, is_successful_refit]
 
-            if indices_neighbors_all.size > 1:
+            if indices_of_all_neighbors.size > 1:
                 fit_results, is_successful_refit = self._try_refit_with_grouping(
                     index=index,
                     spectrum=spectrum,
-                    indices_neighbors=indices_neighbors_all,
+                    indices_neighbors=indices_of_all_neighbors,
                 )
 
         return [index, fit_results, indices_neighbors, is_successful_refit]
@@ -1537,19 +1534,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return flag_old, flag_new
 
         loc = self.location[index]
-        indices = get_neighbors(
+        indices, mask_indices = get_neighbors(
             location=loc,
             exclude_location=True,
             shape=self.shape,
             n_neighbors=1,
-            get_indices=True,
-        )
-        mask_indices = get_neighbors(
-            location=loc,
-            exclude_location=True,
-            shape=self.shape,
-            n_neighbors=1,
-            get_mask=True,
+            return_mask=True,
         )
 
         ncomps = np.ones(8) * np.nan
@@ -2183,7 +2173,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             shape=self.shape,
             n_neighbors=2,
             direction=direction,
-            get_indices=True,
         )
         is_neighbor = indices_neighbors_and_center != idx
         has_fit_components = np.array(
@@ -2347,7 +2336,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                     shape=self.shape,
                     n_neighbors=2,
                     direction=direction,
-                    get_indices=True,
                 )
                 indices_neighbors_total = np.append(
                     indices_neighbors_total, indices_neighbors

@@ -224,6 +224,8 @@ class MomentMask(object):
                 exclude_location=False,
                 shape=self.data.shape[1:],
                 n_neighbors=self.n_s,
+                return_indices=False,
+                return_coordinates=True,
             )
             for pos in position_of_spectra_within_n_s:
                 self.masking_cube[:, pos[0], pos[1]][mask_v] = 1
