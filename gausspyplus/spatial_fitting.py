@@ -692,28 +692,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         successful refit; otherwise [index, 'None', indices_neighbors, is_successful_refit] is returned.
         """
 
-        is_successful_refit = False
-        fit_results = None
-
-        indices_neighbors_ = get_neighbors(
-            location=self.locations_refit[i], shape=self.shape
-        )
-        # Determine all neighbors that should be used for the refitting
-        # TODO: Is it okay, that flagged spectra are not included here?
-        indices_neighbors = self._determine_neighbor_indices(
-            indices_of_all_neighbors=indices_neighbors_, include_flagged=False
-        )
-
-        if indices_neighbors.size == 0 and not self.use_all_neighors:
-            return [index, fit_results, indices_neighbors, is_successful_refit]
-
-        # skip refitting if there were no changes to the last iteration
-        if (
-            np.array_equal(indices_neighbors, self.neighbor_indices[index])
-            and self.mask_refitted[indices_neighbors].sum() < 1
-        ):
-            return [index, fit_results, indices_neighbors, is_successful_refit]
-
         spectrum = Spectrum(
             intensity_values=self.data[index],
             channels=self.channels,
@@ -722,53 +700,56 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             noise_spike_intervals=self.noise_spike_intervals[index],
         )
 
-        flags = []
-        if self.refit_neg_res_peak and self.mask_neg_res_peak[index]:
-            flags.append("residual")
-        elif self.refit_broad and self.mask_broad_refit[index]:
-            flags.append("broad")
-        elif self.refit_blended and self.mask_blended[index]:
-            flags.append("blended")
-        flags.append("None")
+        flags = np.array(["residual", "broad", "blended", "None"])[
+            [
+                self.refit_neg_res_peak * self.mask_neg_res_peak[index],
+                self.refit_broad * self.mask_broad_refit[index],
+                self.refit_blended * self.mask_blended[index],
+                True,
+            ]
+        ]
 
-        #  try to refit the spectrum with fit solution of individual unflagged neighboring spectra
+        indices_neighbors_ = get_neighbors(
+            location=self.locations_refit[i], shape=self.shape
+        )
 
-        for flag in flags:
-            (
-                fit_results,
-                is_successful_refit,
-            ) = self._try_refit_with_individual_neighbors(
-                index=index,
-                spectrum=spectrum,
-                indices_neighbors=indices_neighbors,
-                flag=flag,
-            )
+        indices_of_unflagged_neighbors = self._determine_neighbor_indices(
+            indices_of_all_neighbors=indices_neighbors_, include_flagged=False
+        )
+        indices_neighbors_for_individual_refit = indices_of_unflagged_neighbors
+        indices_neighbors_for_grouping = indices_of_unflagged_neighbors
 
-            if fit_results is not None:
-                return [index, fit_results, indices_neighbors, is_successful_refit]
+        for include_flagged_spectra in np.unique((False, self.use_all_neighors)):
+            if include_flagged_spectra:
+                indices_of_flagged_and_unflagged_neighbors = (
+                    self._determine_neighbor_indices(
+                        indices_of_all_neighbors=indices_neighbors_,
+                        include_flagged=True,
+                    )
+                )
+                # The following is necessary to avoid repeating refits with neighboring solutions that we already tried
+                indices_neighbors_for_individual_refit = np.setdiff1d(
+                    indices_of_flagged_and_unflagged_neighbors,
+                    indices_neighbors_for_grouping,
+                )
+                indices_neighbors_for_grouping = (
+                    indices_of_flagged_and_unflagged_neighbors
+                )
 
-        #  try to refit the spectrum by grouping the fit solutions of all unflagged neighboring spectra
+            # Skip refitting if there are no valid neighbors available
+            if indices_neighbors_for_grouping.size == 0:
+                continue
 
-        if indices_neighbors.size > 1:
-            fit_results, is_successful_refit = self._try_refit_with_grouping(
-                index=index,
-                spectrum=spectrum,
-                indices_neighbors=indices_neighbors,
-            )
+            # Skip refitting if there were no changes of neighboring fit solutions in the last iteration
+            if (
+                np.array_equal(
+                    indices_neighbors_for_grouping, self.neighbor_indices[index]
+                )
+                and not self.mask_refitted[indices_neighbors_for_grouping].sum()
+            ):
+                continue
 
-        if self.use_all_neighors:
-            # Even though we now use indices_of_all_neighbors we still return indices_neighbors to avoid
-            # repeating the refitting
-            indices_of_all_neighbors = self._determine_neighbor_indices(
-                indices_of_all_neighbors=indices_neighbors_, include_flagged=True
-            )
-            indices_neighbors_flagged = np.setdiff1d(
-                indices_of_all_neighbors, indices_neighbors
-            ).astype("int")
-
-            if indices_neighbors_flagged.size == 0:
-                return [index, None, indices_neighbors, is_successful_refit]
-
+            # Try to refit the spectrum with fit solution of individual spectra from selected neighbors
             for flag in flags:
                 (
                     fit_results,
@@ -776,21 +757,33 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 ) = self._try_refit_with_individual_neighbors(
                     index=index,
                     spectrum=spectrum,
-                    indices_neighbors=indices_neighbors_flagged,
+                    indices_neighbors=indices_neighbors_for_individual_refit,
                     flag=flag,
                 )
+                if is_successful_refit:
+                    return [
+                        index,
+                        fit_results,
+                        indices_neighbors_for_grouping,
+                        is_successful_refit,
+                    ]
 
-                if fit_results is not None:
-                    return [index, fit_results, indices_neighbors, is_successful_refit]
-
-            if indices_of_all_neighbors.size > 1:
+            # Try to refit the spectrum by grouping the fit solutions of all selected neighboring spectra
+            if indices_neighbors_for_grouping.size > 1:
                 fit_results, is_successful_refit = self._try_refit_with_grouping(
                     index=index,
                     spectrum=spectrum,
-                    indices_neighbors=indices_of_all_neighbors,
+                    indices_neighbors=indices_neighbors_for_grouping,
                 )
+                if is_successful_refit:
+                    return [
+                        index,
+                        fit_results,
+                        indices_neighbors_for_grouping,
+                        is_successful_refit,
+                    ]
 
-        return [index, fit_results, indices_neighbors, is_successful_refit]
+        return [index, None, indices_neighbors_for_grouping, False]
 
     def _try_refit_with_grouping(
         self,
