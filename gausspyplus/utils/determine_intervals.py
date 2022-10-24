@@ -2,7 +2,7 @@
 import itertools
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -177,6 +177,46 @@ def get_noise_spike_ranges(
         spectrum, peak="negative", amp_threshold=snr_noise_spike * rms
     )
     return ranges.tolist()
+
+
+def indices_of_fit_components_in_interval(
+    fwhms: List, means: List, interval: List
+) -> Tuple[List, List]:
+    """Find indices of components overlapping with the interval and update the interval range to accommodate full extent of the components.
+
+    Component i is selected if means[i] +/- fwhms[i] overlaps with the
+    interval.
+
+    The interval is updated to accommodate all spectral channels contained in the range means[i] +/- fwhms[i].
+
+    Parameters
+    ----------
+    fwhms : List of FWHM values of fit components.
+    means : List of mean position values of fit components.
+    interval : List specifying the interval of spectral channels containing the flagged feature in the form of
+        [lower, upper].
+
+    Returns
+    -------
+    indices : List with indices of components overlapping with interval.
+    interval_new : Updated interval that accommodates all spectral channels contained in the range
+        means[i] +/- fwhms[i].
+
+    """
+    lower_interval, upper_interval = interval.copy()
+    lower_interval_new, upper_interval_new = interval.copy()
+    indices = []
+
+    for i, (mean, fwhm) in enumerate(zip(means, fwhms)):
+        lower = max(0, mean - fwhm)
+        upper = mean + fwhm
+        if (lower_interval <= lower <= upper_interval) or (
+            lower_interval <= upper <= upper_interval
+        ):
+            lower_interval_new = min(lower_interval_new, lower)
+            upper_interval_new = max(upper_interval_new, upper)
+            indices.append(i)
+    return indices, [lower_interval_new, upper_interval_new]
 
 
 if __name__ == "__main__":
