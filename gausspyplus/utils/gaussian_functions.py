@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional, Union
 import numpy as np
 from lmfit import Parameters
 
+from gausspyplus.utils.determine_intervals import get_slice_indices_for_interval
 
 CONVERSION_STD_TO_FWHM = 2 * np.sqrt(2 * np.log(2))
 
@@ -158,3 +159,17 @@ def sort_parameters(amps, fwhms, means, descending: bool = True):
             np.array(means)[sort_oder],
         ]
     )
+
+
+def upper_limit_for_amplitude(
+    intensity_values: np.ndarray,
+    mean: float,
+    fwhm: float,
+    buffer_factor: float = 1.0,
+) -> float:
+    idx_low, idx_upp = get_slice_indices_for_interval(
+        interval_center=mean,
+        # TODO: is this correct or should interval_half_width be fwhm / 2?
+        interval_half_width=fwhm / CONVERSION_STD_TO_FWHM,
+    )
+    return buffer_factor * np.max(intensity_values[idx_low:idx_upp])
