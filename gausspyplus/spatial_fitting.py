@@ -35,6 +35,7 @@ from gausspyplus.utils.grouping_functions import (
     to_graph,
     get_neighbors,
     group_fit_solutions,
+    determine_average_values,
 )
 from gausspyplus.utils.misc import remove_elements_at_indices
 from gausspyplus.utils.ndimage_functions import (
@@ -831,10 +832,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 mean_separation=self.mean_separation,
                 fwhm_separation=self.fwhm_separation,
             )
-            fit_components = self._determine_average_values(
+            fit_components = determine_average_values(
                 intensity_values=spectrum.intensity_values,
-                rms=spectrum.rms_noise,
                 fit_components=fit_components,
+                intensity_threshold=self.snr * spectrum.rms_noise,
+                mean_separation=self.mean_separation,
+                constrain_fwhm=self.constrain_fwhm,
+                fwhm_separation=self.fwhm_separation,
             )
 
             #  try refit with the new average fit solution values
@@ -1707,84 +1711,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 "fwhm_bounds": [fwhm_min, fwhm_max],
             }
 
-        return fit_components
-
-    # TODO: Include snr, mean_separation, fwhm_separation, and constrain_fwhm in parameters and shift
-    #  _determine_average_values to utils.grouping_functions
-    def _determine_average_values(
-        self,
-        intensity_values: np.ndarray,
-        rms: float,
-        fit_components: collections.OrderedDict,
-    ) -> collections.OrderedDict:
-        """Determine average values for fit components obtained by grouping.
-
-        Parameters
-        ----------
-        intensity_values : Intensity values of spectrum to refit.
-        rms : Root-mean-square noise value of the spectrum.
-        fit_components : Ordered dictionary containing results of the grouping.
-
-        Returns
-        -------
-        fit_components : Updated ordered dictionary containing average values for the fit components obtained via the
-            grouping.
-
-        """
-        for key in fit_components.copy().keys():
-            amps = np.array(fit_components[key]["amps"])
-            #  TODO: also exclude all groups with two points?
-            if len(amps) == 1:
-                fit_components.pop(key)
-                continue
-            means = np.array(fit_components[key]["means"])
-            fwhms = np.array(fit_components[key]["fwhms"])
-
-            # TODO: take the median instead of the mean??
-            amp_ini = np.mean(amps)
-            mean_ini = np.mean(means)
-            fwhm_ini = np.mean(fwhms)
-
-            if (
-                amp_max := upper_limit_for_amplitude(
-                    intensity_values, mean_ini, fwhm_ini
-                )
-            ) < self.snr * rms:
-                fit_components.pop(key)
-                continue
-
-            #  determine fitting constraints for mean value
-            lower_interval = max(abs(mean_ini - np.min(means)), self.mean_separation)
-            mean_min = max(0, mean_ini - lower_interval)
-
-            upper_interval = max(abs(mean_ini - np.max(means)), self.mean_separation)
-            mean_max = mean_ini + upper_interval
-
-            fwhm_min = 0
-            fwhm_max = None
-
-            if self.constrain_fwhm:
-                #  determine fitting constraints for fwhm value
-                lower_interval = max(
-                    abs(fwhm_ini - np.min(fwhms)), self.fwhm_separation
-                )
-                fwhm_min = max(0, fwhm_ini - lower_interval)
-
-                upper_interval = max(
-                    abs(fwhm_ini - np.max(fwhms)), self.fwhm_separation
-                )
-                fwhm_max = fwhm_ini + upper_interval
-
-            fit_components[key].update(
-                {
-                    "amp_ini": amp_ini,
-                    "mean_ini": mean_ini,
-                    "fwhm_ini": fwhm_ini,
-                    "amp_bounds": [0.0, 1.1 * amp_max],
-                    "mean_bounds": [mean_min, mean_max],
-                    "fwhm_bounds": [fwhm_min, fwhm_max],
-                }
-            )
         return fit_components
 
     # TODO: include settings_improve_fit as parameter and shift _gaussian_fitting to gausspy_py3.gp_plus?
