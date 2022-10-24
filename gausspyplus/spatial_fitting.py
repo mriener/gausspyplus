@@ -160,6 +160,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         #  starting condition so that refitting iteration can start
         # self.mask_refitted = np.ones(1)
+        # TODO: Make mask_refitted a boolean array
         self.mask_refitted = np.array([1] * self.n_indices)
         self.list_n_refit = []
         self.refitting_iteration = 0
@@ -661,6 +662,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         :return: Selection of valid neighboring spectra.
         """
 
+        # TODO: Compute this once in the beginning, so it does not get recomputed all the time?
         # Here we select all indices of spectra that are not NaN and have fit components
         valid_indices = np.array(self.decomposition["index_fit"])[
             np.flatnonzero(self.decomposition["N_components"])
@@ -668,6 +670,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if not include_flagged:
             # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
             indices_flagged = (
+                # TODO: Compute this somewhere else so it does not get recomputed all the time?
                 np.array(self.decomposition["index_fit"])[self.count_flags.astype(bool)]
                 if self.exclude_flagged
                 else self.indices_refit
@@ -946,6 +949,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 spectrum=spectrum,
                 fit_components=fit_components,
             )
+            # TODO: Does setting is_successful_refit to True here make sense?
             is_successful_refit = True
             if fit_results is None:
                 continue
@@ -1705,6 +1709,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         return fit_components
 
+    # TODO: Include snr, mean_separation, fwhm_separation, and constrain_fwhm in parameters and shift
+    #  _determine_average_values to utils.grouping_functions
     def _determine_average_values(
         self,
         intensity_values: np.ndarray,
@@ -1781,6 +1787,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             )
         return fit_components
 
+    # TODO: include settings_improve_fit as parameter and shift _gaussian_fitting to gausspy_py3.gp_plus?
     def _gaussian_fitting(
         self,
         spectrum: Spectrum,
