@@ -24,6 +24,7 @@ from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     merge_overlapping_intervals,
     get_slice_indices_for_interval,
+    indices_of_fit_components_in_interval,
 )
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import (
@@ -1070,7 +1071,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 means=means,
                 flag=flag,
             )
-        indices, interval = self._components_in_interval(
+        indices, interval = indices_of_fit_components_in_interval(
             fwhms=fwhms, means=means, interval=interval
         )
 
@@ -1087,7 +1088,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         means_err_new = self.decomposition["means_fit_err"][index_neighbor]
 
         #  check which of the neighboring fit components overlap with the interval containing the flagged feature(s)
-        indices, interval = self._components_in_interval(
+        indices, interval = indices_of_fit_components_in_interval(
             fwhms=fwhms_new, means=means_new, interval=interval
         )
 
@@ -1164,45 +1165,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             )
 
         return fit_components
-
-    def _components_in_interval(
-        self, fwhms: List, means: List, interval: List
-    ) -> Tuple[List, List]:
-        """Find indices of components overlapping with the interval and update the interval range to accommodate full extent of the components.
-
-        Component i is selected if means[i] +/- fwhms[i] overlaps with the
-        interval.
-
-        The interval is updated to accommodate all spectral channels contained in the range means[i] +/- fwhms[i].
-
-        Parameters
-        ----------
-        fwhms : List of FWHM values of fit components.
-        means : List of mean position values of fit components.
-        interval : List specifying the interval of spectral channels containing the flagged feature in the form of
-            [lower, upper].
-
-        Returns
-        -------
-        indices : List with indices of components overlapping with interval.
-        interval_new : Updated interval that accommodates all spectral channels contained in the range
-            means[i] +/- fwhms[i].
-
-        """
-        lower_interval, upper_interval = interval.copy()
-        lower_interval_new, upper_interval_new = interval.copy()
-        indices = []
-
-        for i, (mean, fwhm) in enumerate(zip(means, fwhms)):
-            lower = max(0, mean - fwhm)
-            upper = mean + fwhm
-            if (lower_interval <= lower <= upper_interval) or (
-                lower_interval <= upper <= upper_interval
-            ):
-                lower_interval_new = min(lower_interval_new, lower)
-                upper_interval_new = max(upper_interval_new, upper)
-                indices.append(i)
-        return indices, [lower_interval_new, upper_interval_new]
 
     @staticmethod
     # TODO: move this to another general module
