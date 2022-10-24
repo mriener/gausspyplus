@@ -1,8 +1,10 @@
 """Functions used for grouping."""
+import collections
 from typing import Tuple, Optional, Union
 
 import numpy as np
 import networkx
+from networkx.algorithms.components.connected import connected_components
 
 
 def get_neighbors(
@@ -105,3 +107,80 @@ def to_graph(l):
         # it also implies a number of edges:
         G.add_edges_from(to_edges(part))
     return G
+
+
+def group_fit_solutions(
+    amps_tot: np.ndarray,
+    means_tot: np.ndarray,
+    fwhms_tot: np.ndarray,
+    split_fwhm: bool = True,
+    mean_separation: Union[int, float] = 2.0,
+    fwhm_separation: Union[int, float] = 4.0,
+) -> collections.OrderedDict:
+    """Grouping according to mean position values only or mean position values and FWHM values.
+
+    Parameters
+    ----------
+    amps_tot : Array of amplitude values (sorted according to mean position).
+    means_tot : Array of sorted mean position values.
+    fwhms_tot : Array of FWHM values (sorted according to mean position).
+    split_fwhm : Whether to group according to mean position and FWHM values ('True') or only according to mean
+        position values ('False').
+
+    Returns
+    -------
+    ordered_fit_components : Ordered dictionary containing the results of the grouping.
+
+    """
+    #  group with regards to mean positions only
+    split_indices = np.flatnonzero(np.ediff1d(means_tot, to_begin=0) > mean_separation)
+    split_means_tot = np.split(means_tot, split_indices)
+    split_fwhms_tot = np.split(fwhms_tot, split_indices)
+    split_amps_tot = np.split(amps_tot, split_indices)
+
+    fit_components = {}
+
+    for amps, fwhms, means in zip(split_amps_tot, split_fwhms_tot, split_means_tot):
+        if (len(means) == 1) or not split_fwhm:
+            key = f"{len(fit_components) + 1}"
+            fit_components[key] = {"amps": amps, "means": means, "fwhms": fwhms}
+            continue
+
+        #  also group with regards to FWHM values
+
+        lst_of_grouped_indices = []
+        for i in range(len(means)):
+            grouped_indices_means = np.where(
+                (np.abs(means - means[i]) < mean_separation)
+            )[0]
+            grouped_indices_fwhms = np.where(
+                (np.abs(fwhms - fwhms[i]) < fwhm_separation)
+            )[0]
+            ind = np.intersect1d(grouped_indices_means, grouped_indices_fwhms)
+            lst_of_grouped_indices.append(list(ind))
+
+        #  merge all sublists from lst_of_grouped_indices that share common indices
+
+        G = to_graph(lst_of_grouped_indices)
+        lst = list(connected_components(G))
+        lst = [list(l) for l in lst]
+
+        for sublst in lst:
+            key = f"{len(fit_components) + 1}"
+            fit_components[key] = {
+                "amps": amps[sublst],
+                "means": means[sublst],
+                "fwhms": fwhms[sublst],
+            }
+
+    ordered_fit_components = collections.OrderedDict()
+    for i, k in enumerate(
+        sorted(
+            fit_components,
+            key=lambda k: len(fit_components[k]["amps"]),
+            reverse=True,
+        )
+    ):
+        ordered_fit_components[str(i + 1)] = fit_components[k]
+
+    return ordered_fit_components
