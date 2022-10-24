@@ -6,6 +6,8 @@ import numpy as np
 import networkx
 from networkx.algorithms.components.connected import connected_components
 
+from gausspyplus.utils.gaussian_functions import upper_limit_for_amplitude
+
 
 def get_neighbors(
     location: Tuple,
@@ -184,3 +186,76 @@ def group_fit_solutions(
         ordered_fit_components[str(i + 1)] = fit_components[k]
 
     return ordered_fit_components
+
+
+def determine_average_values(
+    intensity_values: np.ndarray,
+    fit_components: collections.OrderedDict,
+    intensity_threshold: float,
+    mean_separation: float = 2.0,
+    constrain_fwhm: bool = False,
+    fwhm_separation: float = 4.0,
+) -> collections.OrderedDict:
+    """Determine average values for fit components obtained by grouping.
+
+    Parameters
+    ----------
+    intensity_values : Intensity values of spectrum to refit.
+    rms : Root-mean-square noise value of the spectrum.
+    fit_components : Ordered dictionary containing results of the grouping.
+
+    Returns
+    -------
+    fit_components : Updated ordered dictionary containing average values for the fit components obtained via the
+        grouping.
+
+    """
+    for key in fit_components.copy().keys():
+        amps = np.array(fit_components[key]["amps"])
+        #  TODO: also exclude all groups with two points?
+        if len(amps) == 1:
+            fit_components.pop(key)
+            continue
+        means = np.array(fit_components[key]["means"])
+        fwhms = np.array(fit_components[key]["fwhms"])
+
+        # TODO: take the median instead of the mean??
+        amp_ini = np.mean(amps)
+        mean_ini = np.mean(means)
+        fwhm_ini = np.mean(fwhms)
+
+        if (
+            amp_max := upper_limit_for_amplitude(intensity_values, mean_ini, fwhm_ini)
+        ) < intensity_threshold:
+            fit_components.pop(key)
+            continue
+
+        #  determine fitting constraints for mean value
+        lower_interval = max(abs(mean_ini - np.min(means)), mean_separation)
+        mean_min = max(0, mean_ini - lower_interval)
+
+        upper_interval = max(abs(mean_ini - np.max(means)), mean_separation)
+        mean_max = mean_ini + upper_interval
+
+        fwhm_min = 0
+        fwhm_max = None
+
+        if constrain_fwhm:
+            #  determine fitting constraints for fwhm value
+            lower_interval = max(abs(fwhm_ini - np.min(fwhms)), fwhm_separation)
+            fwhm_min = max(0, fwhm_ini - lower_interval)
+
+            upper_interval = max(abs(fwhm_ini - np.max(fwhms)), fwhm_separation)
+            fwhm_max = fwhm_ini + upper_interval
+
+        fit_components[key].update(
+            {
+                "amp_ini": amp_ini,
+                "mean_ini": mean_ini,
+                "fwhm_ini": fwhm_ini,
+                "amp_bounds": [0.0, 1.1 * amp_max],
+                "mean_bounds": [mean_min, mean_max],
+                "fwhm_bounds": [fwhm_min, fwhm_max],
+            }
+        )
+    return fit_components
