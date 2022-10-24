@@ -27,6 +27,10 @@ from gausspyplus.utils.determine_intervals import (
     indices_of_fit_components_in_interval,
 )
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
+from gausspyplus.utils.gaussian_functions import (
+    CONVERSION_STD_TO_FWHM,
+    upper_limit_for_amplitude,
+)
 from gausspyplus.utils.grouping_functions import (
     to_graph,
     get_neighbors,
@@ -1166,21 +1170,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         return fit_components
 
-    @staticmethod
-    # TODO: move this to another general module
-    def upper_limit_for_amplitude(
-        intensity_values: np.ndarray,
-        mean: float,
-        fwhm: float,
-        buffer_factor: float = 1.0,
-    ) -> float:
-        idx_low, idx_upp = get_slice_indices_for_interval(
-            interval_center=mean,
-            # TODO: is this correct or should interval_half_width be fwhm / 2?
-            interval_half_width=fwhm / CONVERSION_STD_TO_FWHM,
-        )
-        return buffer_factor * np.max(intensity_values[idx_low:idx_upp])
-
     def _add_initial_value_to_dict(
         self,
         fit_components: Dict,
@@ -1214,7 +1203,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             "fwhm_ini": fwhm,
             "amp_bounds": [
                 0.0,
-                SpatialFitting.upper_limit_for_amplitude(
+                upper_limit_for_amplitude(
                     intensity_values, mean, fwhm, buffer_factor=1.1
                 ),
             ],
@@ -1706,7 +1695,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 "fwhm_ini": fwhm,
                 "amp_bounds": [
                     0.0,
-                    SpatialFitting.upper_limit_for_amplitude(
+                    upper_limit_for_amplitude(
                         intensity_values, mean, fwhm, buffer_factor=1.1
                     ),
                 ],
@@ -1751,7 +1740,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             fwhm_ini = np.mean(fwhms)
 
             if (
-                amp_max := SpatialFitting.upper_limit_for_amplitude(
+                amp_max := upper_limit_for_amplitude(
                     intensity_values, mean_ini, fwhm_ini
                 )
             ) < self.snr * rms:
