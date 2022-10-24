@@ -1,6 +1,6 @@
 import itertools
 from collections import namedtuple
-from typing import Optional, List, Union, Any, Tuple, Literal, Dict
+from typing import Optional, List, Union, Tuple, Literal, Dict
 
 import numpy as np
 
@@ -23,6 +23,7 @@ from gausspyplus.utils.gaussian_functions import (
     paramvec_to_lmfit,
     sort_parameters,
 )
+from gausspyplus.utils.misc import remove_elements_at_indices
 from gausspyplus.utils.noise_estimation import determine_peaks
 
 
@@ -78,24 +79,6 @@ def _perform_least_squares_fit(
         return params_fit, params_errs, ncomps_fit
     except (ValueError, TypeError):
         return [], [], 0
-
-
-def remove_components_from_sublists(lst: List, remove_indices: List[int]) -> List:
-    """Remove items with indices idx1, ..., idxN from all sublists of a nested list.
-
-    Parameters
-    ----------
-    lst : Nested list [sublist1, ..., sublistN].
-    remove_indices : List of indices [idx1, ..., idxN] indicating the items that should be removed from the sublists.
-
-    Returns
-    -------
-    lst : list
-
-    """
-    for idx, sublst in enumerate(lst):
-        lst[idx] = [val for i, val in enumerate(sublst) if i not in remove_indices]
-    return lst
 
 
 def _remove_components_above_max_ncomps(
@@ -245,14 +228,14 @@ def _check_params_fit(
 
     refit = False
 
-    if remove_indices := list(set(remove_indices)):
-        params_fit = remove_components(params_fit, remove_indices=remove_indices)
+    if indices := list(set(remove_indices)):
+        params_fit = remove_elements_at_indices(params_fit, indices, n_subarrays=3)
 
         if params_min is not None:
-            params_min = remove_components(params_min, remove_indices=remove_indices)
+            params_min = remove_elements_at_indices(params_min, indices, n_subarrays=3)
 
         if params_max is not None:
-            params_max = remove_components(params_max, remove_indices=remove_indices)
+            params_max = remove_elements_at_indices(params_max, indices, n_subarrays=3)
 
         params_fit, params_errs, ncomps_fit = _perform_least_squares_fit(
             spectrum=spectrum,
@@ -503,36 +486,6 @@ def get_fully_blended_gaussians(
     return indices_blended[sort]
 
 
-# TODO: Identical function in utils.grouping_functions -> remove redundancy; this function is imported also by
-#  spatial_fitting.py
-def remove_components(
-    params: Union[List, np.ndarray], remove_indices: Union[int, List, np.ndarray]
-) -> List:
-    """Remove parameters of Gaussian fit components.
-
-    Parameters
-    ----------
-    params : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    remove_indices : int, list, np.ndarray
-        Indices of Gaussian fit components, whose parameters should be removed from params_fit.
-
-    Returns
-    -------
-    params : list
-        Updated list from which the parameters of the selected Gaussian fit components were removed.
-
-    """
-    amps, fwhms, offsets = np.split(np.array(params), 3)
-    if not isinstance(remove_indices, (np.ndarray, list)):
-        remove_indices = [remove_indices]
-    return (
-        [amp for idx, amp in enumerate(amps) if idx not in remove_indices]
-        + [fwhm for idx, fwhm in enumerate(fwhms) if idx not in remove_indices]
-        + [offset for idx, offset in enumerate(offsets) if idx not in remove_indices]
-    )
-
-
 def get_best_fit_model(
     model: Model,  # model is a new instance of Model
     params_fit: List,
@@ -668,9 +621,9 @@ def check_for_negative_residual(
     ]
 
     if remove_indices:
-        amp_guesses, fwhm_guesses, offset_guesses = remove_components_from_sublists(
-            [amp_guesses, fwhm_guesses, offset_guesses], remove_indices
-        )
+        amp_guesses = remove_elements_at_indices(amp_guesses, remove_indices)
+        fwhm_guesses = remove_elements_at_indices(fwhm_guesses, remove_indices)
+        offset_guesses = remove_elements_at_indices(offset_guesses, remove_indices)
 
     if get_count:
         return len(amp_guesses)
@@ -738,7 +691,11 @@ def _try_fit_with_new_components(
     #  produce new best fit with excluded components
     new_model = get_best_fit_model(
         model=Model(spectrum=model.spectrum),
-        params_fit=remove_components(model.parameters, remove_indices=exclude_idx),
+        params_fit=remove_elements_at_indices(
+            array=model.parameters,
+            indices=exclude_idx,
+            n_subarrays=3,
+        ),
         settings_improve_fit=settings_improve_fit,
     )
 
