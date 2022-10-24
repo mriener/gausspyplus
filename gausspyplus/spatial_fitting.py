@@ -19,7 +19,6 @@ from gausspyplus.gausspy_py3.gp_plus import (
     get_fully_blended_gaussians,
     check_for_peaks_in_residual,
     check_for_negative_residual,
-    remove_components_from_sublists,
     get_best_fit_model,
 )
 from gausspyplus.model import Model
@@ -30,6 +29,7 @@ from gausspyplus.utils.determine_intervals import (
 )
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
 from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
+from gausspyplus.utils.misc import remove_elements_at_indices
 from gausspyplus.utils.ndimage_functions import (
     weighted_median,
     number_of_component_jumps,
@@ -1045,17 +1045,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             amps = updated_fit_results["amplitudes_fit"]
             fwhms = updated_fit_results["fwhms_fit"]
             means = updated_fit_results["means_fit"]
-
-            amps_err = updated_fit_results["amplitudes_fit_err"]
-            fwhms_err = updated_fit_results["fwhms_fit_err"]
             means_err = updated_fit_results["means_fit_err"]
         else:
             amps = self.decomposition["amplitudes_fit"][index]
             fwhms = self.decomposition["fwhms_fit"][index]
             means = self.decomposition["means_fit"][index]
-
-            amps_err = self.decomposition["amplitudes_fit_err"][index]
-            fwhms_err = self.decomposition["fwhms_fit_err"][index]
             means_err = self.decomposition["means_fit_err"][index]
 
         #  remove fit solution(s) of fit component(s) that are causing the flagged feature
@@ -1073,21 +1067,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             fwhms=fwhms, means=means, interval=interval
         )
 
-        amps, fwhms, means = remove_components_from_sublists(
-            lst=[amps, fwhms, means], remove_indices=indices
-        )
-        amps_err, fwhms_err, means_err = remove_components_from_sublists(
-            lst=[amps_err, fwhms_err, means_err], remove_indices=indices
-        )
+        amps = remove_elements_at_indices(amps, indices)
+        fwhms = remove_elements_at_indices(fwhms, indices)
+        means = remove_elements_at_indices(means, indices)
+        means_err = remove_elements_at_indices(means_err, indices)
 
         #  get new initial guess(es) for removed component(s) from neighboring fit solution
 
         amps_new = self.decomposition["amplitudes_fit"][index_neighbor]
         fwhms_new = self.decomposition["fwhms_fit"][index_neighbor]
         means_new = self.decomposition["means_fit"][index_neighbor]
-
-        amps_err_new = self.decomposition["amplitudes_fit_err"][index_neighbor]
-        fwhms_err_new = self.decomposition["fwhms_fit_err"][index_neighbor]
         means_err_new = self.decomposition["means_fit_err"][index_neighbor]
 
         #  check which of the neighboring fit components overlap with the interval containing the flagged feature(s)
@@ -1100,13 +1089,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         #  discard all neighboring fit components not overlappting with the interval containing the flagged feature(s)
         remove_indices = np.delete(np.arange(len(amps_new)), indices)
-        amps_new, fwhms_new, means_new = remove_components_from_sublists(
-            lst=[amps_new, fwhms_new, means_new], remove_indices=remove_indices
-        )
-        amps_err_new, fwhms_err_new, means_err_new = remove_components_from_sublists(
-            lst=[amps_err_new, fwhms_err_new, means_err_new],
-            remove_indices=remove_indices,
-        )
+        amps_new = remove_elements_at_indices(amps_new, remove_indices)
+        fwhms_new = remove_elements_at_indices(fwhms_new, remove_indices)
+        means_new = remove_elements_at_indices(means_new, remove_indices)
+        means_err_new = remove_elements_at_indices(means_err_new, remove_indices)
 
         if len(amps_new) == 0:
             return

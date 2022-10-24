@@ -105,9 +105,3 @@ def to_graph(l):
         # it also implies a number of edges:
         G.add_edges_from(to_edges(part))
     return G
-
-
-def remove_components(lst, remove_indices):
-    for idx, sublst in enumerate(lst):
-        lst[idx] = [val for i, val in enumerate(sublst) if i not in remove_indices]
-    return lst
