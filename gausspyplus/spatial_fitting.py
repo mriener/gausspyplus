@@ -1,5 +1,4 @@
 import collections
-import functools
 import itertools
 import os
 import pickle
@@ -10,7 +9,6 @@ from typing import Dict, Optional, List, Tuple, Union, Callable
 import numpy as np
 import scipy.ndimage as ndimage
 
-from networkx.algorithms.components.connected import connected_components
 from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
@@ -28,7 +26,11 @@ from gausspyplus.utils.determine_intervals import (
     get_slice_indices_for_interval,
 )
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
-from gausspyplus.utils.grouping_functions import to_graph, get_neighbors
+from gausspyplus.utils.grouping_functions import (
+    to_graph,
+    get_neighbors,
+    group_fit_solutions,
+)
 from gausspyplus.utils.misc import remove_elements_at_indices
 from gausspyplus.utils.ndimage_functions import (
     weighted_median,
@@ -813,8 +815,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         #  position and FWHM values.
 
         for split_fwhm in [False, True]:
-            fit_components = self._grouping(
-                amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=split_fwhm
+            fit_components = group_fit_solutions(
+                amps_tot=amps,
+                means_tot=means,
+                fwhms_tot=fwhms,
+                split_fwhm=split_fwhm,
+                mean_separation=self.mean_separation,
+                fwhm_separation=self.fwhm_separation,
             )
             fit_components = self._determine_average_values(
                 intensity_values=spectrum.intensity_values,
@@ -1696,83 +1703,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         sort_order = np.argsort(means)
         return amps[sort_order], means[sort_order], fwhms[sort_order]
 
-    def _grouping(
-        self,
-        amps_tot: np.ndarray,
-        means_tot: np.ndarray,
-        fwhms_tot: np.ndarray,
-        split_fwhm: bool = True,
-    ) -> collections.OrderedDict:
-        """Grouping according to mean position values only or mean position values and FWHM values.
-
-        Parameters
-        ----------
-        amps_tot : Array of amplitude values (sorted according to mean position).
-        means_tot : Array of sorted mean position values.
-        fwhms_tot : Array of FWHM values (sorted according to mean position).
-        split_fwhm : Whether to group according to mean position and FWHM values ('True') or only according to mean
-            position values ('False').
-
-        Returns
-        -------
-        ordered_fit_components : Ordered dictionary containing the results of the grouping.
-
-        """
-        #  group with regards to mean positions only
-        split_indices = np.flatnonzero(
-            np.ediff1d(means_tot, to_begin=0) > self.mean_separation
-        )
-        split_means_tot = np.split(means_tot, split_indices)
-        split_fwhms_tot = np.split(fwhms_tot, split_indices)
-        split_amps_tot = np.split(amps_tot, split_indices)
-
-        fit_components = {}
-
-        for amps, fwhms, means in zip(split_amps_tot, split_fwhms_tot, split_means_tot):
-            if (len(means) == 1) or not split_fwhm:
-                key = f"{len(fit_components) + 1}"
-                fit_components[key] = {"amps": amps, "means": means, "fwhms": fwhms}
-                continue
-
-            #  also group with regards to FWHM values
-
-            lst_of_grouped_indices = []
-            for i in range(len(means)):
-                grouped_indices_means = np.where(
-                    (np.abs(means - means[i]) < self.mean_separation)
-                )[0]
-                grouped_indices_fwhms = np.where(
-                    (np.abs(fwhms - fwhms[i]) < self.fwhm_separation)
-                )[0]
-                ind = np.intersect1d(grouped_indices_means, grouped_indices_fwhms)
-                lst_of_grouped_indices.append(list(ind))
-
-            #  merge all sublists from lst_of_grouped_indices that share common indices
-
-            G = to_graph(lst_of_grouped_indices)
-            lst = list(connected_components(G))
-            lst = [list(l) for l in lst]
-
-            for sublst in lst:
-                key = f"{len(fit_components) + 1}"
-                fit_components[key] = {
-                    "amps": amps[sublst],
-                    "means": means[sublst],
-                    "fwhms": fwhms[sublst],
-                }
-
-        ordered_fit_components = collections.OrderedDict()
-        for i, k in enumerate(
-            sorted(
-                fit_components,
-                key=lambda k: len(fit_components[k]["amps"]),
-                reverse=True,
-            )
-        ):
-            ordered_fit_components[str(i + 1)] = fit_components[k]
-
-        return ordered_fit_components
-
     def _get_initial_values_from_neighbor(
         self, i: int, intensity_values: np.ndarray
     ) -> Dict:
@@ -2166,8 +2096,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 continue
 
             amps, means, fwhms = self._get_initial_values(indices_neighbors)
-            grouping = self._grouping(
-                amps_tot=amps, means_tot=means, fwhms_tot=fwhms, split_fwhm=False
+            grouping = group_fit_solutions(
+                amps_tot=amps,
+                means_tot=means,
+                fwhms_tot=fwhms,
+                split_fwhm=False,
+                mean_separation=self.mean_separation,
+                fwhm_separation=self.fwhm_separation,
             )
 
             means_interval = {
