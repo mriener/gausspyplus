@@ -681,7 +681,7 @@ def plot_fit_stages(
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh2"] * u2_scale, "--r")
 
     for amp, fwhm, mean in zip(
-        agd_phase1["amps"], agd_phase1["FWHMs"], agd_phase1["means"]
+        agd_phase1["amps"], agd_phase1["fwhms"], agd_phase1["means"]
     ):
         ax1.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
 
@@ -712,7 +712,7 @@ def plot_fit_stages(
         ax3.plot(vel, agd_phase2["u2"] * u2_phase2_scale, "-r")
 
         for amp, fwhm, mean in zip(
-            agd_phase2["amps"], agd_phase2["FWHMs"], agd_phase2["means"]
+            agd_phase2["amps"], agd_phase2["fwhms"], agd_phase2["means"]
         ):
             ax3.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
 
