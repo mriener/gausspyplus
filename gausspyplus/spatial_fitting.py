@@ -1,4 +1,3 @@
-import collections
 import itertools
 import os
 import pickle
@@ -23,7 +22,6 @@ from gausspyplus.model import Model
 from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     merge_overlapping_intervals,
-    get_slice_indices_for_interval,
     indices_of_fit_components_in_interval,
 )
 from gausspyplus.utils.flags import (
@@ -34,12 +32,8 @@ from gausspyplus.utils.flags import (
     get_flags_centroids,
     get_flags_ncomps,
 )
-from gausspyplus.utils.gaussian_functions import (
-    CONVERSION_STD_TO_FWHM,
-    upper_limit_for_amplitude,
-)
+from gausspyplus.utils.gaussian_functions import upper_limit_for_amplitude
 from gausspyplus.utils.grouping_functions import (
-    to_graph,
     get_neighbors,
     group_fit_solutions,
     determine_average_values,
