@@ -211,7 +211,7 @@ def _correct_rms(
     warnings.warn(
         f"Could not determine noise for spectrum {info_index} (baseline issue?). {info_action}"
     )
-    return average_rms if average_rms is not None else np.nan
+    return average_rms or np.nan
 
 
 def _identify_valid_noise_values(

@@ -78,15 +78,11 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
     @functools.cached_property
     def filename_in(self):
-        return Path(
-            self.filename if self.filename is not None else Path(self.path_to_file)
-        ).stem
+        return Path(self.filename or self.path_to_file).stem
 
     @functools.cached_property
     def input_file_type(self):
-        return Path(
-            self.filename if self.filename is not None else self.path_to_file
-        ).suffix
+        return Path(self.filename or self.path_to_file).suffix
 
     @functools.cached_property
     def n_channels(self):
@@ -144,7 +140,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
     @functools.cached_property
     def threshold_amplitude(self):
-        return self.amp_threshold if self.amp_threshold is not None else 0
+        return self.amp_threshold or 0
 
     def _prepare_training_set(self, results):
         return {

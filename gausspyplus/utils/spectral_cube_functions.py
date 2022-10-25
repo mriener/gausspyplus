@@ -563,9 +563,9 @@ def get_slice_parameters(
     elif header:
         wcs = WCS(correct_header(header))
 
-    range_x = [val if val is not None else 0 for val in range_x_wcs]
-    range_y = [val if val is not None else 0 for val in range_y_wcs]
-    range_z = [val if val is not None else 0 for val in range_z_wcs]
+    range_x = [val or 0 for val in range_x_wcs]
+    range_y = [val or 0 for val in range_y_wcs]
+    range_z = [val or 0 for val in range_z_wcs]
 
     x_wcs_min, x_wcs_max = (range_x * x_unit).to(wcs.wcs.cunit[0]).value
     y_wcs_min, y_wcs_max = (range_y * y_unit).to(wcs.wcs.cunit[1]).value

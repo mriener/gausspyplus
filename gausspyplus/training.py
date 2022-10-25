@@ -30,9 +30,7 @@ class GaussPyTraining(SettingsDefault, SettingsTraining, BaseChecks):
             return False
         return set_up_logger(
             parentDirname=(
-                self.gpy_dirpath
-                if self.gpy_dirpath is not None
-                else Path(self.path_to_training_set).parents[1]
+                self.gpy_dirpath or Path(self.path_to_training_set).parents[1]
             ),
             filename=Path(self.path_to_training_set).stem,
             method="g+_training",
