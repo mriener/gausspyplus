@@ -26,7 +26,14 @@ from gausspyplus.utils.determine_intervals import (
     get_slice_indices_for_interval,
     indices_of_fit_components_in_interval,
 )
-from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
+from gausspyplus.utils.flags import (
+    get_flags_rchi2,
+    get_flags,
+    get_flags_pvalue,
+    get_flags_broad,
+    get_flags_centroids,
+    get_flags_ncomps,
+)
 from gausspyplus.utils.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
     upper_limit_for_amplitude,
@@ -1223,306 +1230,6 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         }
         return fit_components
 
-    def _get_dictionary_value(
-        self, key: str, index: int, updated_fit_results: Optional[Dict] = None
-    ):
-        """Return a dictionary value.
-        # TODO: type hint for return
-        # TODO: replace this with dictionary method -> default
-
-        Parameters
-        ----------
-        key : Key of the dictionary.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        updated_fit_results : If this dictionary is supplied, the value is extracted from it (only used in phase 2 of the
-            spatially coherent refitting); otherwise the value is extracted from the 'self.decomposition' dictionary
-
-        """
-        return (
-            updated_fit_results[key]
-            if updated_fit_results is not None
-            else self.decomposition[key][index]
-        )
-
-    def _get_flags(
-        self,
-        fit_results: Dict,
-        index: int,
-        key: Optional[str] = "None",
-        flag: Optional[bool] = None,
-        updated_fit_results: Optional[Dict] = None,
-    ) -> Tuple[int, int]:
-        """Check how the refit affected the number of blended or negative residual features.
-
-        This check will only be performed if the 'self.flag_blended=True' or 'self.flag_neg_res_peak=True'.
-
-        Parameters
-        ----------
-        fit_results : Dictionary containing the new best fit results after the refit attempt.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        key : Dictionary keys, either 'N_blended' or 'N_neg_res_peak'.
-        flag : User-selected flag criterion, either 'self.flag_blended', or 'self.flag_neg_res_peak'
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-
-        Returns
-        -------
-        flag_old : Count of flagged features present in spectrum before refit.
-        flag_new : Count of flagged features present in spectrum after refit.
-
-        """
-        flag_old, flag_new = 0, 0
-
-        if not flag:
-            return flag_old, flag_new
-
-        n_old = self._get_dictionary_value(
-            key=key, index=index, updated_fit_results=updated_fit_results
-        )
-        n_new = fit_results[key]
-        #  flag if old fitting results showed flagged feature
-        if n_old > 0:
-            flag_old = 1
-        #  punish new fit if it contains more of the flagged features
-        if n_new > n_old:
-            flag_new = flag_old + 1
-        #  same flags if the new and old fitting results show the same number of features
-        elif n_new == n_old:
-            flag_new = flag_old
-
-        return flag_old, flag_new
-
-    def _get_flags_rchi2(
-        self, fit_results: Dict, index: int, updated_fit_results: Optional[Dict] = None
-    ) -> Tuple[int, int]:
-        """Check how the reduced chi-square value of a spectrum changed after the refit.
-
-        This check will only be performed if the 'self.flag_rchi2=True'.
-
-        Parameters
-        ----------
-        fit_results : Dictionary containing the new best fit results after the refit attempt.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-
-        Returns
-        -------
-        flag_old : Flag value before the refit.
-        flag_new : Flag value after the refit.
-
-        """
-        flag_old, flag_new = 0, 0
-
-        if not self.flag_rchi2:
-            return flag_old, flag_new
-
-        rchi2_old = self._get_dictionary_value(
-            key="best_fit_rchi2", index=index, updated_fit_results=updated_fit_results
-        )
-        rchi2_new = fit_results["best_fit_rchi2"]
-
-        if rchi2_old > self.rchi2_limit:
-            flag_old += 1
-        if rchi2_new > self.rchi2_limit:
-            flag_new += 1
-
-        #  reward new fit if it is closer to rchi2 = 1 and thus likely less "overfit"
-        if max(rchi2_old, rchi2_new) < self.rchi2_limit and abs(rchi2_new - 1) < abs(
-            rchi2_old - 1
-        ):
-            flag_old += 1
-
-        return flag_old, flag_new
-
-    def _get_flags_pvalue(
-        self, fit_results: Dict, index: int, updated_fit_results: Optional[Dict] = None
-    ) -> Tuple[int, int]:
-        flag_old, flag_new = (0 for _ in range(2))
-
-        if not self.flag_residual:
-            return flag_old, flag_new
-
-        pvalue_old = self._get_dictionary_value(
-            key="pvalue", index=index, updated_fit_results=updated_fit_results
-        )
-        pvalue_new = fit_results["pvalue"]
-
-        if pvalue_old < self.min_pvalue:
-            flag_old += 1
-        if pvalue_new < self.min_pvalue:
-            flag_new += 1
-
-        #  punish fit if pvalue got worse
-        if pvalue_new < pvalue_old:
-            flag_new += 1
-
-        return flag_old, flag_new
-
-    def _get_flags_broad(
-        self, fit_results: Dict, index: int, updated_fit_results: Optional[Dict] = None
-    ) -> Tuple[int, int]:
-        """Check how the refit affected the number of components flagged as broad.
-
-        This check will only be performed if the 'self.flag_broad=True'.
-
-        Parameters
-        ----------
-        fit_results : Dictionary containing the new best fit results after the refit attempt.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-
-        Returns
-        -------
-        flag_old : Flag value before the refit.
-        flag_new : Flag value after the refit.
-
-        """
-        flag_old, flag_new = (0 for _ in range(2))
-
-        if not self.flag_broad:
-            return flag_old, flag_new
-
-        if self.mask_broad_flagged[index]:
-            flag_old = 1
-            fwhm_max_old = max(
-                self._get_dictionary_value(
-                    key="fwhms_fit",
-                    index=index,
-                    updated_fit_results=updated_fit_results,
-                )
-            )
-            fwhm_max_new = max(np.array(fit_results["fwhms_fit"]))
-            #  no changes to the fit
-            if fwhm_max_new == fwhm_max_old:
-                flag_new = 1
-            #  punish fit if component got even broader
-            elif fwhm_max_new > fwhm_max_old:
-                flag_new = 2
-        else:
-            fwhms = fit_results["fwhms_fit"]
-            if len(fwhms) > 1:
-                #  punish fit if broad component was introduced
-                fwhms = sorted(fit_results["fwhms_fit"])
-                if (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (
-                    fwhms[-1] - fwhms[-2]
-                ) > self.fwhm_separation:
-                    flag_new = 1
-
-        return flag_old, flag_new
-
-    def _get_flags_ncomps(
-        self, fit_results: Dict, index: int, updated_fit_results: Optional[Dict] = None
-    ) -> Tuple[int, int]:
-        """Check how the number of component jumps changed after the refit.
-
-        TODO: Remove unused fit_results -> also from code where function is called!
-
-        Parameters
-        ----------
-        fit_results : Dictionary containing the new best fit results after the refit attempt.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-
-        Returns
-        -------
-        flag_old : Flag value before the refit.
-        flag_new : Flag value after the refit.
-
-        """
-        flag_old, flag_new = 0, 0
-
-        if not self.flag_ncomps:
-            return flag_old, flag_new
-
-        loc = self.location[index]
-        indices, mask_indices = get_neighbors(
-            location=loc,
-            exclude_location=True,
-            shape=self.shape,
-            n_neighbors=1,
-            return_mask=True,
-        )
-
-        ncomps = np.ones(8) * np.nan
-        ncomps[mask_indices] = self.ncomps[indices]
-        ncomps_central = self._get_dictionary_value(
-            key="N_components", index=index, updated_fit_results=updated_fit_results
-        )
-        ncomps = np.insert(ncomps, 4, ncomps_central)
-        njumps_new = number_of_component_jumps(ncomps, self.max_jump_comps)
-
-        ncomps_wmedian = self.ncomps_wmedian[index]
-        ndiff_old = abs(ncomps_wmedian - self.ncomps[index])
-        ndiff_new = abs(ncomps_wmedian - ncomps_central)
-
-        njumps_old = self.ncomps_jumps[index]
-        if (njumps_old > self.n_max_jump_comps) or (ndiff_old > self.max_diff_comps):
-            flag_old = 1
-        if (njumps_new > self.n_max_jump_comps) or (ndiff_new > self.max_diff_comps):
-            flag_new = 1
-        if (njumps_new > njumps_old) or (ndiff_new > ndiff_old):
-            flag_new += 1
-
-        return flag_old, flag_new
-
-    def _get_flags_centroids(
-        self,
-        fit_results: Dict,
-        index: int,
-        updated_fit_results: Optional[Dict] = None,
-        interval: Optional[List] = None,
-        n_centroids: Optional[int] = None,
-    ) -> Tuple[int, int]:
-        """Check how the presence of centroid positions changed after the refit.
-
-        This check is only performed in phase 2 of the spatially coherent refitting.
-
-        Parameters
-        ----------
-        fit_results : Dictionary containing the new best fit results after the refit attempt.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-        interval : List specifying the interval of spectral channels where 'n_centroids' number of centroid positions
-            are required.
-        n_centroids : Number of centroid positions that should be present in interval.
-
-        Returns
-        -------
-        flag_old : Flag value before the refit.
-        flag_new : Flag value after the refit.
-
-        """
-        flag_old, flag_new = (0 for _ in range(2))
-
-        if interval is None:
-            return flag_old, flag_new
-
-        means_old = self._get_dictionary_value(
-            key="means_fit", index=index, updated_fit_results=updated_fit_results
-        )
-        means_new = fit_results["means_fit"]
-
-        flag_old, flag_new = (2 for _ in range(2))
-
-        n_centroids_old = sum(interval[0] < x < interval[1] for x in means_old)
-        n_centroids_new = sum(interval[0] < x < interval[1] for x in means_new)
-
-        #  reward new fit if it has the required number of centroid positions within 'interval'
-        if n_centroids_new == n_centroids:
-            flag_new = 0
-        #  reward new fit if its number of centroid positions within 'interval' got closer to the required value
-        elif abs(n_centroids_new - n_centroids) < abs(n_centroids_old - n_centroids):
-            flag_new = 1
-        #  punish new fit if its number of centroid positions within 'interval' compared to the required value got worse than in the old fit
-        elif abs(n_centroids_new - n_centroids) > abs(n_centroids_old - n_centroids):
-            flag_old = 1
-
-        return flag_old, flag_new
-
     def _choose_new_fit(
         self,
         fit_results: Dict,
@@ -1550,52 +1257,96 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         """
         #  check how values/numbers of flagged features changed after the refit
 
-        flag_blended_old, flag_blended_new = self._get_flags(
-            fit_results=fit_results,
-            index=index,
-            key="N_blended",
-            flag=self.flag_blended,
-            updated_fit_results=updated_fit_results,
+        current_best_fit = updated_fit_results or {
+            key: self.decomposition[key][index]
+            for key in [
+                "N_blended",
+                "N_neg_res_peak",
+                "best_fit_rchi2",
+                "best_fit_aicc",
+                "pvalue",
+                "fwhms_fit",
+                "N_components",
+                "means_fit",
+            ]
+        }
+
+        flag_blended_old, flag_blended_new = (
+            get_flags(
+                n_old=current_best_fit["N_blended"],
+                n_new=fit_results["N_blended"],
+            )
+            if self.flag_blended
+            else (0, 0)
+        )
+        flag_neg_res_peak_old, flag_neg_res_peak_new = (
+            get_flags(
+                n_old=current_best_fit["N_neg_res_peak"],
+                n_new=fit_results["N_neg_res_peak"],
+            )
+            if self.flag_neg_res_peak
+            else (0, 0)
+        )
+        flag_rchi2_old, flag_rchi2_new = (
+            get_flags_rchi2(
+                rchi2_old=current_best_fit["best_fit_rchi2"],
+                rchi2_new=fit_results["best_fit_rchi2"],
+                rchi2_limit=self.rchi2_limit,
+            )
+            if self.flag_rchi2
+            else (0, 0)
+        )
+        flag_residual_old, flag_residual_new = (
+            get_flags_pvalue(
+                pvalue_old=current_best_fit["pvalue"],
+                pvalue_new=fit_results["pvalue"],
+                min_pvalue=self.min_pvalue,
+            )
+            if self.flag_residual
+            else (0, 0)
+        )
+        flag_broad_old, flag_broad_new = (
+            get_flags_broad(
+                fwhms_old=current_best_fit["fwhms_fit"],
+                fwhms_new=fit_results["fwhms_fit"],
+                contains_fwhm_flagged_as_broad=self.mask_broad_flagged[index],
+                fwhm_factor=self.fwhm_factor,
+                fwhm_separation=self.fwhm_separation,
+            )
+            if self.flag_broad
+            else (0, 0)
         )
 
-        flag_neg_res_peak_old, flag_neg_res_peak_new = self._get_flags(
-            fit_results=fit_results,
-            index=index,
-            key="N_neg_res_peak",
-            flag=self.flag_neg_res_peak,
-            updated_fit_results=updated_fit_results,
+        # TODO: Improve the following, try to get rid of mask_indices
+        indices, mask_indices = get_neighbors(
+            location=self.location[index],
+            shape=self.shape,
+            return_mask=True,
+        )
+        ncomps = np.ones(8) * np.nan
+        ncomps[mask_indices] = self.ncomps[indices]
+        ncomps = np.insert(ncomps, 4, current_best_fit["N_components"])
+
+        flag_ncomps_old, flag_ncomps_new = get_flags_ncomps(
+            ndiff_old=abs(
+                self.ncomps_wmedian[index] - current_best_fit["N_components"]
+            ),
+            ndiff_new=abs(self.ncomps_wmedian[index] - fit_results["N_components"]),
+            njumps_old=self.ncomps_jumps[index],
+            njumps_new=number_of_component_jumps(ncomps, self.max_jump_comps),
+            max_diff_comps=self.max_diff_comps,
+            n_max_jump_comps=self.n_max_jump_comps,
         )
 
-        flag_rchi2_old, flag_rchi2_new = self._get_flags_rchi2(
-            fit_results=fit_results,
-            index=index,
-            updated_fit_results=updated_fit_results,
-        )
-
-        flag_residual_old, flag_residual_new = self._get_flags_pvalue(
-            fit_results=fit_results,
-            index=index,
-            updated_fit_results=updated_fit_results,
-        )
-
-        flag_broad_old, flag_broad_new = self._get_flags_broad(
-            fit_results=fit_results,
-            index=index,
-            updated_fit_results=updated_fit_results,
-        )
-
-        flag_ncomps_old, flag_ncomps_new = self._get_flags_ncomps(
-            fit_results=fit_results,
-            index=index,
-            updated_fit_results=updated_fit_results,
-        )
-
-        flag_centroids_old, flag_centroids_new = self._get_flags_centroids(
-            fit_results=fit_results,
-            index=index,
-            updated_fit_results=updated_fit_results,
-            interval=interval,
-            n_centroids=n_centroids,
+        flag_centroids_old, flag_centroids_new = (
+            get_flags_centroids(
+                means_old=current_best_fit["means_fit"],
+                means_new=fit_results["means_fit"],
+                interval=interval,
+                n_centroids=n_centroids,
+            )
+            if interval is not None
+            else (0, 0)
         )
 
         #  only for phase 2: do not accept the new fit if there was no improvement for the centroid positions required in 'interval'
@@ -1625,13 +1376,9 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         # - if the AICc value of new fit is higher than the AICc value of the current best fit solution, only accept the
         # new fit if the values of the residual are normally distributed, i.e. if it passes the Kolmogorov-Smirnov test
 
-        aicc_old = self._get_dictionary_value(
-            key="best_fit_aicc", index=index, updated_fit_results=updated_fit_results
+        return (fit_results["best_fit_aicc"] <= current_best_fit["best_fit_aicc"]) or (
+            fit_results["pvalue"] >= self.min_pvalue
         )
-        aicc_new = fit_results["best_fit_aicc"]
-        pvalue = fit_results["pvalue"]
-
-        return (aicc_new <= aicc_old) or (pvalue >= self.min_pvalue)
 
     def _get_values_for_indices(self, indices: np.ndarray, key: str) -> np.ndarray:
         # sum(tuple_of_lists, []) makes a flat list out of the tuple of lists
