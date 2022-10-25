@@ -1,3 +1,4 @@
+import contextlib
 import getpass
 import itertools
 import os
@@ -334,7 +335,8 @@ def remove_additional_axes(
         Updated FITS header.
 
     """
-    header = _transform_header_from_crota_to_pc(header)
+    with contextlib.suppress(KeyError):
+        header = _transform_header_from_crota_to_pc(header)
     wcs = WCS(header)
 
     if header["NAXIS"] <= max_dim and wcs.wcs.naxis <= max_dim:
