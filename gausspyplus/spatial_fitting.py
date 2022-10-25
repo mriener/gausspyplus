@@ -251,11 +251,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def spatial_fitting(self, continuity: bool = False) -> None:
         """Start the spatially coherent refitting.
 
-        Parameters
-        ----------
-        continuity : Set to 'True' for phase 2 of the spatially coherent refitting (coherence of centroid positions).
-
+        :param continuity: Set to 'True' for phase 2 of the spatially coherent refitting (coherence of centroid
+        positions).
         """
+
         self.phase_two = continuity
         self._check_settings()
         self._initialize()
@@ -277,18 +276,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         This mask is only created if 'flag=True'.
 
-        Parameters
-        ----------
-        key : Dictionary key of the parameter: 'N_blended', 'N_neg_res_peak', or 'best_fit_rchi2'.
-        limit : Upper limit of the corresponding value.
-        flag : User-defined flag for the corresponding dictionary parameter.
-        comparison_func : Function that compares the array to limit, e.g. np.less or np.greater
-
-        Returns
-        -------
-        mask : Boolean mask with values exceeding 'limit' set to 'True'.
-
+        :param key: Dictionary key of the parameter: 'N_blended', 'N_neg_res_peak', or 'best_fit_rchi2'.
+        :param limit: Upper limit of the corresponding value.
+        :param flag: User-defined flag for the corresponding dictionary parameter.
+        :param comparison_func: Function that compares the array to limit, e.g. np.less or np.greater
+        :return: Boolean mask with values exceeding 'limit' set to 'True'.
         """
+
         return (
             comparison_func(
                 np.where(self.nan_mask, limit, self.decomposition[key]),
@@ -367,17 +361,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
         """Create a boolean mask indicating the location of component jumps.
 
-        Parameters
-        ----------
-        flag : User-defined 'self.flag_ncomps' parameter.
-
-        Returns
-        -------
-        mask_neighbor : Boolean mask indicating the location of component jump.
-        ncomps_jumps : Array containing the information of how many component jumps occur at which location.
-        ncomps_1d : Array containing the information about the number of fitted components per location.
-
+        :param flag: User-defined 'self.flag_ncomps' parameter.
+        :return: (mask_neighbor, ncomps_jumps, ncomps_1d)
+            - mask_neighbor: Boolean mask indicating the location of component jump.
+            - ncomps_jumps: Array containing the information of how many component jumps occur at which location.
+            - ncomps_1d: Array containing the information about the number of fitted components per location.
         """
+
         if not flag:
             return np.zeros(self.length, dtype=bool), None, None
 
@@ -387,6 +377,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             np.array(self.decomposition["N_components"], dtype=float),
         )
 
+        # TODO: Is it a problem that self.ncomps is a float array?
         ncomps_wmedian = ndimage.generic_filter(
             input=self.ncomps.reshape(self.shape),
             function=weighted_median,
@@ -758,6 +749,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             if indices_neighbors_for_grouping.size == 0:
                 continue
 
+            # TODO: Check if condition with indices_neighbors_for_grouping is correct here
             # Skip refitting if there were no changes of neighboring fit solutions in the last iteration
             if (
                 np.array_equal(
@@ -896,26 +888,22 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Tuple[Optional[Dict], bool]:
         """Try to refit a spectrum with the fit solution of an unflagged neighboring spectrum.
 
-        Parameters
-        ----------
-        index : Index ('index_fit' keyword) of the spectrum that will be refit.
-        spectrum : Spectrum to refit.
-        indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
-            grouping.
-        interval : List specifying the interval of spectral channels containing the flagged feature in the form of
-            [lower, upper]. Only used in phase 2 of the spatially coherent refitting.
-        n_centroids : Number of centroid positions that should be present in interval.
-        flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-
-        Returns
-        -------
-        fit_results : Information about the new best fit solution in case of a successful refit. Otherwise 'None' is
-            returned.
-        is_successful_refit : Information of whether there was a new successful refit.
-
+        :param index: Index ('index_fit' keyword) of the spectrum that will be refit.
+        :param spectrum: Spectrum to refit.
+        :param indices_neighbors: Array containing the indices of all neighboring fit solutions that should be used
+        for the grouping.
+        :param interval: List specifying the interval of spectral channels containing the flagged feature in the
+        form of [lower, upper]. Only used in phase 2 of the spatially coherent refitting.
+        :param n_centroids: Number of centroid positions that should be present in interval.
+        :param flag: Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
+        :param updated_fit_results: Only used in phase 2 of the spatially coherent refitting, in case the best
+        fit solution was already updated in a previous iteration.
+        :return: tuple (fit_results, is_successful_refit)
+            - fit_results: Information about the new best fit solution in case of a successful refit. Otherwise
+            'None' is returned.
+            - is_successful_refit: Information of whether there was a new successful refit.
         """
+
         fit_components = None
         is_successful_refit = False
 
@@ -986,20 +974,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> List:
         """Get interval of spectral channels containing flagged feature selected for refitting.
 
-        Parameters
-        ----------
-        intensity_values : Intensity values of spectrum to refit.
-        rms : Root-mean-square noise value of the spectrum.
-        amps : List of amplitude values of the fitted components.
-        fwhms : List of FWHM values of the fitted components.
-        means : List of mean position values of the fitted components.
-        flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
-
-        Returns
-        -------
-        List specifying the interval of spectral channels containing the flagged feature in the form of [lower, upper].
-
+        :param intensity_values: Intensity values of spectrum to refit.
+        :param rms: Root-mean-square noise value of the spectrum.
+        :param amps: List of amplitude values of the fitted components.
+        :param fwhms: List of FWHM values of the fitted components.
+        :param means: List of mean position values of the fitted components.
+        :param flag: Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
+        :return: List specifying the interval of spectral channels containing the flagged feature in the form of
+        [lower, upper].
         """
+
         #  for component flagged as broad select the interval [mean - FWHM, mean + FWHM]
         if flag == "blended":
             params = amps + fwhms + means
@@ -1050,23 +1034,18 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Dict:
         """Update initial guesses for fit components by replacing flagged feature with a neighboring fit solution.
 
-        Parameters
-        ----------
-        index : Index ('index_fit' keyword) of the spectrum that will be refit.
-        index_neighbor : Index ('index_fit' keyword) of the neighboring fit solution.
-        intensity_values : Intensity values of spectrum to refit.
-        rms : Root-mean-square noise value of the spectrum.
-        flag : Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
-        interval : List specifying the interval of spectral channels containing the flagged feature in the form of
-            [lower, upper].
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-
-        Returns
-        -------
-        fit_components : Dictionary containing updated initial guesses for the fit solution.
-
+        :param index: Index ('index_fit' keyword) of the spectrum that will be refit.
+        :param index_neighbor: Index ('index_fit' keyword) of the neighboring fit solution.
+        :param intensity_values: Intensity values of spectrum to refit.
+        :param rms: Root-mean-square noise value of the spectrum.
+        :param flag: Flagged criterion that should be refit: 'broad', 'blended', or 'residual'.
+        :param interval: List specifying the interval of spectral channels containing the flagged feature in the
+        form of [lower, upper].
+        :param updated_fit_results: Only used in phase 2 of the spatially coherent refitting, in case the best
+        fit solution was already updated in a previous iteration.
+        :return: Dictionary containing updated initial guesses for the fit solution.
         """
+
         #  for phase 2 of the spatially coherent refitting; if fit solution was already updated in previous iteration
         if updated_fit_results is not None:
             amps = updated_fit_results["amplitudes_fit"]
@@ -1196,20 +1175,15 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Dict:
         """Update dictionary of fit components with new component.
 
-        Parameters
-        ----------
-        fit_components : Dictionary of fit components.
-        intensity_values : Intensity values of spectrum to refit.
-        amp : Amplitude value of fit component.
-        fwhm : FWHM value of fit component.
-        mean : Mean position value of fit component.
-        mean_bound : Relative bound (upper and lower) of mean position value of fit component.
-
-        Returns
-        -------
-        fit_components : Updated dictionary of fit components.
-
+        :param fit_components: Dictionary of fit components.
+        :param intensity_values: Intensity values of spectrum to refit.
+        :param amp: Amplitude value of fit component.
+        :param fwhm: FWHM value of fit component.
+        :param mean: Mean position value of fit component.
+        :param mean_bound: Relative bound (upper and lower) of mean position value of fit component.
+        :return: Updated dictionary of fit components.
         """
+
         #  TODO: add here also mean +/- stddev??
 
         fit_components[str(len(fit_components) + 1)] = {
@@ -1240,22 +1214,15 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> bool:
         """Decide whether to accept the new fit solution as the new best fit.
 
-        Parameters
-        ----------
-        fit_results : Dictionary containing the new best fit results after the refit attempt.
-        index : Index ('index_fit' keyword) of the spectrum that gets/was refit.
-        updated_fit_results : Only used in phase 2 of the spatially coherent refitting, in case the best fit solution was
-            already updated in a previous iteration.
-        interval : List specifying the interval of spectral channels where 'n_centroids' number of centroid positions
-            are required.
-        n_centroids : Number of centroid positions that should be present in interval.
-
-        Returns
-        -------
-        Decision of whether new fit solution gets accepted as new best fit.
-
+        :param fit_results: Dictionary containing the new best fit results after the refit attempt.
+        :param index: Index ('index_fit' keyword) of the spectrum.
+        :param updated_fit_results: Only used in phase 2 of the spatially coherent refitting, in case the best fit
+        solution was already updated in a previous iteration.
+        :param interval: List specifying the interval of spectral channels where 'n_centroids' number of centroid
+        positions are required.
+        :param n_centroids: Number of centroid positions that should be present in interval.
+        :return: Decision of whether new fit solution gets accepted as new best fit.
         """
-        #  check how values/numbers of flagged features changed after the refit
 
         current_best_fit = updated_fit_results or {
             key: self.decomposition[key][index]
@@ -1270,6 +1237,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 "means_fit",
             ]
         }
+
+        # First we check how the values of flagged features changed after the refit
 
         flag_blended_old, flag_blended_new = (
             get_flags(
@@ -1389,18 +1358,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get sorted parameter values (amps, means, fwhms) of neighboring fit components for the grouping.
 
-        Parameters
-        ----------
-        indices_neighbors : Array containing the indices of all neighboring fit solutions that should be used for the
-            grouping. in the form [idx1, ..., idxN].
-
-        Returns
-        -------
-        amps : Array of amplitude values (sorted according to mean position).
-        means : Array of sorted mean position values.
-        fwhms : Array of FWHM values (sorted according to mean position).
-
+        :param indices_neighbors: Array containing the indices of all neighboring fit solutions that should be used
+        for the grouping. in the form [idx1, ..., idxN].
+        :return: tuple (amps, means, fwhms)
+            - Array of amplitude values (sorted according to mean position).
+            - Array of sorted mean position values.
+            - Array of FWHM values (sorted according to mean position).
         """
+
         amps = self._get_values_for_indices(
             indices=indices_neighbors, key="amplitudes_fit"
         )
@@ -1414,16 +1379,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Dict:
         """Get dictionary with information about all fit components from neighboring fit solution.
 
-        Parameters
-        ----------
-        i : Index of neighboring fit solution.
-        intensity_values : Intensity values of spectrum to refit.
-
-        Returns
-        -------
-        fit_components : Dictionary containing information about all fit components from neighboring fit solution.
-
+        :param i: Index of neighboring fit solution.
+        :param intensity_values: Intensity values of spectrum to refit.
+        :return: Dictionary containing information about all fit components from neighboring fit solution.
         """
+
         fit_components = {}
 
         for key in range(self.decomposition["N_components"][i]):
@@ -1469,18 +1429,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     ) -> Dict:
         """Perform a new Gaussian decomposition with updated initial guesses.
 
-        Parameters
-        ----------
-        spectrum : Spectrum to refit.
-        fit_components : Dictionary containing information about new initial guesses for fit components.
-        params_only : If set to 'True', the returned dictionary of the fit results will only contain information about
-            the amplitudes, FWHM values and mean positions of the fitted components.
-
-        Returns
-        -------
-        fit_results : Dictionary containing information about the fit results.
-
+        :param spectrum: Spectrum to refit.
+        :param fit_components: Dictionary containing information about new initial guesses for fit components.
+        :param params_only: If set to `True`, the returned dictionary of the fit results will only contain information
+        about the amplitudes, FWHM values and mean positions of the fitted components.
+        :return: Dictionary containing information about the fit results.
         """
+
         #  correct dictionary key
         settings_improve_fit = self.decomposition["improve_fit_settings"]
         settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(
@@ -1646,7 +1601,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             "n_centroids": n_centroids,
         }
 
-    @functools.cached_property
+    # TODO: Check if this can be a cached property? w_1 and w_2 change so this could be a problem for a cached property
+    @property
     def weights(self):
         weights = dict.fromkeys(
             ["horizontal", "vertical"],
@@ -1700,16 +1656,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         See Sect. 3.3.2. and Fig. 10 in Riener+ 2019 for more details.
 
-        Parameters
-        ----------
-        idx : Index ('index_fit' keyword) of the central spectrum.
-        loc : Location (ypos, xpos) of the central spectrum.
-
-        Returns
-        -------
-        results_of_spatial_coherence_checks : Dictionary containing results of the spatial coherence check for neighboring centroid positions.
-
+        :param idx: Index ('index_fit' keyword) of the central spectrum.
+        :param loc: Location (ypos, xpos) of the central spectrum.
+        :return: Dictionary containing results of the spatial coherence check for neighboring centroid positions.
         """
+
         spatial_coherence_checks_per_direction = {}
 
         for direction in self.weights.keys():
@@ -1887,17 +1838,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def refit_spectrum_phase_2(self, index: int, i: int) -> List:
         """Parallelized function for refitting spectra whose fitted centroid position values show spatial incoherence.
 
-        Parameters
-        ----------
-        index : Index ('index_fit' keyword) of the spectrum that will be refit.
-        i : List index of the entry in the list that is handed over to the multiprocessing routine
-
-        Returns
-        -------
-        A list in the form of [index, best_fit_results, indices_neighbors, is_successful_refit] in case of a successful refit;
-            otherwise [index, 'None', indices_neighbors, is_successful_refit] is returned.
-
+        :param index: Index ('index_fit' keyword) of the spectrum that will be refit.
+        :param i: List index of the entry in the list that is handed over to the multiprocessing routine
+        :return: A list in the form of [index, best_fit_results, indices_neighbors, is_successful_refit] in case of
+        a successful refit; otherwise [index, 'None', indices_neighbors, is_successful_refit] is returned.
         """
+
         is_successful_refit = False
         fit_results, best_fit_results = None, None
         #  TODO: check if this is correct:
