@@ -171,9 +171,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         return dirpath_pickle
 
     def return_single_prepared_spectrum(self, data_location=None):
-        self.data_location = (
-            data_location if data_location is not None else self.data_location
-        )
+        self.data_location = data_location or self.data_location
         self.testing = True
         self.log_output = False
         self.check_settings()

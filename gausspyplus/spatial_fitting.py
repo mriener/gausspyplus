@@ -79,19 +79,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self.filename, self.file_extension = os.path.splitext(self.file)
 
         if self.fin_filename is None:
-            self.fin_filename = f"{self.filename}_sf-p1" + (
-                "" if self.suffix is None else self.suffix
-            )
+            self.fin_filename = f"{self.filename}_sf-p1{self.suffix or ''}"
 
             if self.phase_two:
-                if self.filename.endswith("_sf-p1"):
-                    self.fin_filename = self.filename.replace("_sf-p1", "_sf-p2") + (
-                        "" if self.suffix is None else self.suffix
-                    )
-                else:
-                    self.fin_filename = f"{self.filename}_sf-p2" + (
-                        "" if self.suffix is None else self.suffix
-                    )
+                self.fin_filename = (
+                    f"{self.filename.replace('_sf-p1', '')}_sf-p2{self.suffix or ''}"
+                )
 
         self.set_attribute_if_none("dirpath_gpy", os.path.dirname(self.decomp_dirname))
         self.set_attribute_if_none("rchi2_limit_refit", self.rchi2_limit)
@@ -154,7 +147,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self.neighbor_indices_all = np.array([None] * self.n_indices)
 
         self.nan_mask = np.isnan(
-            [np.nan if i is None else i for i in self.decomposition["N_components"]]
+            [n or np.nan for n in self.decomposition["N_components"]]
         )
 
         if self.pixel_range is not None:
