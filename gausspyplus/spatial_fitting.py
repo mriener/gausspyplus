@@ -116,21 +116,22 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         with open(self.path_to_pickle_file, "rb") as pickle_file:
             pickled_data = pickle.load(pickle_file, encoding="latin1")
 
-        self.indexList = pickled_data["index"]
         self.data = pickled_data["data_list"]
         self.errors = pickled_data["error"]
+        # TODO: What to do if there is no header? self.shape and self.location are then not defined
         if "header" in pickled_data.keys():
-            self.header = pickled_data["header"]
-            self.shape = (self.header["NAXIS2"], self.header["NAXIS1"])
-            self.length = self.header["NAXIS2"] * self.header["NAXIS1"]
+            header = pickled_data["header"]
+            self.shape = (header["NAXIS2"], header["NAXIS1"])
+            self.length = header["NAXIS2"] * header["NAXIS1"]
             self.location = pickled_data["location"]
-            self.n_channels = self.header["NAXIS3"]
+            n_channels = header["NAXIS3"]
         else:
             self.length = len(self.data)
-            self.n_channels = len(self.data[0])
-        self.channels = np.arange(self.n_channels)
+            n_channels = len(self.data[0])
+        self.channels = np.arange(n_channels)
         if self.max_fwhm is None:
-            self.max_fwhm = int(self.n_channels / 3)
+            # TODO: Why the following definition?
+            self.max_fwhm = int(n_channels / 3)
 
         self.signal_intervals = pickled_data["signal_ranges"]
         self.noise_spike_intervals = pickled_data["noise_spike_ranges"]
@@ -156,7 +157,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         #  starting condition so that refitting iteration can start
         # self.mask_refitted = np.ones(1)
         # TODO: Make mask_refitted a boolean array
-        self.mask_refitted = np.array([1] * self.n_indices)
+        self.mask_refitted = np.ones(self.n_indices)
         self.list_n_refit = []
         self.refitting_iteration = 0
 
@@ -551,7 +552,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def _refitting(self) -> None:
         """Refit spectra with multiprocessing routine."""
         say(
-            "\nstart refit iteration #{}...".format(self.refitting_iteration),
+            f"\nstart refit iteration #{self.refitting_iteration}...",
             logger=self.logger,
         )
 
