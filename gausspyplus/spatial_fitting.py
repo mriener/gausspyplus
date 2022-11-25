@@ -32,7 +32,7 @@ from gausspyplus.utils.flags import (
     get_flags_centroids,
     get_flags_ncomps,
 )
-from gausspyplus.utils.gaussian_functions import upper_limit_for_amplitude
+from gausspyplus.decomposition.gaussian_functions import upper_limit_for_amplitude
 from gausspyplus.utils.grouping_functions import (
     get_neighbors,
     group_fit_solutions,

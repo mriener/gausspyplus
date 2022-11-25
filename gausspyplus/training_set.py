@@ -22,7 +22,7 @@ from gausspyplus.decomposition.fit_quality_checks import (
     determine_significance,
     goodness_of_fit,
 )
-from gausspyplus.utils.gaussian_functions import (
+from gausspyplus.decomposition.gaussian_functions import (
     multi_component_gaussian_model,
     CONVERSION_STD_TO_FWHM,
 )

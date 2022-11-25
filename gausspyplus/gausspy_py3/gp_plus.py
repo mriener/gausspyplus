@@ -13,7 +13,7 @@ from gausspyplus.utils.determine_intervals import (
     get_slice_indices_for_interval,
 )
 from gausspyplus.decomposition.fit_quality_checks import determine_significance
-from gausspyplus.utils.gaussian_functions import (
+from gausspyplus.decomposition.gaussian_functions import (
     multi_component_gaussian_model,
     area_of_gaussian,
     split_params,

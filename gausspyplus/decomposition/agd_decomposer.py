@@ -14,7 +14,7 @@ from gausspyplus.gausspy_py3.gp_plus import try_to_improve_fitting
 from gausspyplus.model import Model
 from gausspyplus.plotting import plot_fit_stages
 from gausspyplus.spectrum import Spectrum
-from gausspyplus.utils.gaussian_functions import (
+from gausspyplus.decomposition.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
     errs_vec_from_lmfit,
     paramvec_to_lmfit,
