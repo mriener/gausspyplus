@@ -5,6 +5,7 @@ import numpy as np
 
 from . import gradient_descent
 from gausspyplus.decomposition.gaussian_functions import split_params
+from ..decomposition import agd_decomposer
 
 
 class GaussianDecomposer(object):
@@ -73,7 +74,7 @@ class GaussianDecomposer(object):
         noise_spike_ranges: Optional[List] = None,
     ) -> Dict:
         """Decompose a single spectrum using current parameters."""
-        results = AGD_decomposer.AGD(
+        results = agd_decomposer.AGD(
             xdata,
             ydata,
             edata,
