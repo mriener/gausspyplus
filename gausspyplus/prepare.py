@@ -9,7 +9,7 @@ import numpy as np
 from astropy.io import fits
 
 from gausspyplus.definitions.config_file import get_values_from_config_file
-from gausspyplus.definitions import (
+from gausspyplus.definitions.definitions import (
     PreparedSpectrum,
     SettingsDefault,
     SettingsPreparation,

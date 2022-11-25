@@ -32,7 +32,11 @@ from gausspyplus.utils.noise_estimation import (
     determine_noise,
 )
 from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
-from gausspyplus.definitions import FitResults, SettingsDefault, SettingsTraining
+from gausspyplus.definitions.definitions import (
+    FitResults,
+    SettingsDefault,
+    SettingsTraining,
+)
 
 
 optimizers.DEFAULT_MAXITER = 1000  # set maximum iterations for SLSQPLSQFitter

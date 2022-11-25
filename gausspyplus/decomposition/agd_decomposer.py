@@ -9,7 +9,7 @@ from lmfit import minimize as lmfit_minimize
 from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
-from gausspyplus.definitions import SettingsImproveFit
+from gausspyplus.definitions.definitions import SettingsImproveFit
 from gausspyplus.decomposition.gp_plus import try_to_improve_fitting
 from gausspyplus.model import Model
 from gausspyplus.plotting import plot_fit_stages
