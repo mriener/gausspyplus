@@ -39,7 +39,7 @@ from gausspyplus.spatial_fitting.grouping import (
     determine_average_values,
 )
 from gausspyplus.utils.misc import remove_elements_at_indices
-from gausspyplus.utils.ndimage_functions import (
+from gausspyplus.spatial_fitting.ndimage_functions import (
     weighted_median,
     number_of_component_jumps,
     broad_components,
