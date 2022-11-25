@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.spectrum import Spectrum
-from gausspyplus.gausspy_py3.gp_plus import (
+from gausspyplus.decomposition.gp_plus import (
     get_fully_blended_gaussians,
     check_for_peaks_in_residual,
     check_for_negative_residual,
