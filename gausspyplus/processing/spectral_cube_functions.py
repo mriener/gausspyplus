@@ -1357,7 +1357,7 @@ def _clip_noise_below_threshold(
             n_channels, p_limit
         )
 
-        import gausspyplus.parallel_processing
+        import gausspyplus.parallel_processing.parallel_processing
 
         gausspyplus.parallel_processing.parallel_processing.init(
             [locations, determine_noise, [data, max_consecutive_channels, pad_channels]]

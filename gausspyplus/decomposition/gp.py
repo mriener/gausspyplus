@@ -101,7 +101,7 @@ class GaussianDecomposer(object):
 
     def batch_decomposition(self, *args, ilist=None, dct=None):
         """Science data should be AGD format ilist is either None or an integer list."""
-        from gausspyplus import parallel_processing
+        from gausspyplus.parallel_processing import parallel_processing
 
         if args:
             science_data_path = args[0]

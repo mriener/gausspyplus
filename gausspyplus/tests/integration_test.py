@@ -24,7 +24,7 @@ def test_prepare_cube():
 
     prepare = GaussPyPrepare()
     prepare.path_to_file = str(filepath)
-    prepare.dirpath_gpy = "test_grs"
+    prepare.dirpath_gpy = str(ROOT / "tests" / "test_grs")
     prepare.use_ncpus = 1
     prepare.log_output = False
     prepare.verbose = False

@@ -255,7 +255,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         ):
             self.calculate_average_rms_from_data()
 
-        import gausspyplus.parallel_processing
+        import gausspyplus.parallel_processing.parallel_processing
 
         # TODO: The first argument len(self.locations) is needed to later on use the same code as for training_set.py
         gausspyplus.parallel_processing.parallel_processing.init(
