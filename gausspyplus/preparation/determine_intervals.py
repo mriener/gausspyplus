@@ -11,7 +11,7 @@ import sys
 ROOT = Path(os.path.realpath(__file__)).parents[2]
 sys.path.append(str(ROOT))
 
-from gausspyplus.utils.noise_estimation import (
+from gausspyplus.preparation.noise_estimation import (
     determine_peaks,
     mask_channels,
     intervals_where_mask_is_true,

@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from tqdm import tqdm
 
 from gausspyplus.utils.output import format_warning, say
-from gausspyplus.utils.noise_estimation import (
+from gausspyplus.preparation.noise_estimation import (
     determine_maximum_consecutive_channels,
     determine_noise,
 )

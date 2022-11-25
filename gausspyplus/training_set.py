@@ -26,7 +26,7 @@ from gausspyplus.decomposition.gaussian_functions import (
     multi_component_gaussian_model,
     CONVERSION_STD_TO_FWHM,
 )
-from gausspyplus.utils.noise_estimation import (
+from gausspyplus.preparation.noise_estimation import (
     determine_maximum_consecutive_channels,
     mask_channels,
     determine_noise,

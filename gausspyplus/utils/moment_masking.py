@@ -17,7 +17,7 @@ from astropy import units as u
 from astropy.wcs import WCS
 from tqdm import tqdm
 
-from .noise_estimation import (
+from gausspyplus.preparation.noise_estimation import (
     determine_maximum_consecutive_channels,
     calculate_average_rms_noise,
 )

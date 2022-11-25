@@ -9,7 +9,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
 from gausspyplus.decomposition.gp import GaussianDecomposer
-from gausspyplus.utils.noise_estimation import determine_noise
+from gausspyplus.preparation.noise_estimation import determine_noise
 from gausspyplus.prepare import GaussPyPrepare
 from gausspyplus.spatial_fitting import SpatialFitting
 from gausspyplus.training_set import GaussPyTrainingSet

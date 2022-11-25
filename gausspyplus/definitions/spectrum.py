@@ -4,7 +4,7 @@ from typing import Optional, List
 
 import numpy as np
 
-from gausspyplus.utils.noise_estimation import mask_channels
+from gausspyplus.preparation.noise_estimation import mask_channels
 
 
 @dataclass
