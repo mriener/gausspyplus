@@ -1359,11 +1359,11 @@ def _clip_noise_below_threshold(
 
         import gausspyplus.parallel_processing
 
-        gausspyplus.parallel_processing.init(
+        gausspyplus.parallel_processing.parallel_processing.init(
             [locations, determine_noise, [data, max_consecutive_channels, pad_channels]]
         )
 
-        results_list = gausspyplus.parallel_processing.func(
+        results_list = gausspyplus.parallel_processing.parallel_processing.func(
             use_ncpus=use_ncpus, function="noise"
         )
 

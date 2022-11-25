@@ -200,9 +200,9 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
         import gausspyplus.parallel_processing
 
-        gausspyplus.parallel_processing.init([indices, [self]])
+        gausspyplus.parallel_processing.parallel_processing.init([indices, [self]])
 
-        results = gausspyplus.parallel_processing.func_ts(
+        results = gausspyplus.parallel_processing.parallel_processing.func_ts(
             self.n_spectra, use_ncpus=self.use_ncpus
         )
         print("SUCCESS\n")
