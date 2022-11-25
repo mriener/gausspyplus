@@ -3,7 +3,7 @@ from typing import Optional, Dict, List
 
 import numpy as np
 
-from . import AGD_decomposer
+from ..decomposition import agd_decomposer
 from . import gradient_descent
 from ..utils.gaussian_functions import split_params
 

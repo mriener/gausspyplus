@@ -5,7 +5,7 @@ import multiprocessing
 import numpy as np
 
 from gausspyplus.utils.gaussian_functions import CONVERSION_STD_TO_FWHM
-from gausspyplus.gausspy_py3 import AGD_decomposer
+from gausspyplus.decomposition import agd_decomposer
 import signal
 
 from gausspyplus.utils.output import say
