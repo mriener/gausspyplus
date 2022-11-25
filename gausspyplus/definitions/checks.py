@@ -1,6 +1,6 @@
 import warnings
 from typing import List
-from gausspyplus.utils.exceptions import AttributeIsNoneException
+from gausspyplus.definitions.exceptions import AttributeIsNoneException
 from gausspyplus.utils.output import format_warning
 
 warnings.showwarning = format_warning
