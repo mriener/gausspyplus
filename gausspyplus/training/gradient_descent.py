@@ -4,6 +4,7 @@ import inspect
 import multiprocessing
 import numpy as np
 
+from gausspyplus.decomposition import agd_decomposer
 from gausspyplus.decomposition.gaussian_functions import CONVERSION_STD_TO_FWHM
 import signal
 
@@ -79,7 +80,7 @@ def single_training_example(kwargs):
     )
 
     # Produce initial guesses
-    result = AGD_decomposer.AGD(
+    result = agd_decomposer.AGD(
         vel=kwargs["vel"],
         data=kwargs["data"][j],
         errors=kwargs["errors"][j],
