@@ -30,7 +30,7 @@ from gausspyplus.processing.spectral_cube_functions import (
     pv_map,
     correct_header,
 )
-from .grouping_functions import get_neighbors
+from gausspyplus.utils.grouping_functions import get_neighbors
 from gausspyplus.utils.output import say
 
 
