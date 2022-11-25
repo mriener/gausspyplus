@@ -10,7 +10,7 @@ from numpy.linalg import lstsq
 from scipy.ndimage.filters import median_filter, convolve
 
 from gausspyplus.definitions import SettingsImproveFit
-from gausspyplus.gausspy_py3.gp_plus import try_to_improve_fitting
+from gausspyplus.decomposition.gp_plus import try_to_improve_fitting
 from gausspyplus.model import Model
 from gausspyplus.plotting import plot_fit_stages
 from gausspyplus.spectrum import Spectrum
