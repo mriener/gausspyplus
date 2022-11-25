@@ -13,7 +13,7 @@ from gausspyplus.preparation.noise_estimation import determine_noise
 from gausspyplus.preparation.prepare import GaussPyPrepare
 from gausspyplus.spatial_fitting import SpatialFitting
 from gausspyplus.training_set import GaussPyTrainingSet
-from gausspyplus.finalize import Finalize
+from gausspyplus.processing.finalize import Finalize
 
 # ------------MULTIPROCESSING------------
 

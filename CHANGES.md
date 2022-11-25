@@ -15,7 +15,7 @@ The subset of the data can be indicated with the 'pixel_range' keyword and has t
 
 ```python
 import os
-from gausspyplus.finalize import Finalize
+from gausspyplus.processing.finalize import Finalize
 
 for subcube_nr in range(1, total_nr_of_subcubes + 1):
     filename = '{}{}'.format(ppv_cube_name, subcube_nr)
@@ -26,7 +26,7 @@ for subcube_nr in range(1, total_nr_of_subcubes + 1):
     fin.path_to_decomp_file = os.path.join(
         dirpath_gpy, 'gpy_decomposed', '{}_g+_fit_fin_sf-p2.pickle'.format(filename))
     fin.dirpath_table = os.path.join(dirpath_gpy, 'gpy_tables')
-    fin.dct_params = {'mean_separation': 4., '_w_start': 2/3}
+    fin.dct_params = {'mean_separation': 4., '_w_start': 2 / 3}
     fin.subcube_nr = subcube_nr
     fin.finalize_dct()
     fin.make_table()
