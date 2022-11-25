@@ -3,9 +3,9 @@ from typing import Optional, Dict, List
 
 import numpy as np
 
-from . import gradient_descent
+from gausspyplus.gausspy_py3 import gradient_descent
 from gausspyplus.decomposition.gaussian_functions import split_params
-from ..decomposition import agd_decomposer
+from gausspyplus.decomposition import agd_decomposer
 
 
 class GaussianDecomposer(object):

@@ -230,7 +230,7 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
         self.decomposition_settings()
         say("\ndecomposing data...", logger=self.logger)
 
-        from gausspyplus.gausspy_py3 import gp as gp
+        from gausspyplus.decomposition import gp as gp
 
         decomposer = gp.GaussianDecomposer()  # Load GaussPy
         decomposer.set("use_ncpus", self.use_ncpus)
