@@ -3,7 +3,7 @@ from typing import List, Dict, Literal
 
 import numpy as np
 
-from gausspyplus.spectrum import Spectrum
+from gausspyplus.definitions.spectrum import Spectrum
 from gausspyplus.decomposition.fit_quality_checks import (
     goodness_of_fit,
     check_residual_for_normality,
