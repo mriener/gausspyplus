@@ -24,7 +24,7 @@ from gausspyplus.decomposition.gaussian_functions import (
     sort_parameters,
 )
 from gausspyplus.utils.misc import remove_elements_at_indices
-from gausspyplus.utils.noise_estimation import determine_peaks
+from gausspyplus.preparation.noise_estimation import determine_peaks
 
 
 def _perform_least_squares_fit(

@@ -19,7 +19,7 @@ from gausspyplus.preparation.determine_intervals import (
     get_signal_ranges,
     get_noise_spike_ranges,
 )
-from gausspyplus.utils.noise_estimation import (
+from gausspyplus.preparation.noise_estimation import (
     determine_maximum_consecutive_channels,
     mask_channels,
     determine_noise,
