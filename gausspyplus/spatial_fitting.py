@@ -560,10 +560,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         import gausspyplus.parallel_processing
 
-        gausspyplus.parallel_processing.init([self.indices_refit, [self]])
+        gausspyplus.parallel_processing.parallel_processing.init(
+            [self.indices_refit, [self]]
+        )
 
         #  try to refit spectra via the multiprocessing routine
-        results_list = gausspyplus.parallel_processing.func(
+        results_list = gausspyplus.parallel_processing.parallel_processing.func(
             use_ncpus=self.use_ncpus,
             function="refit_phase_2" if self.phase_two else "refit_phase_1",
         )

@@ -258,9 +258,11 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         import gausspyplus.parallel_processing
 
         # TODO: The first argument len(self.locations) is needed to later on use the same code as for training_set.py
-        gausspyplus.parallel_processing.init([len(self.locations), [self]])
+        gausspyplus.parallel_processing.parallel_processing.init(
+            [len(self.locations), [self]]
+        )
 
-        results_list = gausspyplus.parallel_processing.func(
+        results_list = gausspyplus.parallel_processing.parallel_processing.func(
             use_ncpus=self.use_ncpus, function="gpy_noise"
         )
         print("SUCCESS\n")

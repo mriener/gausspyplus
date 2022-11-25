@@ -305,9 +305,11 @@ class Finalize(BaseChecks):
         """
         import gausspyplus.parallel_processing
 
-        gausspyplus.parallel_processing.init([self.decomposition["index_fit"], [self]])
+        gausspyplus.parallel_processing.parallel_processing.init(
+            [self.decomposition["index_fit"], [self]]
+        )
 
-        results_list = gausspyplus.parallel_processing.func(
+        results_list = gausspyplus.parallel_processing.parallel_processing.func(
             use_ncpus=self.use_ncpus, function="make_table"
         )
 
