@@ -19,7 +19,7 @@ from gausspyplus.decomposition.gp_plus import (
     get_best_fit_model,
 )
 from gausspyplus.model import Model
-from gausspyplus.utils.checks import BaseChecks
+from gausspyplus.definitions.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     merge_overlapping_intervals,
     indices_of_fit_components_in_interval,

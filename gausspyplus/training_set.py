@@ -13,7 +13,7 @@ from astropy.modeling import models, fitting, optimizers
 from scipy.signal import argrelextrema
 
 from gausspyplus.config_file import get_values_from_config_file
-from gausspyplus.utils.checks import BaseChecks
+from gausspyplus.definitions.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     get_signal_ranges,
     get_noise_spike_ranges,
