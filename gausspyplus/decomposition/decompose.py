@@ -7,7 +7,7 @@ from pathlib import Path
 from astropy import units as u
 from astropy.wcs import WCS
 
-from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.definitions.config_file import get_values_from_config_file
 from gausspyplus.definitions.checks import BaseChecks
 from gausspyplus.utils.spectral_cube_functions import correct_header
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
