@@ -2,7 +2,6 @@ import os
 import pickle
 from pathlib import Path
 
-import pytest
 from astropy.io import fits
 
 import numpy as np
@@ -48,7 +47,7 @@ def test_prepare_cube():
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_decompose_cube_gausspy():
-    from ..decompose import GaussPyDecompose
+    from gausspyplus.decomposition.decompose import GaussPyDecompose
 
     decompose = GaussPyDecompose()
     decompose.path_to_pickle_file = str(
