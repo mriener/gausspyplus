@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(os.path.realpath("__file__")).parents[1]
 sys.path.append(str(ROOT))
 
-from gausspyplus.prepare import GaussPyPrepare
+from gausspyplus.preparation.prepare import GaussPyPrepare
 from gausspyplus.plotting.plotting import plot_spectra
 
 
