@@ -8,7 +8,7 @@ from gausspyplus.decomposition.fit_quality_checks import (
     goodness_of_fit,
     check_residual_for_normality,
 )
-from gausspyplus.utils.gaussian_functions import (
+from gausspyplus.decomposition.gaussian_functions import (
     number_of_gaussian_components,
     split_params,
     multi_component_gaussian_model,

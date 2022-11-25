@@ -6,7 +6,7 @@ import numpy as np
 import networkx
 from networkx.algorithms.components.connected import connected_components
 
-from gausspyplus.utils.gaussian_functions import upper_limit_for_amplitude
+from gausspyplus.decomposition.gaussian_functions import upper_limit_for_amplitude
 
 
 def get_neighbors(

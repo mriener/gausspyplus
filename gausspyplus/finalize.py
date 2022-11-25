@@ -14,7 +14,7 @@ from gausspyplus.config_file import get_values_from_config_file
 from gausspyplus.gausspy_py3.gp_plus import get_fully_blended_gaussians
 from gausspyplus.utils.checks import BaseChecks
 from gausspyplus.decomposition.fit_quality_checks import negative_residuals
-from gausspyplus.utils.gaussian_functions import (
+from gausspyplus.decomposition.gaussian_functions import (
     single_component_gaussian_model,
     multi_component_gaussian_model,
     area_of_gaussian,
