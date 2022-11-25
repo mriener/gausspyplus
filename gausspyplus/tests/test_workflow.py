@@ -107,7 +107,7 @@ def test_decompose_cube_gausspy():
 
 
 def test_spatial_fitting_phase_1():
-    from ..spatial_fitting import SpatialFitting
+    from ..spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = (
@@ -157,7 +157,7 @@ def test_spatial_fitting_phase_1():
 
 
 def test_spatial_fitting_phase_2():
-    from ..spatial_fitting import SpatialFitting
+    from ..spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = (

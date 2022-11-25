@@ -11,7 +11,7 @@ ROOT = Path(os.path.realpath(__file__)).parents[1]
 
 
 # def test_spatial_fitting_phase_2():
-#     from ..spatial_fitting import SpatialFitting
+#     from ..spatial_fitting.spatial_fitting import SpatialFitting
 #     sp = SpatialFitting()
 #     sp.decomposition = {'N_components': [3, 2, 2, 3, 3, 2, 1, 3, 3, 3, 2, 2, 3, 2, 3, 2, 3, 3, 2, 3, 3, 2, 3, 2, 3]}
 #     sp.w_1 = 1/3
