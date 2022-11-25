@@ -1,24 +1,29 @@
 import os
 import sys
 from pathlib import Path
+
 ROOT = Path(os.path.realpath("__file__")).parents[1]
 sys.path.append(str(ROOT))
 
 from gausspyplus.finalize import Finalize
 from gausspyplus.spatial_fitting import SpatialFitting
-from gausspyplus.plotting import plot_spectra
+from gausspyplus.plotting.plotting import plot_spectra
 
 
 def main():
     #  Initialize the 'SpatialFitting' class and read in the parameter settings from 'gausspy+.ini'.
-    sp = SpatialFitting(config_file='gausspy+.ini')
+    sp = SpatialFitting(config_file="gausspy+.ini")
 
     #  The following lines will override the corresponding parameter settings defined in 'gausspy+.ini'.
 
     #  filepath to the pickled dictionary of the prepared data
-    sp.path_to_pickle_file = Path('decomposition_grs', 'gpy_prepared', 'grs-test_field.pickle')
+    sp.path_to_pickle_file = Path(
+        "decomposition_grs", "gpy_prepared", "grs-test_field.pickle"
+    )
     #  Filepath to the pickled dictionary of the decomposition results
-    sp.path_to_decomp_file = Path('decomposition_grs', 'gpy_decomposed', 'grs-test_field_g+_fit_fin_sf-p1.pickle')
+    sp.path_to_decomp_file = Path(
+        "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin_sf-p1.pickle"
+    )
     #  Try to refit blended fit components
     sp.refit_blended = True
     #  Try to refit spectra with negative residual features
@@ -38,9 +43,9 @@ def main():
     #  We will flag and try to refit all spectra which show jumps in the number of components of more than 2 to at least two direct neighbors
     sp.n_max_jump_comps = 1
     #  Maximum difference in offset positions of fit components for grouping. We use double the value than in phase 1.
-    sp.mean_separation = 4.
+    sp.mean_separation = 4.0
     #  Maximum difference in FWHM values of fit components for grouping.
-    sp.fwhm_separation = 4.
+    sp.fwhm_separation = 4.0
     #  Minimum required weight for neighboring features; for the default settings this would require that either the two immediate horizontal or vertical neighbors show a common feature or one of the immediate horizontal or vertical neighbors in addition to the two outermost neighbors in the same direction
     sp.min_weight = 0.6
 
@@ -50,11 +55,13 @@ def main():
     #  (Optional) Plot maps of the reduced chi-square values and the number of fitted components
 
     #  Initialize the 'Finalize' class and read in the parameter settings from 'gausspy+.ini'.
-    finalize = Finalize(config_file='gausspy+.ini')
+    finalize = Finalize(config_file="gausspy+.ini")
     #  Filepath to pickled dictionary of the prepared data.
     finalize.path_to_pickle_file = sp.path_to_pickle_file
     #  Filepath to the pickled dictionary with the decomposition results
-    path_to_decomp_pickle = Path('decomposition_grs', 'gpy_decomposed', 'grs-test_field_g+_fit_fin_sf-p2.pickle')
+    path_to_decomp_pickle = Path(
+        "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin_sf-p2.pickle"
+    )
     #  Load the decomposition results
     finalize.path_to_decomp_file = path_to_decomp_pickle
     #  Produce a FITS image showing the number of fitted components
@@ -67,14 +74,16 @@ def main():
     #  Filepath to pickled dictionary of the prepared data.
     path_to_pickled_file = sp.path_to_pickle_file
     #  Directory in which the plots are saved.
-    path_to_plots = Path('decomposition_grs', 'gpy_plots')
+    path_to_plots = Path("decomposition_grs", "gpy_plots")
     #  Here we select a subregion of the data cube, whose spectra we want to plot.
-    pixel_range = {'x': [30, 34], 'y': [25, 29]}
-    plot_spectra(path_to_pickled_file,
-                 path_to_plots=path_to_plots,
-                 path_to_decomp_pickle=path_to_decomp_pickle,
-                 signal_ranges=True,
-                 pixel_range=pixel_range)
+    pixel_range = {"x": [30, 34], "y": [25, 29]}
+    plot_spectra(
+        path_to_pickled_file,
+        path_to_plots=path_to_plots,
+        path_to_decomp_pickle=path_to_decomp_pickle,
+        signal_ranges=True,
+        pixel_range=pixel_range,
+    )
 
 
 if __name__ == "__main__":
