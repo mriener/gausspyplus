@@ -7,7 +7,7 @@ sys.path.append(str(ROOT))
 
 from gausspyplus.decomposition.decompose import GaussPyDecompose
 from gausspyplus.finalize import Finalize
-from gausspyplus.plotting import plot_spectra
+from gausspyplus.plotting.plotting import plot_spectra
 
 
 def main():

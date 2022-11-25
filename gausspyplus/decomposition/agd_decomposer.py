@@ -12,7 +12,7 @@ from scipy.ndimage.filters import median_filter, convolve
 from gausspyplus.definitions.definitions import SettingsImproveFit
 from gausspyplus.decomposition.gp_plus import try_to_improve_fitting
 from gausspyplus.definitions.model import Model
-from gausspyplus.plotting import plot_fit_stages
+from gausspyplus.plotting.plotting import plot_fit_stages
 from gausspyplus.definitions.spectrum import Spectrum
 from gausspyplus.decomposition.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
