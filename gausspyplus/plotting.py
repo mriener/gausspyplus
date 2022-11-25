@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from astropy import units as u
 from tqdm import tqdm
 
-from gausspyplus.utils.fit_quality_checks import goodness_of_fit
+from gausspyplus.decomposition.fit_quality_checks import goodness_of_fit
 from gausspyplus.utils.gaussian_functions import (
     single_component_gaussian_model,
     multi_component_gaussian_model,
