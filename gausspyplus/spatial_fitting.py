@@ -24,7 +24,7 @@ from gausspyplus.preparation.determine_intervals import (
     merge_overlapping_intervals,
     indices_of_fit_components_in_interval,
 )
-from gausspyplus.utils.flags import (
+from gausspyplus.spatial_fitting.flags import (
     get_flags_rchi2,
     get_flags,
     get_flags_pvalue,
