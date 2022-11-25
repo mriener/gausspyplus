@@ -31,7 +31,7 @@ from gausspyplus.preparation.noise_estimation import (
     mask_channels,
     determine_noise,
 )
-from gausspyplus.utils.spectral_cube_functions import remove_additional_axes
+from gausspyplus.processing.spectral_cube_functions import remove_additional_axes
 from gausspyplus.definitions.definitions import (
     FitResults,
     SettingsDefault,

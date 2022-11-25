@@ -21,7 +21,7 @@ from gausspyplus.preparation.noise_estimation import (
     determine_maximum_consecutive_channels,
     calculate_average_rms_noise,
 )
-from .spectral_cube_functions import (
+from gausspyplus.processing.spectral_cube_functions import (
     remove_additional_axes,
     spatial_smoothing,
     spectral_smoothing,

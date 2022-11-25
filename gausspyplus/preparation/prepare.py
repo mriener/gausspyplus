@@ -30,7 +30,7 @@ from gausspyplus.utils.output import (
     say,
     make_pretty_header,
 )
-from gausspyplus.utils.spectral_cube_functions import (
+from gausspyplus.processing.spectral_cube_functions import (
     remove_additional_axes,
     add_noise,
     change_header,
