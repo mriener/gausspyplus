@@ -41,7 +41,7 @@ def test_prepare_cube():
 
 
 def test_decompose_cube_gausspy():
-    from ..decompose import GaussPyDecompose
+    from gausspyplus.decomposition.decompose import GaussPyDecompose
 
     decompose = GaussPyDecompose()
     decompose.path_to_pickle_file = (
