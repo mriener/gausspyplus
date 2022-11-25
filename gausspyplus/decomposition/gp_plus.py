@@ -8,7 +8,7 @@ from lmfit import minimize as lmfit_minimize
 
 from gausspyplus.definitions.definitions import SettingsImproveFit
 from gausspyplus.definitions.model import Model
-from gausspyplus.utils.determine_intervals import (
+from gausspyplus.preparation.determine_intervals import (
     check_if_intervals_contain_signal,
     get_slice_indices_for_interval,
 )

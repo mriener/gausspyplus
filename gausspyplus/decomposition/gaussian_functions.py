@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional, Union
 import numpy as np
 from lmfit import Parameters
 
-from gausspyplus.utils.determine_intervals import get_slice_indices_for_interval
+from gausspyplus.preparation.determine_intervals import get_slice_indices_for_interval
 
 CONVERSION_STD_TO_FWHM = 2 * np.sqrt(2 * np.log(2))
 
