@@ -1,6 +1,6 @@
 import numpy as np
 
-from gausspyplus.utils.grouping_functions import get_neighbors
+from gausspyplus.spatial_fitting.grouping import get_neighbors
 
 
 def test_get_neighbors():

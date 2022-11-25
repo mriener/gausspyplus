@@ -33,7 +33,7 @@ from gausspyplus.spatial_fitting.flags import (
     get_flags_ncomps,
 )
 from gausspyplus.decomposition.gaussian_functions import upper_limit_for_amplitude
-from gausspyplus.utils.grouping_functions import (
+from gausspyplus.spatial_fitting.grouping import (
     get_neighbors,
     group_fit_solutions,
     determine_average_values,
