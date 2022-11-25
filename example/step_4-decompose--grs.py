@@ -6,7 +6,7 @@ ROOT = Path(os.path.realpath("__file__")).parents[1]
 sys.path.append(str(ROOT))
 
 from gausspyplus.decomposition.decompose import GaussPyDecompose
-from gausspyplus.finalize import Finalize
+from gausspyplus.processing.finalize import Finalize
 from gausspyplus.plotting.plotting import plot_spectra
 
 
