@@ -3,7 +3,7 @@ from typing import Optional, Dict, List
 
 import numpy as np
 
-from gausspyplus.gausspy_py3 import gradient_descent
+from gausspyplus.training import gradient_descent
 from gausspyplus.decomposition.gaussian_functions import split_params
 from gausspyplus.decomposition import agd_decomposer
 
