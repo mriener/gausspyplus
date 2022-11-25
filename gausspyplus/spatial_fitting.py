@@ -18,7 +18,7 @@ from gausspyplus.decomposition.gp_plus import (
     check_for_negative_residual,
     get_best_fit_model,
 )
-from gausspyplus.model import Model
+from gausspyplus.definitions.model import Model
 from gausspyplus.definitions.checks import BaseChecks
 from gausspyplus.utils.determine_intervals import (
     merge_overlapping_intervals,
