@@ -18,7 +18,10 @@ from gausspyplus.utils.determine_intervals import (
     get_signal_ranges,
     get_noise_spike_ranges,
 )
-from gausspyplus.utils.fit_quality_checks import determine_significance, goodness_of_fit
+from gausspyplus.decomposition.fit_quality_checks import (
+    determine_significance,
+    goodness_of_fit,
+)
 from gausspyplus.utils.gaussian_functions import (
     multi_component_gaussian_model,
     CONVERSION_STD_TO_FWHM,

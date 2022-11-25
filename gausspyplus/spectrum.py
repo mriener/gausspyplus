@@ -4,7 +4,6 @@ from typing import Optional, List
 
 import numpy as np
 
-from gausspyplus.utils.fit_quality_checks import check_residual_for_normality
 from gausspyplus.utils.noise_estimation import mask_channels
 
 

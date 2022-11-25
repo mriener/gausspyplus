@@ -12,7 +12,7 @@ from gausspyplus.utils.determine_intervals import (
     check_if_intervals_contain_signal,
     get_slice_indices_for_interval,
 )
-from gausspyplus.utils.fit_quality_checks import determine_significance
+from gausspyplus.decomposition.fit_quality_checks import determine_significance
 from gausspyplus.utils.gaussian_functions import (
     multi_component_gaussian_model,
     area_of_gaussian,
