@@ -24,7 +24,7 @@ from gausspyplus.decomposition.gaussian_functions import (
     multi_component_gaussian_model,
 )
 from gausspyplus.utils.spectral_cube_functions import get_spectral_axis, correct_header
-from gausspyplus.definitions import Spectrum
+from gausspyplus.definitions.definitions import Spectrum
 
 
 def get_points_for_colormap(vmin, vmax, central_val=0.0):

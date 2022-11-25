@@ -45,7 +45,7 @@ from gausspyplus.utils.ndimage_functions import (
     broad_components,
 )
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
-from gausspyplus.definitions import SettingsDefault, SettingsSpatialFitting
+from gausspyplus.definitions.definitions import SettingsDefault, SettingsSpatialFitting
 
 
 class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):

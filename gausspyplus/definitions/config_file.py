@@ -9,7 +9,7 @@ from astropy import units as u
 
 from gausspyplus.utils.output import say
 
-from gausspyplus import definitions
+from gausspyplus.definitions import definitions
 
 
 def _add_settings_to_config_file(

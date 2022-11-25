@@ -13,7 +13,7 @@ from gausspyplus.utils.output import (
     say,
     make_pretty_header,
 )
-from gausspyplus.definitions import SettingsDefault, SettingsTraining
+from gausspyplus.definitions.definitions import SettingsDefault, SettingsTraining
 
 
 class GaussPyTraining(SettingsDefault, SettingsTraining, BaseChecks):
