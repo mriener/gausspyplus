@@ -20,7 +20,7 @@ def is_not_none(x):
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_prepare_cube():
-    from ..prepare import GaussPyPrepare
+    from gausspyplus.preparation.prepare import GaussPyPrepare
 
     prepare = GaussPyPrepare()
     prepare.path_to_file = str(filepath)

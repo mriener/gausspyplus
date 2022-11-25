@@ -16,7 +16,7 @@ def is_not_none(x):
 
 
 def test_prepare_cube():
-    from ..prepare import GaussPyPrepare
+    from gausspyplus.preparation.prepare import GaussPyPrepare
 
     prepare = GaussPyPrepare()
     prepare.path_to_file = ROOT / "data" / "grs-test_field_5x5.fits"
