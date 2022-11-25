@@ -558,7 +558,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         #  initialize the multiprocessing routine
 
-        import gausspyplus.parallel_processing
+        import gausspyplus.parallel_processing.parallel_processing
 
         gausspyplus.parallel_processing.parallel_processing.init(
             [self.indices_refit, [self]]

@@ -198,7 +198,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
         if self.use_all:
             self.n_spectra = self.n_available_spectra
 
-        import gausspyplus.parallel_processing
+        import gausspyplus.parallel_processing.parallel_processing
 
         gausspyplus.parallel_processing.parallel_processing.init([indices, [self]])
 

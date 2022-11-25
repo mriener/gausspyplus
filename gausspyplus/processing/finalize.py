@@ -303,7 +303,7 @@ class Finalize(BaseChecks):
         table_results : Table of the decomposition results.
 
         """
-        import gausspyplus.parallel_processing
+        import gausspyplus.parallel_processing.parallel_processing
 
         gausspyplus.parallel_processing.parallel_processing.init(
             [self.decomposition["index_fit"], [self]]

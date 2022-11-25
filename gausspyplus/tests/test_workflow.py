@@ -20,7 +20,7 @@ def test_prepare_cube():
 
     prepare = GaussPyPrepare()
     prepare.path_to_file = ROOT / "data" / "grs-test_field_5x5.fits"
-    prepare.dirpath_gpy = "test_grs"
+    prepare.dirpath_gpy = ROOT / "tests" / "test_grs"
     prepare.use_ncpus = 1
     prepare.log_output = False
     prepare.verbose = False

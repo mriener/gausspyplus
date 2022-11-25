@@ -257,7 +257,7 @@ class MomentMask(object):
 
         self.noiseSmoothedCube = np.empty((self.data.shape[1], self.data.shape[2]))
 
-        import gausspyplus.parallel_processing
+        import gausspyplus.parallel_processing.parallel_processing
 
         gausspyplus.parallel_processing.parallel_processing.init(
             [
