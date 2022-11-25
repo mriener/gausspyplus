@@ -119,7 +119,7 @@ def test_decompose_cube_gausspy():
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_spatial_fitting_phase_1():
-    from ..spatial_fitting import SpatialFitting
+    from ..spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = str(
@@ -174,7 +174,7 @@ def test_spatial_fitting_phase_1():
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_spatial_fitting_phase_2():
-    from ..spatial_fitting import SpatialFitting
+    from ..spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = str(

@@ -6,7 +6,7 @@ ROOT = Path(os.path.realpath("__file__")).parents[1]
 sys.path.append(str(ROOT))
 
 from gausspyplus.processing.finalize import Finalize
-from gausspyplus.spatial_fitting import SpatialFitting
+from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 from gausspyplus.plotting.plotting import plot_spectra
 
 

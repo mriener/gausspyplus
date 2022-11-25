@@ -28,7 +28,7 @@ from gausspyplus.processing.spectral_cube_functions import (
     save_fits,
     return_hdu_options,
 )
-from gausspyplus.spatial_fitting import SpatialFitting
+from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
 
 class Finalize(BaseChecks):
