@@ -20,7 +20,7 @@ from gausspyplus.decomposition.gp_plus import (
 )
 from gausspyplus.definitions.model import Model
 from gausspyplus.definitions.checks import BaseChecks
-from gausspyplus.utils.determine_intervals import (
+from gausspyplus.preparation.determine_intervals import (
     merge_overlapping_intervals,
     indices_of_fit_components_in_interval,
 )

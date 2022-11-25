@@ -15,7 +15,7 @@ from gausspyplus.definitions.definitions import (
     SettingsPreparation,
 )
 from gausspyplus.definitions.checks import BaseChecks
-from gausspyplus.utils.determine_intervals import (
+from gausspyplus.preparation.determine_intervals import (
     get_signal_ranges,
     get_noise_spike_ranges,
 )
