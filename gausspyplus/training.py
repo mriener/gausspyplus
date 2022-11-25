@@ -5,7 +5,7 @@
 import functools
 from pathlib import Path
 
-from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.definitions.config_file import get_values_from_config_file
 from gausspyplus.decomposition import gp as gp
 from gausspyplus.definitions.checks import BaseChecks
 from gausspyplus.utils.output import (

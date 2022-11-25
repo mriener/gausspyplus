@@ -10,7 +10,7 @@ import scipy.ndimage as ndimage
 
 from tqdm import tqdm
 
-from gausspyplus.config_file import get_values_from_config_file
+from gausspyplus.definitions.config_file import get_values_from_config_file
 from gausspyplus.spectrum import Spectrum
 from gausspyplus.decomposition.gp_plus import (
     get_fully_blended_gaussians,
