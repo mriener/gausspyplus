@@ -21,7 +21,7 @@ from gausspyplus.decomposition.gaussian_functions import (
     CONVERSION_STD_TO_FWHM,
 )
 from gausspyplus.utils.output import say
-from gausspyplus.utils.spectral_cube_functions import (
+from gausspyplus.processing.spectral_cube_functions import (
     correct_header,
     change_header,
     update_header,

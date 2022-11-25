@@ -23,7 +23,10 @@ from gausspyplus.decomposition.gaussian_functions import (
     single_component_gaussian_model,
     multi_component_gaussian_model,
 )
-from gausspyplus.utils.spectral_cube_functions import get_spectral_axis, correct_header
+from gausspyplus.processing.spectral_cube_functions import (
+    get_spectral_axis,
+    correct_header,
+)
 from gausspyplus.definitions.definitions import Spectrum
 
 
