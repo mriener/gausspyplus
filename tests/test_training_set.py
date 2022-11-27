@@ -7,7 +7,7 @@ from astropy.io import fits
 from gausspyplus.training.training_set import GaussPyTrainingSet
 
 ROOT = Path(os.path.realpath(__file__)).parents[1]
-DATA = fits.getdata(ROOT / "data" / "grs-test_field.fits")
+DATA = fits.getdata(ROOT / "gausspyplus" / "data" / "grs-test_field.fits")
 
 
 def test_get_maxima():

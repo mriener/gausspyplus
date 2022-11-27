@@ -9,12 +9,12 @@ from astropy.io import fits
 import numpy as np
 
 ROOT = Path(os.path.realpath(__file__)).parents[1]
-filepath = Path(ROOT / "data" / "grs-test_field_10x10.fits")
+filepath = Path(ROOT / "gausspyplus" / "data" / "grs-test_field_10x10.fits")
 DATA = fits.getdata(filepath)
 
 
 def test_spatial_fitting_phase_1():
-    from ..spatial_fitting.spatial_fitting import SpatialFitting
+    from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.length = 16

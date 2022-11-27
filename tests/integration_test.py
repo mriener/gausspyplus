@@ -7,7 +7,7 @@ from astropy.io import fits
 import numpy as np
 
 ROOT = Path(os.path.realpath(__file__)).parents[1]
-filepath = Path(ROOT / "data" / "grs-test_field_10x10.fits")
+filepath = Path(ROOT / "gausspyplus" / "data" / "grs-test_field_10x10.fits")
 DATA = fits.getdata(filepath)
 
 # TODO: Delete created pickle files after running the tests; otherwise intermediate-stage pickle files can still be
@@ -119,7 +119,7 @@ def test_decompose_cube_gausspy():
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_spatial_fitting_phase_1():
-    from ..spatial_fitting.spatial_fitting import SpatialFitting
+    from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = str(
@@ -174,7 +174,7 @@ def test_spatial_fitting_phase_1():
 
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_spatial_fitting_phase_2():
-    from ..spatial_fitting.spatial_fitting import SpatialFitting
+    from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = str(
