@@ -8,7 +8,7 @@ from astropy.io import fits
 import numpy as np
 
 ROOT = Path(os.path.realpath(__file__)).parents[1]
-DATA = fits.getdata(ROOT / "data" / "grs-test_field_5x5.fits")
+DATA = fits.getdata(ROOT / "gausspyplus" / "data" / "grs-test_field_5x5.fits")
 
 
 def is_not_none(x):
@@ -19,7 +19,7 @@ def test_prepare_cube():
     from gausspyplus.preparation.prepare import GaussPyPrepare
 
     prepare = GaussPyPrepare()
-    prepare.path_to_file = ROOT / "data" / "grs-test_field_5x5.fits"
+    prepare.path_to_file = ROOT / "gausspyplus" / "data" / "grs-test_field_5x5.fits"
     prepare.dirpath_gpy = ROOT / "tests" / "test_grs"
     prepare.use_ncpus = 1
     prepare.log_output = False
@@ -107,7 +107,7 @@ def test_decompose_cube_gausspy():
 
 
 def test_spatial_fitting_phase_1():
-    from ..spatial_fitting.spatial_fitting import SpatialFitting
+    from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = (
@@ -157,7 +157,7 @@ def test_spatial_fitting_phase_1():
 
 
 def test_spatial_fitting_phase_2():
-    from ..spatial_fitting.spatial_fitting import SpatialFitting
+    from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
     sp.path_to_pickle_file = (
