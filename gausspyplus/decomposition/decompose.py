@@ -1,15 +1,10 @@
 import functools
 import os
 import pickle
-import warnings
 from pathlib import Path
-
-from astropy import units as u
-from astropy.wcs import WCS
 
 from gausspyplus.definitions.config_file import get_values_from_config_file
 from gausspyplus.definitions.checks import BaseChecks
-from gausspyplus.processing.spectral_cube_functions import correct_header
 from gausspyplus.utils.output import set_up_logger, say, make_pretty_header
 from gausspyplus.definitions.definitions import (
     SettingsDefault,
@@ -24,10 +19,6 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
     def __init__(self, path_to_pickle_file=None, config_file=""):
         self.path_to_pickle_file = path_to_pickle_file
         self.dirpath_gpy = None
-
-        # TODO: this needs work
-        # self.vel_unit = u.km / u.s
-        # self.suffix = ''
 
         self.single_prepared_spectrum = None
 
@@ -77,60 +68,6 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
         with open(self.path_to_pickle_file, "rb") as pickle_file:
             return pickle.load(pickle_file, encoding="latin1")
 
-    @functools.cached_property
-    def data(self):
-        return self.pickled_data["data_list"]
-
-    @functools.cached_property
-    def channels(self):
-        return self.pickled_data["x_values"]
-
-    @functools.cached_property
-    def errors(self):
-        return self.pickled_data["error"]
-
-    @functools.cached_property
-    def header(self):
-        return (
-            correct_header(self.pickled_data["header"])
-            if "header" in self.pickled_data.keys()
-            else None
-        )
-
-    @functools.cached_property
-    def wcs(self):
-        return None if self.header is None else WCS(self.header)
-
-    @functools.cached_property
-    def velocity_increment(self):
-        return (
-            None
-            if self.header is None
-            else (self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2])
-            .to(
-                u.Unit(self.vel_unit)
-                if isinstance(self.vel_unit, str)
-                else self.vel_unit
-            )
-            .value
-        )
-
-    @functools.cached_property
-    def location(self):
-        return (
-            self.pickled_data["location"]
-            if "location" in self.pickled_data.keys()
-            else None
-        )
-
-    @functools.cached_property
-    def nan_mask(self):
-        return (
-            self.pickled_data["nan_mask"]
-            if "nan_mask" in self.pickled_data.keys()
-            else None
-        )
-
     # TODO: Problem with tests: if improve_fitting is changed from False to True cached_property prevents updating the
     #  dictionary
     # @functools.cached_property
@@ -156,28 +93,6 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
             max_ncomps=self.max_ncomps,
         )
 
-    # @functools.cached_property
-    # def testing(self):
-    #     return self.pickled_data['testing'] if 'testing' in self.pickled_data.keys() else None
-
-    def initialize_data(self):
-        if "testing" in self.pickled_data.keys():
-            self.testing = self.pickled_data["testing"]
-            if self.testing:
-                self.use_ncpus = 1
-
-    def check_settings(self):
-        self.raise_exception_if_attribute_is_none("path_to_pickle_file")
-
-        if self.main_beam_efficiency is None:
-            warnings.warn(
-                "assuming intensities are already corrected for main beam efficiency"
-            )
-
-        warnings.warn(
-            f"converting velocity values to {u.Unit(self.vel_unit) if isinstance(self.vel_unit, str) else self.vel_unit}"
-        )
-
     def decompose(self):
         if self.single_prepared_spectrum:
             self.testing = True
@@ -185,8 +100,11 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
             say(message=make_pretty_header("GaussPy decomposition"), logger=self.logger)
             return self.start_decomposition()
         else:
-            self.check_settings()
-            self.initialize_data()
+            self.raise_exception_if_attribute_is_none("path_to_pickle_file")
+            if "testing" in self.pickled_data.keys():
+                self.testing = self.pickled_data["testing"]
+                if self.testing:
+                    self.use_ncpus = 1
             say(message=make_pretty_header("GaussPy decomposition"), logger=self.logger)
             self.start_decomposition()
             if "batchdecomp_temp.pickle" in os.listdir(os.getcwd()):
@@ -210,7 +128,6 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
         say(string_gausspy, logger=self.logger)
 
         if self.fitting.improve_fitting:
-            # string_gausspy_plus = '\n' + '\n'.join([f'\n{key}: {value}' for key, value in self.fitting.items()])
             string_gausspy_plus = "\n" + "\n".join(
                 [
                     f"{attribute}: {getattr(self.fitting, attribute)}"
