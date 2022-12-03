@@ -12,11 +12,11 @@
 
 [Lindner et al. 2015](https://ui.adsabs.harvard.edu/abs/2015AJ....149..138L/abstract)
 
-For tips on how to get started with ``GaussPy+`` see the section [Getting started](#gettingstarted) further below and check the [Frequently asked questions](FAQ.md).
+For tips on how to get started with ``GaussPy+`` see the section [Getting started](#gettingstarted) further below and check the [Frequently asked questions](docs/FAQ.md).
 
 ### Version
 
-The currently recommended version of GaussPy+ is v0.2 (stable version released on 2020-05-19). See the [GaussPy+ Changelog](CHANGES.md) for an overview of the major changes and improvements introduced in this version.
+The currently recommended version of GaussPy+ is v0.2 (stable version released on 2020-05-19). See the [GaussPy+ Changelog](docs/CHANGES.md) for an overview of the major changes and improvements introduced in this version.
 
 New updates to the code are first tested and developed in the ``dev`` branch. Users cloning the ``dev`` branch should beware that these versions are not guaranteed to be stable.
 
@@ -144,7 +144,7 @@ We tested the default settings of ``GaussPy+`` on different spectral cubes of CO
 
 <a id="faq"></a>
 ## Frequently asked questions
-See [FAQ](FAQ.md).
+See [FAQ](docs/FAQ.md).
 
 ## Citing GaussPy+
 
@@ -204,4 +204,4 @@ We would love to get your feedback on ``GaussPy+``. If you should find that ``Ga
 
 ## Contributing to GaussPy+
 
-To contribute to ``GaussPy+``, see [Contributing to GaussPy+](CONTRIBUTING.md).
+To contribute to ``GaussPy+``, see [Contributing to GaussPy+](docs/CONTRIBUTING.md).
