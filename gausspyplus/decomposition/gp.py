@@ -167,6 +167,16 @@ class GaussianDecomposer(object):
                     output_data["amplitudes_fit_err"].append(amps_err)
                     output_data["fwhms_fit_err"].append(fwhms_err)
                     output_data["means_fit_err"].append(offsets_err)
+                else:
+                    for key in [
+                        "amplitudes_fit",
+                        "fwhms_fit",
+                        "means_fit",
+                        "amplitudes_fit_err",
+                        "fwhms_fit_err",
+                        "means_fit_err",
+                    ]:
+                        output_data[key].append([])
 
                 # Save initial guesses if something was found
                 ncomps_ini = len(result["initial_parameters"]) // 3
@@ -178,6 +188,13 @@ class GaussianDecomposer(object):
                     output_data["means_initial"].append(offsets_ini)
                     output_data["fwhms_initial"].append(fwhms_ini)
                     output_data["amplitudes_initial"].append(amps_ini)
+                else:
+                    for key in [
+                        "amplitudes_initial",
+                        "fwhms_initial",
+                        "means_initial",
+                    ]:
+                        output_data[key].append([])
 
                 for key in [
                     "best_fit_rchi2",
