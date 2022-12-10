@@ -289,7 +289,7 @@ def AGD(
             params_fit_phase1 = vals_vec_from_lmfit(result.params)
 
             del lmfit_params
-            say(f"LMFIT fit took {time.time() - t0} seconds.")
+            say(f"LMFIT fit took {time.time() - t0} seconds.", verbose=verbose)
 
             if result.success:
                 # Compute intermediate residuals
