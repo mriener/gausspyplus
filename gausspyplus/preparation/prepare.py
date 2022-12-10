@@ -3,6 +3,7 @@ import os
 import pickle
 import itertools
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -139,7 +140,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         )
 
     @functools.cached_property
-    def locations(self):
+    def locations(self) -> list:
         return list(
             itertools.product(range(self.data.shape[1]), range(self.data.shape[2]))
         )
@@ -149,19 +150,19 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         return self.input_object.header
 
     @functools.cached_property
-    def n_channels(self):
+    def n_channels(self) -> int:
         return self.data.shape[0]
 
     @functools.cached_property
-    def channels(self):
+    def channels(self) -> np.ndarray:
         return np.arange(self.n_channels)
 
     @functools.cached_property
-    def max_consecutive_channels(self):
+    def max_consecutive_channels(self) -> int:
         return determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
 
     @functools.cached_property
-    def dirpath_pickle(self):
+    def dirpath_pickle(self) -> Path:
         # TODO: is the self.testing condition really necessary?
         if self.testing:
             return None
@@ -170,7 +171,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         )
         return dirpath_pickle
 
-    def return_single_prepared_spectrum(self, data_location=None):
+    def return_single_prepared_spectrum(self, data_location=None) -> dict:
         self.data_location = data_location or self.data_location
         self.testing = True
         self.log_output = False
@@ -188,12 +189,12 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             "noise_spike_ranges": [spectrum.noise_spike_intervals],
         }
 
-    def prepare_cube(self):
+    def prepare_cube(self) -> None:
         self.check_settings()
         say(message=make_pretty_header("GaussPy preparation"), logger=self.logger)
         self.prepare_gausspy_pickle()
 
-    def calculate_average_rms_from_data(self):
+    def calculate_average_rms_from_data(self) -> None:
         say("\ncalculating average rms from data...", logger=self.logger)
         # TODO: change calculate_average_rms_noise so that it does not change data and no copy of data has to be created
         self.average_rms = calculate_average_rms_noise(
@@ -219,7 +220,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             "noise_spike_ranges": [
                 spectrum.noise_spike_intervals for spectrum in results
             ],
-            # TODO: Info about NaNs can be safed more efficient -> but where is this used? Make sure to change it
+            # TODO: Info about NaNs can be saved more efficiently -> but where is this used? Make sure to change it
             #  everywhere
             "nan_mask": np.isnan(self.data),
             "x_values": self.channels,
@@ -244,7 +245,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             )
         )
 
-    def prepare_gausspy_pickle(self):
+    def prepare_gausspy_pickle(self) -> None:
         say("\npreparing GaussPy cube...", logger=self.logger)
 
         if (
@@ -291,7 +292,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         if self.gausspy_pickle:
             self._save_as_pickled_file(results)
 
-    def _get_spectrum(self, index):
+    def _get_spectrum(self, index: int) -> np.ndarray:
         y_position, x_position = self.locations[index]
         spectrum = self.data[:, y_position, x_position].copy()
         if self.mask_out_ranges is not None:
@@ -299,7 +300,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             spectrum[nan_mask] = np.nan
         return spectrum
 
-    def _get_rms_noise(self, index, spectrum):
+    def _get_rms_noise(self, index: int, spectrum: np.ndarray) -> float:
         if self.noise_map is not None:
             y_position, x_position = self.locations[index]
             return self.noise_map[y_position, x_position]
@@ -311,7 +312,9 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             average_rms=self.average_rms,
         )
 
-    def _get_noise_spike_ranges(self, spectrum, rms):
+    def _get_noise_spike_ranges(
+        self, spectrum: np.ndarray, rms: float
+    ) -> Optional[list]:
         if np.isnan(rms):
             return None
         mask_out_ranges = [] if self.mask_out_ranges is None else self.mask_out_ranges
@@ -319,7 +322,9 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             spectrum, rms, snr_noise_spike=self.snr_noise_spike
         )
 
-    def _get_signal_ranges(self, spectrum, rms, noise_spike_ranges):
+    def _get_signal_ranges(
+        self, spectrum: np.ndarray, rms: float, noise_spike_ranges: list
+    ) -> Optional[list]:
         if np.isnan(rms) or not self.signal_mask:
             return None
         return get_signal_ranges(
@@ -332,7 +337,8 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             remove_intervals=noise_spike_ranges,
         )
 
-    def calculate_rms_noise(self, index):
+    # TODO: Rename this method to `prepare_spectrum`?
+    def calculate_rms_noise(self, index: int) -> PreparedSpectrum:
         spectrum = self._get_spectrum(index)
         rms = self._get_rms_noise(index, spectrum)
 
