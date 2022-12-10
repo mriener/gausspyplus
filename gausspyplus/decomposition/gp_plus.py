@@ -824,6 +824,9 @@ def _check_for_blended_feature(
     model : Best fit model
 
     """
+    if model.n_components < 2:
+        return model
+
     exclude_indices = get_fully_blended_gaussians(
         params_fit=model.parameters,
         get_count=False,
@@ -848,7 +851,7 @@ def check_for_peaks_in_residual(
     fitted_residual_peaks: List,
     params_min: Optional[List] = None,
     params_max: Optional[List] = None,
-) -> Tuple[Dict, List]:
+) -> Tuple[Model, List]:
     """Try fit by adding new components, whose initial parameters were determined from residual peaks.
 
     Parameters
@@ -966,20 +969,32 @@ def try_to_improve_fitting(
     first_run = True
     fitted_residual_peaks = []
     log_gplus = []
+    selected_for_refit = {
+        "negative_residual_peak": settings_improve_fit.refit_neg_res_peak,
+        "broad": settings_improve_fit.refit_broad,
+        "blended": settings_improve_fit.refit_blended,
+    }
+    refit_function = {
+        "negative_residual_peak": check_for_negative_residual,
+        "broad": _check_for_broad_feature,
+        "blended": _check_for_blended_feature,
+    }
 
     # while (rchi2 > settings_improve_fit.rchi2_limit) or first_run:
     while (model.pvalue < settings_improve_fit.min_pvalue) or first_run:
         n_fitted_residual_peaks_before_check = len(fitted_residual_peaks)
-        new_fit = True
-        while new_fit:
+        while True:
             model.new_best_fit = False
             model, fitted_residual_peaks = check_for_peaks_in_residual(
                 model, settings_improve_fit, fitted_residual_peaks
             )
-            new_fit = model.new_best_fit
             log_gplus = _log_new_fit(
-                new_fit=new_fit, log_gplus=log_gplus, mode="positive_residual_peak"
+                new_fit=model.new_best_fit,
+                log_gplus=log_gplus,
+                mode="positive_residual_peak",
             )
+            if not model.new_best_fit:
+                break
         n_fitted_residual_peaks_after_check = len(fitted_residual_peaks)
 
         # new_peaks = n_fitted_residual_peaks_before_check != n_fitted_residual_peaks_after_check
@@ -992,37 +1007,17 @@ def try_to_improve_fitting(
         ) or (model.n_components == 0):
             break
 
-        #  try to refit negative residual feature
-        if settings_improve_fit.refit_neg_res_peak:
-            model = check_for_negative_residual(
-                model=model, settings_improve_fit=settings_improve_fit
-            )
-            new_fit = model.new_best_fit
-            log_gplus = _log_new_fit(
-                new_fit=new_fit, log_gplus=log_gplus, mode="negative_residual_peak"
-            )
-
-        #  try to refit broad Gaussian components
-        while settings_improve_fit.refit_broad:
-            model = _check_for_broad_feature(
-                model=model, settings_improve_fit=settings_improve_fit
-            )
-            log_gplus = _log_new_fit(
-                new_fit=model.new_best_fit, log_gplus=log_gplus, mode="broad"
-            )
-            if not model.new_best_fit:
-                break
-
-        #  try to refit blended Gaussian components
-        while settings_improve_fit.refit_blended and model.n_components > 1:
-            model = _check_for_blended_feature(
-                model=model, settings_improve_fit=settings_improve_fit
-            )
-            log_gplus = _log_new_fit(
-                new_fit=model.new_best_fit, log_gplus=log_gplus, mode="blended"
-            )
-            if not model.new_best_fit:
-                break
+        for mode in ["negative_residual_peak", "broad", "blended"]:
+            while selected_for_refit[mode]:
+                model.new_best_fit = False
+                model = refit_function[mode](
+                    model=model, settings_improve_fit=settings_improve_fit
+                )
+                log_gplus = _log_new_fit(
+                    new_fit=model.new_best_fit, log_gplus=log_gplus, mode=mode
+                )
+                if not model.new_best_fit:
+                    break
 
         if not first_run:
             break
