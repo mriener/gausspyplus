@@ -155,7 +155,7 @@ def get_signal_ranges(
 
 
 def get_noise_spike_ranges(
-    spectrum: np.ndarray, rms: float, snr_noise_spike: int = 5
+    spectrum: np.ndarray, rms: float, snr_noise_spike: float = 5.0
 ) -> List[Optional[List]]:
     """Determine intervals in the spectrum potentially containing noise spikes.
 
