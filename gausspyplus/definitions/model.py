@@ -9,6 +9,7 @@ from gausspyplus.decomposition.fit_quality_checks import (
     check_residual_for_normality,
     get_indices_of_blended_components,
     get_number_of_blended_components,
+    negative_residuals,
 )
 from gausspyplus.decomposition.gaussian_functions import (
     number_of_gaussian_components,
@@ -194,3 +195,6 @@ class Model:
 
     def number_of_blended_components(self, separation_factor: float = 0.8493218002991817):
         return get_number_of_blended_components(self.parameters, separation_factor)
+
+    def number_of_negative_residual_peaks(self, neg_res_snr: float = 3.0):
+        return negative_residuals(self.spectrum.intensity_values, self.residual, self.spectrum.rms_noise, neg_res_snr)

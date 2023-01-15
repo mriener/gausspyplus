@@ -875,13 +875,9 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
             break
         first_run = False
 
-    N_neg_res_peak = check_for_negative_residual(
-        model=model, settings_improve_fit=settings_improve_fit, get_count=True
-    )
-
     return (
         model.best_fit_info,
-        N_neg_res_peak,
+        model.number_of_negative_residual_peaks(settings_improve_fit.snr_negative),
         model.number_of_blended_components(settings_improve_fit.separation_factor),
         model.log_of_successful_refits,
     )
