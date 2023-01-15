@@ -573,7 +573,7 @@ def check_for_negative_residual(
     settings_improve_fit: SettingsImproveFit,
     get_count: bool = False,
     get_idx: bool = False,
-) -> Union[int, Model]:
+) -> Union[Optional[int], Model]:
     """Check for negative residual features and try to refit them.
 
     We define negative residual features as negative peaks in the residual that were introduced by the fit. These
@@ -598,8 +598,14 @@ def check_for_negative_residual(
     model : Best fit model
 
     """
+    # TODO: Rework the whole get_idx functionality
     if model.n_components == 0:
-        return 0 if get_count else model
+        if get_count:
+            return 0
+        elif get_idx:
+            return None
+        else:
+            return model
 
     amp_guesses, fwhm_guesses, offset_guesses = _get_initial_guesses(
         residual=model.residual,
@@ -635,6 +641,9 @@ def check_for_negative_residual(
     sorted_parameters = sort_parameters(
         amps=amp_guesses, fwhms=fwhm_guesses, means=offset_guesses, descending=False
     )
+    if get_idx and sorted_parameters.size == 0:
+        return None
+
     for amp, fwhm, offset in zip(*np.split(sorted_parameters, 3)):
         idx_low, idx_up = get_slice_indices_for_interval(
             interval_center=offset, interval_half_width=fwhm
