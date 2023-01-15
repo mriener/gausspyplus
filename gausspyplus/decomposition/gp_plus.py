@@ -403,14 +403,9 @@ def _get_initial_guesses(
 
     peak_positions = np.flatnonzero(np.in1d(residual, amp_vals_of_peaks[is_valid_peak]))
     # We use the determined significance values to get input guesses for the FWHM values
-    # significance = amp * np.sqrt(fwhm) / (np.sqrt(8 * np.log(2) / np.pi) * rms)
-    # TODO: Using the precise factors instead of the magic value yields slightly different results
-    #  The assert statements in the integration tests would have to be updated accordingly
-    fwhm_guesses_for_peaks = (
-        significance_values[is_valid_peak] * rms / (amp_vals_of_peaks[is_valid_peak] * 0.75269184778925247)
+    fwhm_guesses_for_peaks = (8 * np.log(2) / np.pi) * (
+        significance_values[is_valid_peak] * rms / amp_vals_of_peaks[is_valid_peak]
     ) ** 2
-    # fwhm_guesses_for_peaks = (8 * np.log(2) / np.pi) * (significance_values[is_valid_peak] * rms /
-    #                                                     amp_vals_of_peaks[is_valid_peak]) ** 2
 
     return amp_vals_of_peaks[is_valid_peak], fwhm_guesses_for_peaks, peak_positions
 
