@@ -10,10 +10,7 @@ import scipy.ndimage as ndimage
 
 from tqdm import tqdm
 
-from gausspyplus.decomposition.fit_quality_checks import (
-    get_number_of_fully_blended_gaussians,
-    get_indices_of_fully_blended_gaussians,
-)
+from gausspyplus.decomposition.fit_quality_checks import get_indices_of_blended_components
 from gausspyplus.definitions.config_file import get_values_from_config_file
 from gausspyplus.definitions.spectrum import Spectrum
 from gausspyplus.decomposition.gp_plus import (
@@ -930,7 +927,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if flag == "blended":
             params = amps + fwhms + means
             separation_factor = self.decomposition["improve_fit_settings"].separation_factor
-            indices = get_indices_of_fully_blended_gaussians(params, separation_factor=separation_factor)
+            indices = get_indices_of_blended_components(params, separation_factor=separation_factor)
             lower = max(0, min(np.array(means)[indices] - np.array(fwhms)[indices]))
             upper = max(np.array(means)[indices] + np.array(fwhms)[indices])
         elif flag == "broad":
@@ -1405,10 +1402,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if params_only:
             return fit_results
 
-        N_blended = get_number_of_fully_blended_gaussians(
-            params_fit=model.parameters,
-            separation_factor=self.decomposition["improve_fit_settings"].separation_factor,
-        )
+        N_blended = model.number_of_blended_components(self.decomposition["improve_fit_settings"].separation_factor)
         N_neg_res_peak = check_for_negative_residual(
             model=model, settings_improve_fit=settings_improve_fit, get_count=True
         )

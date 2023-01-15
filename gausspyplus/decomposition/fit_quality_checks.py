@@ -167,7 +167,7 @@ def negative_residuals(spectrum, residual, rms, neg_res_snr=3.0, get_flags=False
     return flags.astype("int") if get_flags else N_negative_residuals
 
 
-def _check_for_fully_blended_gaussians(
+def _check_for_blended_components(
     amps: np.ndarray,
     fwhms: np.ndarray,
     means: np.ndarray,
@@ -182,7 +182,7 @@ def _check_for_fully_blended_gaussians(
     ]
 
 
-def get_indices_of_fully_blended_gaussians(params_fit: List, separation_factor: float = 0.8493218002991817):
+def get_indices_of_blended_components(params_fit: List, separation_factor: float = 0.8493218002991817):
     """Return indices of blended Gaussian fit components sorted by ascending order in amplitude value.
 
     A Gaussian fit component i is blended with another component if the separation of their mean positions is less
@@ -198,13 +198,13 @@ def get_indices_of_fully_blended_gaussians(params_fit: List, separation_factor: 
         from lowest to highest amplitude values.
     """
     amps, fwhms, means = np.split(np.array(params_fit), 3)
-    indices_of_blended_pairs = _check_for_fully_blended_gaussians(amps, fwhms, means, separation_factor)
+    indices_of_blended_pairs = _check_for_blended_components(amps, fwhms, means, separation_factor)
     indices_of_blended_components = np.unique(indices_of_blended_pairs).astype(int)
     # We return the indices of blended components sorted by ascending order in amplitude value
     return indices_of_blended_components[np.argsort(amps[indices_of_blended_components])]
 
 
-def get_number_of_fully_blended_gaussians(params_fit: List, separation_factor: float = 0.8493218002991817):
+def get_number_of_blended_components(params_fit: List, separation_factor: float = 0.8493218002991817):
     """Return the number of blended Gaussian fit component pairs.
 
     A Gaussian fit component i is blended with another component if the separation of their mean positions is less
@@ -219,5 +219,5 @@ def get_number_of_fully_blended_gaussians(params_fit: List, separation_factor: f
     :return indices_blended: Number of blended fit component pairs.
     """
     amps, fwhms, means = np.split(np.array(params_fit), 3)
-    indices_of_blended_pairs = _check_for_fully_blended_gaussians(amps, fwhms, means, separation_factor)
+    indices_of_blended_pairs = _check_for_blended_components(amps, fwhms, means, separation_factor)
     return len(indices_of_blended_pairs)
