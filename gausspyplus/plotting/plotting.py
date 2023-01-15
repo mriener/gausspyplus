@@ -101,17 +101,11 @@ def _pickle_load_file(pathToFile):
             return pickle.load(pickle_file)
 
 
-def _get_positions_from(
-    data_or_pixel_range: dict, axis: Literal["x", "y"] = "x"
-) -> np.ndarray:
+def _get_positions_from(data_or_pixel_range: dict, axis: Literal["x", "y"] = "x") -> np.ndarray:
     try:
         # only data has the key location; pixel_range has the keys 'x' and 'y'
-        pos_min = min(
-            data_or_pixel_range["location"], key=lambda pos: pos[int(axis == "x")]
-        )
-        pos_max = max(
-            data_or_pixel_range["location"], key=lambda pos: pos[int(axis == "x")]
-        )
+        pos_min = min(data_or_pixel_range["location"], key=lambda pos: pos[int(axis == "x")])
+        pos_max = max(data_or_pixel_range["location"], key=lambda pos: pos[int(axis == "x")])
     except KeyError:
         pos_min, pos_max = data_or_pixel_range[axis]
     return np.arange(pos_min, pos_max + 1)[:: (1 if axis == "x" else -1)]
@@ -120,16 +114,8 @@ def _get_positions_from(
 def _get_grid_layout(data, subcube=False, pixel_range=None):
     if not subcube or (pixel_range is None):
         return None
-    x_positions = (
-        _get_positions_from(data, axis="x")
-        if subcube
-        else _get_positions_from(pixel_range, axis="x")
-    )
-    y_positions = (
-        _get_positions_from(data, axis="y")
-        if subcube
-        else _get_positions_from(pixel_range, axis="y")
-    )
+    x_positions = _get_positions_from(data, axis="x") if subcube else _get_positions_from(pixel_range, axis="x")
+    y_positions = _get_positions_from(data, axis="y") if subcube else _get_positions_from(pixel_range, axis="y")
     n_cols = len(x_positions)
     n_rows = len(y_positions)
     return [n_cols, n_rows]
@@ -153,20 +139,9 @@ def _get_list_indices(
     random.seed(random_seed)
     # TODO: incorporate the nan_mask in this scheme
     if subcube or (pixel_range is not None):
-        x_positions = (
-            _get_positions_from(data, axis="x")
-            if subcube
-            else _get_positions_from(pixel_range, axis="x")
-        )
-        y_positions = (
-            _get_positions_from(data, axis="y")
-            if subcube
-            else _get_positions_from(pixel_range, axis="y")
-        )
-        list_indices = [
-            data["location"].index(location)
-            for location in itertools.product(y_positions, x_positions)
-        ]
+        x_positions = _get_positions_from(data, axis="x") if subcube else _get_positions_from(pixel_range, axis="x")
+        y_positions = _get_positions_from(data, axis="y") if subcube else _get_positions_from(pixel_range, axis="y")
+        list_indices = [data["location"].index(location) for location in itertools.product(y_positions, x_positions)]
     elif (list_indices is None) and (n_spectra is not None):
         list_indices = []
         indices = list(range(len(data["data_list"])))
@@ -192,40 +167,24 @@ def _plot_signal_ranges(ax, spectrum, spectral_channels, signal_ranges):
 
 
 def _get_title(spectrum, idx):
-    idx_string = (
-        ""
-        if spectrum.index is None or spectrum.index == idx
-        else f" (Idx$_{{data}}$={spectrum.index})"
-    )
+    idx_string = "" if spectrum.index is None or spectrum.index == idx else f" (Idx$_{{data}}$={spectrum.index})"
     y_pos, x_pos = spectrum.position_yx
     loc_string = "" if y_pos is None else f", X={x_pos}, Y={y_pos}"
-    ncomps_string = (
-        ""
-        if spectrum.n_fit_components is None
-        else f", N$_{{comp}}$={spectrum.n_fit_components}"
-    )
+    ncomps_string = "" if spectrum.n_fit_components is None else f", N$_{{comp}}$={spectrum.n_fit_components}"
     rchi2_string = (
-        ""
-        if spectrum.reduced_chi2_value is None
-        else f", $\\chi_{{red}}^{{2}}$={spectrum.reduced_chi2_value:.3f}"
+        "" if spectrum.reduced_chi2_value is None else f", $\\chi_{{red}}^{{2}}$={spectrum.reduced_chi2_value:.3f}"
     )
     return f"Idx={idx}{idx_string}{loc_string}{ncomps_string}{rchi2_string}"
 
 
 def _get_path_to_plots(pathToDataPickle, path_to_decomp_pickle):
-    return (
-        Path(pathToDataPickle).parent
-        if path_to_decomp_pickle is None
-        else Path(path_to_decomp_pickle).parent
-    )
+    return Path(pathToDataPickle).parent if path_to_decomp_pickle is None else Path(path_to_decomp_pickle).parent
 
 
 def _plot_individual_components(ax, spectral_channels, channels, spectrum, gaussians):
     if not gaussians:
         return
-    for amp, fwhm, mean in zip(
-        spectrum.amplitude_values, spectrum.fwhm_values, spectrum.mean_values
-    ):
+    for amp, fwhm, mean in zip(spectrum.amplitude_values, spectrum.fwhm_values, spectrum.mean_values):
         gauss = single_component_gaussian_model(amp, fwhm, mean, channels)
         ax.plot(spectral_channels, gauss, ls="solid", lw=1, color="orangered")
 
@@ -243,11 +202,7 @@ class Data:
 
     @functools.cached_property
     def decomposition(self):
-        return (
-            _pickle_load_file(self.path_to_decomp_pickle)
-            if self.path_to_decomp_pickle
-            else None
-        )
+        return _pickle_load_file(self.path_to_decomp_pickle) if self.path_to_decomp_pickle else None
 
     @functools.cached_property
     def channels(self):
@@ -259,23 +214,13 @@ class Data:
 
     @functools.cached_property
     def header(self):
-        return (
-            correct_header(self.data["header"])
-            if "header" in self.data.keys()
-            else None
-        )
+        return correct_header(self.data["header"]) if "header" in self.data.keys() else None
 
     @functools.cached_property
     def spectral_channels(self):
-        return (
-            self.channels
-            if self.header is None
-            else get_spectral_axis(header=self.header, to_unit=self.vel_unit)
-        )
+        return self.channels if self.header is None else get_spectral_axis(header=self.header, to_unit=self.vel_unit)
 
-    def _update_spectrum_with_fit_results_from_decomposition(
-        self, spectrum: Spectrum, idx
-    ):
+    def _update_spectrum_with_fit_results_from_decomposition(self, spectrum: Spectrum, idx):
         return spectrum._replace(
             n_fit_components=len(self.decomposition["amplitudes_fit"][idx]),
             amplitude_values=self.decomposition["amplitudes_fit"][idx],
@@ -284,9 +229,7 @@ class Data:
             reduced_chi2_value=self.decomposition["best_fit_rchi2"][idx],
         )
 
-    def _update_spectrum_with_fit_results_from_training_set(
-        self, spectrum: Spectrum, idx
-    ):
+    def _update_spectrum_with_fit_results_from_training_set(self, spectrum: Spectrum, idx):
         return spectrum._replace(
             n_fit_components=len(self.data["amplitudes"][idx]),
             amplitude_values=self.data["amplitudes"][idx],
@@ -299,34 +242,20 @@ class Data:
         spectrum = Spectrum(
             index=self.data["index"][idx] if "index" in self.data.keys() else None,
             intensity_values=self.data["data_list"][idx],
-            position_yx=(
-                self.data["location"][idx]
-                if "location" in self.data.keys()
-                else (None, None)
-            ),
+            position_yx=(self.data["location"][idx] if "location" in self.data.keys() else (None, None)),
             rms_noise=self.data["error"][idx][0],
-            signal_intervals=(
-                self.data["signal_ranges"][idx]
-                if "signal_ranges" in self.data.keys()
-                else None
-            ),
+            signal_intervals=(self.data["signal_ranges"][idx] if "signal_ranges" in self.data.keys() else None),
             noise_spike_intervals=(
-                self.data["noise_spike_intervals"][idx]
-                if "noise_spike_intervals" in self.data.keys()
-                else None
+                self.data["noise_spike_intervals"][idx] if "noise_spike_intervals" in self.data.keys() else None
             ),
         )
         # TODO: homogenize this, so the same keys are used for training_set and decomposition
         #  Currently training_set uses 'fwhms', 'means' and 'amplitudes' but decomposition uses
         #  'fwhms_fit', 'means_fit', and 'amplitudes_fit'
         if self.decomposition:
-            spectrum = self._update_spectrum_with_fit_results_from_decomposition(
-                spectrum, idx
-            )
+            spectrum = self._update_spectrum_with_fit_results_from_decomposition(spectrum, idx)
         elif self.training_set:
-            spectrum = self._update_spectrum_with_fit_results_from_training_set(
-                spectrum, idx
-            )
+            spectrum = self._update_spectrum_with_fit_results_from_training_set(spectrum, idx)
         return spectrum
 
 
@@ -360,19 +289,11 @@ class Figure:
 
     @functools.cached_property
     def n_rows_total(self):
-        return (
-            -int(-self.n_spectra / self.n_cols)
-            if self.grid_layout is None
-            else self.grid_layout[1]
-        )
+        return -int(-self.n_spectra / self.n_cols) if self.grid_layout is None else self.grid_layout[1]
 
     @functools.cached_property
     def colsize(self):
-        return (
-            round(self.rowsize * self.n_channels / 659, 2)
-            if self.n_channels > 700
-            else self.rowsize
-        )
+        return round(self.rowsize * self.n_channels / 659, 2) if self.n_channels > 700 else self.rowsize
 
     @functools.cached_property
     def multiple_pdfs(self):
@@ -400,25 +321,14 @@ class Figure:
         return btype + bunit
 
     def prepare_figure(self):
-        fig = plt.figure(
-            figsize=(self.n_cols * self.colsize, self.rows_in_figure * self.rowsize)
-        )
+        fig = plt.figure(figsize=(self.n_cols * self.colsize, self.rows_in_figure * self.rowsize))
         fig.patch.set_facecolor("white")
         fig.patch.set_alpha(1.0)
         # fig.subplots_adjust(hspace=0.5)
         return fig
 
     def get_axis(self, idx_subplot, residual=False):
-        row_i = (
-            int(
-                (
-                    idx_subplot
-                    - self.count_figures * (self.max_rows_per_figure * self.n_cols)
-                )
-                / self.n_cols
-            )
-            * 3
-        )
+        row_i = int((idx_subplot - self.count_figures * (self.max_rows_per_figure * self.n_cols)) / self.n_cols) * 3
         col_i = idx_subplot % self.n_cols
         return plt.subplot2grid(
             shape=(3 * self.rows_in_figure, self.n_cols),
@@ -444,9 +354,7 @@ class Figure:
             ax.set_title("Residual", fontsize=self.fontsize)
 
     def check_figure_size(self):
-        if (self.max_rows_per_figure * self.rowsize * 100 > 2**16) or (
-            self.n_cols * self.colsize * 100 > 2**16
-        ):
+        if (self.max_rows_per_figure * self.rowsize * 100 > 2**16) or (self.n_cols * self.colsize * 100 > 2**16):
             errorMessage = "Image size is too large. It must be less than 2^16 pixels in each direction. Restrict the number of columns or rows."
             raise Exception(errorMessage)
 
@@ -493,11 +401,7 @@ def plot_spectra(
         vel_unit=vel_unit,
     )
 
-    filename = (
-        Path(path_to_decomp_pickle).stem
-        if path_to_decomp_pickle
-        else Path(pathToDataPickle).stem
-    )
+    filename = Path(path_to_decomp_pickle).stem if path_to_decomp_pickle else Path(pathToDataPickle).stem
 
     list_indices = _get_list_indices(
         data.data,
@@ -516,9 +420,7 @@ def plot_spectra(
         dpi=dpi,
         n_spectra=len(list_indices),
         n_channels=data.n_channels,
-        grid_layout=_get_grid_layout(
-            data.data, subcube=subcube, pixel_range=pixel_range
-        ),
+        grid_layout=_get_grid_layout(data.data, subcube=subcube, pixel_range=pixel_range),
         suffix=suffix,
         subcube=subcube,
         pixel_range=pixel_range,
@@ -555,17 +457,13 @@ def plot_spectra(
             )
             ax.plot(data.spectral_channels, modelled_spectrum, lw=2, color="orangered")
 
-            _plot_individual_components(
-                ax, data.spectral_channels, data.channels, spectrum, gaussians
-            )
+            _plot_individual_components(ax, data.spectral_channels, data.channels, spectrum, gaussians)
 
         _plot_signal_ranges(ax, spectrum, data.spectral_channels, signal_ranges)
 
         ax.set_title(_get_title(spectrum, idx_data), fontsize=figure.fontsize)
 
-        figure.add_figure_properties(
-            ax=ax, rms=spectrum.rms_noise, spectral_channels=data.spectral_channels
-        )
+        figure.add_figure_properties(ax=ax, rms=spectrum.rms_noise, spectral_channels=data.spectral_channels)
 
         if residual and (data.decomposition or data.training_set):
             ax = figure.get_axis(idx_subplot, residual=True)
@@ -588,14 +486,9 @@ def plot_spectra(
 
         if figure.is_completed(idx_subplot):
             fig.tight_layout()
-            suffix_for_multipage_plots = (
-                f"_plots_part_{figure.count_figures + 1}"
-                if figure.multiple_pdfs
-                else ""
-            )
+            suffix_for_multipage_plots = f"_plots_part_{figure.count_figures + 1}" if figure.multiple_pdfs else ""
             fig.savefig(
-                path_to_plots
-                / f"{filename}{suffix}_plots{suffix_for_multipage_plots}.pdf",
+                path_to_plots / f"{filename}{suffix}_plots{suffix_for_multipage_plots}.pdf",
                 dpi=dpi,
             )
             plt.close()
@@ -603,15 +496,9 @@ def plot_spectra(
             #  close progress bar before print statement to avoid duplicate progress bars
             if pbar.n >= figure.n_spectra:
                 pbar.close()
-            print(
-                "\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(
-                    filename, path_to_plots
-                )
-            )
+            print("\n\033[92mSAVED FILE:\033[0m '{}' in '{}'".format(filename, path_to_plots))
 
-            remaining_rows = (
-                figure.n_rows_total - (figure.count_figures + 1) * max_rows_per_figure
-            )
+            remaining_rows = figure.n_rows_total - (figure.count_figures + 1) * max_rows_per_figure
             if remaining_rows <= 0:
                 break
 
@@ -640,9 +527,7 @@ def plot_fit_stages(
     #                       P L O T T I N G
     print(("params_fit:", params_fit))
 
-    best_fit_final = multi_component_gaussian_model(
-        *np.split(np.array(params_fit), 3), vel
-    )
+    best_fit_final = multi_component_gaussian_model(*np.split(np.array(params_fit), 3), vel)
 
     if improve_fitting:
         rchi2 = best_fit_info["rchi2"]
@@ -683,9 +568,7 @@ def plot_fit_stages(
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh"], "--k")
     ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh2"] * u2_scale, "--r")
 
-    for amp, fwhm, mean in zip(
-        agd_phase1["amps"], agd_phase1["fwhms"], agd_phase1["means"]
-    ):
+    for amp, fwhm, mean in zip(agd_phase1["amps"], agd_phase1["fwhms"], agd_phase1["means"]):
         ax1.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
 
     # Plot intermediate fit components (Panel 2)
@@ -709,14 +592,10 @@ def plot_fit_stages(
         ax3.axhline(color="black", linewidth=0.5)
         ax3.plot(vel, residuals, "-k")
         ax3.plot(vel, np.ones(len(vel)) * agd_phase2["thresh"], "--k")
-        ax3.plot(
-            vel, np.ones(len(vel)) * agd_phase2["thresh2"] * u2_phase2_scale, "--r"
-        )
+        ax3.plot(vel, np.ones(len(vel)) * agd_phase2["thresh2"] * u2_phase2_scale, "--r")
         ax3.plot(vel, agd_phase2["u2"] * u2_phase2_scale, "-r")
 
-        for amp, fwhm, mean in zip(
-            agd_phase2["amps"], agd_phase2["fwhms"], agd_phase2["means"]
-        ):
+        for amp, fwhm, mean in zip(agd_phase2["amps"], agd_phase2["fwhms"], agd_phase2["means"]):
             ax3.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
 
     # Plot best-fit model (Panel 4)

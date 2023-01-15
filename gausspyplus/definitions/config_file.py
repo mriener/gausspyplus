@@ -12,16 +12,12 @@ from gausspyplus.utils.output import say
 from gausspyplus.definitions import definitions
 
 
-def _add_settings_to_config_file(
-    config_header, settings, all_keywords=False, description=True
-):
+def _add_settings_to_config_file(config_header, settings, all_keywords=False, description=True):
     content_for_config_file = [f"\n\n\n[{config_header}]"]
     for setting in settings:
         if setting.metadata["simple"] or all_keywords:
             if description:
-                content_for_config_file.append(
-                    f"\n\n# {setting.metadata['description']}"
-                )
+                content_for_config_file.append(f"\n\n# {setting.metadata['description']}")
             content_for_config_file.append(f"\n{setting.name} = {setting.default}")
     return content_for_config_file
 
@@ -91,8 +87,6 @@ def get_values_from_config_file(self, config_file, config_key="DEFAULT"):
             setattr(self, key, ast.literal_eval(value))
         except ValueError as e:
             if key != "vel_unit":
-                raise Exception(
-                    f"Could not parse parameter {key} from config file"
-                ) from e
+                raise Exception(f"Could not parse parameter {key} from config file") from e
             value = u.Unit(value)
             setattr(self, key, value)

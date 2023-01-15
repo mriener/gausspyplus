@@ -26,9 +26,7 @@ from gausspyplus.preparation.noise_estimation import (
 warnings.showwarning = format_warning
 
 
-def _check_if_value_is_none(
-    condition, value, varname_condition, varname_value, additional_text=""
-):
+def _check_if_value_is_none(condition, value, varname_condition, varname_value, additional_text=""):
     """Raise error message if no value is supplied for a selected condition.
 
     The error message is raised if the condition is 'True' and the value is 'None'.
@@ -46,9 +44,7 @@ def _check_if_value_is_none(
 
     """
     if condition and (value is None):
-        raise Exception(
-            f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}"
-        )
+        raise Exception(f"Need to specify '{varname_value}' for '{varname_condition}'=True. {additional_text}")
 
 
 def _check_if_all_values_are_none(value1, value2, varname_value1, varname_value2):
@@ -68,9 +64,7 @@ def _check_if_all_values_are_none(value1, value2, varname_value1, varname_value2
 
     """
     if (value1 is None) and (value2 is None):
-        raise Exception(
-            f"Need to specify either '{varname_value1}' or '{varname_value2}'."
-        )
+        raise Exception(f"Need to specify either '{varname_value1}' or '{varname_value2}'.")
 
 
 def _transform_header_from_crota_to_pc(header: fits.Header) -> fits.Header:
@@ -117,9 +111,7 @@ def _correct_header_velocity(header: fits.Header) -> fits.Header:
         restfreq = header["RESTFRQ"] * cunit3
         radio_equiv = u.doppler_radio(restfreq)
         crval3 = (header["CRVAL3"] * cunit3).to(u.km / u.s, equivalencies=radio_equiv)
-        cdelt3 = ((header["RESTFRQ"] + header["CDELT3"]) * cunit3).to(
-            u.km / u.s, equivalencies=radio_equiv
-        )
+        cdelt3 = ((header["RESTFRQ"] + header["CDELT3"]) * cunit3).to(u.km / u.s, equivalencies=radio_equiv)
         header["CTYPE3"] = "VELOCITY"
         header["CRVAL3"] = crval3.value
         header["CDELT3"] = cdelt3.value
@@ -162,9 +154,7 @@ def correct_header(
     for keyword, value in check_keywords.items():
         if keyword not in list(header.keys()):
             warnings.warn(
-                "{a} keyword not found in header. Assuming {a}={b}".format(
-                    a=keyword, b=value
-                ),
+                "{a} keyword not found in header. Assuming {a}={b}".format(a=keyword, b=value),
                 stacklevel=2,
             )
             header[keyword] = value
@@ -173,9 +163,7 @@ def correct_header(
                 u.Unit(header[keyword])
             except ValueError:
                 warnings.warn(
-                    "{a} keyword value is an invalid unit. Assuming {a}={b}".format(
-                        a=keyword, b=value
-                    ),
+                    "{a} keyword value is an invalid unit. Assuming {a}={b}".format(a=keyword, b=value),
                     stacklevel=2,
                 )
                 header[keyword] = value
@@ -185,11 +173,7 @@ def correct_header(
 
     if keep_only_wcs_keywords:
         wcs = WCS(header)
-        dct_naxis = {
-            keyword: header[keyword]
-            for keyword in list(header.keys())
-            if keyword.startswith("NAXIS")
-        }
+        dct_naxis = {keyword: header[keyword] for keyword in list(header.keys()) if keyword.startswith("NAXIS")}
         header = wcs.to_header()
         for keyword, value in dct_naxis.items():
             header[keyword] = value
@@ -267,9 +251,7 @@ def update_header(
     return header
 
 
-def _change_wcs_header_reproject(
-    header: fits.Header, header_new: fits.Header, ppv: bool = True
-) -> fits.Header:
+def _change_wcs_header_reproject(header: fits.Header, header_new: fits.Header, ppv: bool = True) -> fits.Header:
     """Change the WCS information of a header for reprojection purposes."""
     wcs_new = WCS(correct_header(header_new))
     while wcs_new.wcs.naxis > 2:
@@ -280,9 +262,7 @@ def _change_wcs_header_reproject(
     header_diff = fits.HeaderDiff(header, wcs_header_new)
 
     if ppv:
-        update_header(
-            header, update_keywords=header_diff.diff_keyword_values, write_meta=False
-        )
+        update_header(header, update_keywords=header_diff.diff_keyword_values, write_meta=False)
         header["WCSAXES"] = 3
     else:
         wcs = WCS(correct_header(header))
@@ -377,9 +357,7 @@ def remove_additional_axes(
     return data, header
 
 
-def swap_axes(
-    data: np.ndarray, header: fits.Header, new_order: Tuple
-) -> Tuple[np.ndarray, fits.Header]:
+def swap_axes(data: np.ndarray, header: fits.Header, new_order: Tuple) -> Tuple[np.ndarray, fits.Header]:
     """Swap the axes of a FITS cube.
 
     Parameters
@@ -571,12 +549,8 @@ def get_slice_parameters(
     y_wcs_min, y_wcs_max = (range_y * y_unit).to(wcs.wcs.cunit[1]).value
     z_wcs_min, z_wcs_max = (range_z * z_unit).to(wcs.wcs.cunit[2]).value
 
-    x_pix_min, y_pix_min, z_pix_min = wcs.wcs_world2pix(
-        x_wcs_min, y_wcs_min, z_wcs_min, 0
-    )
-    x_pix_max, y_pix_max, z_pix_max = wcs.wcs_world2pix(
-        x_wcs_max, y_wcs_max, z_wcs_max, 0
-    )
+    x_pix_min, y_pix_min, z_pix_min = wcs.wcs_world2pix(x_wcs_min, y_wcs_min, z_wcs_min, 0)
+    x_pix_max, y_pix_max, z_pix_max = wcs.wcs_world2pix(x_wcs_max, y_wcs_max, z_wcs_max, 0)
 
     xmin = int(max(0, min(x_pix_min, x_pix_max)))
     ymin = int(max(0, min(y_pix_min, y_pix_max)))
@@ -661,10 +635,7 @@ def get_list_slice_params(
     x_slices = _get_slices(x_size, ncols)
     y_slices = _get_slices(y_size, nrows)
 
-    return [
-        [velocity_slice, y_slice, x_slice]
-        for y_slice, x_slice in itertools.product(y_slices, x_slices)
-    ]
+    return [[velocity_slice, y_slice, x_slice] for y_slice, x_slice in itertools.product(y_slices, x_slices)]
 
 
 def save_fits(
@@ -702,9 +673,7 @@ def return_hdu_options(
     get_hdu: bool = False,
     get_data: bool = False,
     get_header: bool = False,
-) -> Optional[
-    Union[fits.HDUList, np.ndarray, fits.Header, Tuple[np.ndarray, fits.Header]]
-]:
+) -> Optional[Union[fits.HDUList, np.ndarray, fits.Header, Tuple[np.ndarray, fits.Header]]]:
     """Short summary.
 
     Parameters
@@ -743,9 +712,7 @@ def open_fits_file(
     get_header: bool = True,
     remove_stokes: bool = True,
     check_wcs: bool = True,
-) -> Optional[
-    Union[fits.HDUList, np.ndarray, fits.Header, Tuple[np.ndarray, fits.Header]]
-]:
+) -> Optional[Union[fits.HDUList, np.ndarray, fits.Header, Tuple[np.ndarray, fits.Header]]]:
     """Open a FITS file and return the HDU or data and/or header.
 
     Parameters
@@ -785,9 +752,7 @@ def open_fits_file(
     )
 
 
-def _reproject_data(
-    input_data, output_projection: WCS, shape_out: Tuple, flux_factor: float
-):
+def _reproject_data(input_data, output_projection: WCS, shape_out: Tuple, flux_factor: float):
     """Reproject data to a different projection.
 
     Parameters
@@ -807,9 +772,7 @@ def _reproject_data(
     """
     from reproject import reproject_interp
 
-    data_reprojected, footprint = reproject_interp(
-        input_data, output_projection, shape_out=shape_out
-    )
+    data_reprojected, footprint = reproject_interp(input_data, output_projection, shape_out=shape_out)
     return data_reprojected * flux_factor
 
 
@@ -849,18 +812,14 @@ def _get_reproject_params(
 
     shape_out = (header_projection["NAXIS2"], header_projection["NAXIS1"])
     header_projection_pp = correct_header(header_projection.copy())
-    header_projection_pp = _change_wcs_header_reproject(
-        header_projection_pp, header_projection_pp, ppv=False
-    )
+    header_projection_pp = _change_wcs_header_reproject(header_projection_pp, header_projection_pp, ppv=False)
     output_projection = WCS(header_projection_pp)
 
     flux_factor = 1
 
     if preserve_flux:
         comment = ["Preserved flux in reprojection step."]
-        pixel_scale_output = (
-            abs(output_projection.wcs.cdelt[0]) * output_projection.wcs.cunit[0]
-        )
+        pixel_scale_output = abs(output_projection.wcs.cdelt[0]) * output_projection.wcs.cunit[0]
         pixel_scale_output = pixel_scale_output.to(u.deg)
 
         flux_factor = pixel_scale_output**2 / pixel_scale_input**2
@@ -922,9 +881,7 @@ def spatial_smoothing(
 
     """
     _check_if_value_is_none(save, path_to_output_file, "save", "path_to_output_file")
-    _check_if_all_values_are_none(
-        current_resolution, target_resolution, "current_resolution", "target_resolution"
-    )
+    _check_if_all_values_are_none(current_resolution, target_resolution, "current_resolution", "target_resolution")
 
     header_pp = correct_header(header.copy())
     header_pp = _change_wcs_header_reproject(header_pp, header_pp, ppv=False)
@@ -935,9 +892,7 @@ def spatial_smoothing(
 
     if target_resolution is None:
         target_resolution = 2 * current_resolution
-        warnings.warn(
-            f"No smoothing resolution specified. Will smooth to a resolution of {target_resolution}"
-        )
+        warnings.warn(f"No smoothing resolution specified. Will smooth to a resolution of {target_resolution}")
 
     current_resolution = current_resolution.to(unit)
     target_resolution = target_resolution.to(unit)
@@ -963,9 +918,7 @@ def spatial_smoothing(
     if data.ndim == 2:
         data = convolve(data, kernel, normalize_kernel=True)
         if reproject:
-            data_reprojected = _reproject_data(
-                (data, wcs_pp), output_projection, shape_out, flux_factor
-            )
+            data_reprojected = _reproject_data((data, wcs_pp), output_projection, shape_out, flux_factor)
     else:
         nSpectra = data.shape[0]
         if reproject:
@@ -1045,18 +998,14 @@ def spectral_smoothing(
 
     if target_resolution is None:
         target_resolution = 2 * current_resolution
-        warnings.warn(
-            f"No smoothing resolution specified. Will smooth to a resolution of {target_resolution}"
-        )
+        warnings.warn(f"No smoothing resolution specified. Will smooth to a resolution of {target_resolution}")
 
     current_resolution = current_resolution.to(unit)
     target_resolution = target_resolution.to(unit)
     pixel_scale = pixel_scale.to(unit)
 
     gaussian_width = (
-        (target_resolution.value**2 - current_resolution.value**2) ** 0.5
-        / pixel_scale.value
-        / fwhm_factor
+        (target_resolution.value**2 - current_resolution.value**2) ** 0.5 / pixel_scale.value / fwhm_factor
     )
     kernel = Gaussian1DKernel(gaussian_width)
 
@@ -1283,15 +1232,11 @@ def make_subcube(
     header["NAXIS1"] = data.shape[2]
     header["NAXIS2"] = data.shape[1]
     header["NAXIS3"] = data.shape[0]
-    header["COMMENT"] = "Cropped FITS file ({})".format(
-        datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-    )
+    header["COMMENT"] = "Cropped FITS file ({})".format(datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"))
 
     if save:
         if path_to_output_file is None:
-            path_to_output_file = get_path_to_output_file(
-                path_to_file, suffix="_sub", filename="subcube.fits"
-            )
+            path_to_output_file = get_path_to_output_file(path_to_file, suffix="_sub", filename="subcube.fits")
 
         save_fits(data, header, path_to_output_file, verbose=True)
 
@@ -1346,16 +1291,12 @@ def _clip_noise_below_threshold(
 
     if path_to_noise_map is not None:
         print(f"\nusing supplied noise map to apply noise threshold with snr={snr}...")
-        noiseMap = open_fits_file(
-            path_to_noise_map, get_header=False, remove_stokes=False, check_wcs=False
-        )
+        noiseMap = open_fits_file(path_to_noise_map, get_header=False, remove_stokes=False, check_wcs=False)
         noiseMap = noiseMap[slice_params]
     else:
         print(f"\napplying noise threshold to data with snr={snr}...")
         noiseMap = np.zeros((yMax, xMax))
-        max_consecutive_channels = determine_maximum_consecutive_channels(
-            n_channels, p_limit
-        )
+        max_consecutive_channels = determine_maximum_consecutive_channels(n_channels, p_limit)
 
         import gausspyplus.parallel_processing.parallel_processing
 
@@ -1363,15 +1304,11 @@ def _clip_noise_below_threshold(
             [locations, determine_noise, [data, max_consecutive_channels, pad_channels]]
         )
 
-        results_list = gausspyplus.parallel_processing.parallel_processing.func(
-            use_ncpus=use_ncpus, function="noise"
-        )
+        results_list = gausspyplus.parallel_processing.parallel_processing.func(use_ncpus=use_ncpus, function="noise")
 
         for i, rms in tqdm(enumerate(results_list)):
             if not isinstance(rms, np.float):
-                warnings.warn(
-                    f"Problems with entry {i} from resulting parallel_processing list, skipping entry"
-                )
+                warnings.warn(f"Problems with entry {i} from resulting parallel_processing list, skipping entry")
                 continue
             else:
                 ypos, xpos = locations[i]
@@ -1505,16 +1442,11 @@ def _get_moment_map(
 
     def moment1(spectrum):
         nanmask = np.logical_not(np.isnan(spectrum))
-        return np.nansum(spectral_channels[nanmask] * spectrum[nanmask]) / np.nansum(
-            spectrum
-        )
+        return np.nansum(spectral_channels[nanmask] * spectrum[nanmask]) / np.nansum(spectrum)
 
     def moment2(spectrum):
         nanmask = np.logical_not(np.isnan(spectrum))
-        numerator = np.nansum(
-            (spectral_channels[nanmask] - moment1(spectrum[nanmask])) ** 2
-            * spectrum[nanmask]
-        )
+        numerator = np.nansum((spectral_channels[nanmask] - moment1(spectrum[nanmask])) ** 2 * spectrum[nanmask])
         denominator = np.nansum(spectrum)
         return np.sqrt(numerator / denominator)
 
@@ -1639,9 +1571,7 @@ def moment_map(
 
     # TODO: check if this is correct
     if restore_nans:
-        locations = list(
-            itertools.product(range(hdu.data.shape[0]), range(hdu.data.shape[1]))
-        )
+        locations = list(itertools.product(range(hdu.data.shape[0]), range(hdu.data.shape[1])))
         for ypos, xpos in locations:
             if nan_mask[ypos, xpos]:
                 hdu.data[ypos, xpos] = np.nan
@@ -1804,9 +1734,7 @@ def pv_map(
     # if slice_params:
     #     slice_z = slice_params[0]
 
-    hdu = _get_pv_map(
-        data, header, sum_over_axis=sum_over_axis, slice_z=slice_z, vel_unit=vel_unit
-    )
+    hdu = _get_pv_map(data, header, sum_over_axis=sum_over_axis, slice_z=slice_z, vel_unit=vel_unit)
     if comments is not None:
         hdu.header = update_header(hdu.header, comments=comments)
     data = hdu.data
@@ -1814,9 +1742,7 @@ def pv_map(
 
     if save:
         if path_to_output_file is None:
-            path_to_output_file = get_path_to_output_file(
-                path_to_file, suffix="_pv", filename="pv_map.fits"
-            )
+            path_to_output_file = get_path_to_output_file(path_to_file, suffix="_pv", filename="pv_map.fits")
 
         save_fits(hdu.data.astype(dtype), hdu.header, path_to_output_file, verbose=True)
 
@@ -1957,8 +1883,6 @@ def combine_fields(
         header = update_header(header, comments=comments)
 
     if save:
-        save_fits(
-            data_combined.astype(dtype), header, path_to_output_file, verbose=verbose
-        )
+        save_fits(data_combined.astype(dtype), header, path_to_output_file, verbose=verbose)
 
     return data_combined, header

@@ -28,18 +28,14 @@ def main():
     #  (Optional) This will enforce a maximum upper limit for the FWHM value of fitted Gaussian components, in this case 50 channels. We recommended to use this upper limit for the FWHM only for the creation of the training set.
     training.max_fwhm = 50.0
     #  (Optional) Here we specify the filename for the resulting pickled dictionary file. If 'filename_out' is not supplied it will be automatically generated.
-    training.filename_out = "grs-test_field-training_set_{}_spectra.pickle".format(
-        training.n_spectra
-    )
+    training.filename_out = "grs-test_field-training_set_{}_spectra.pickle".format(training.n_spectra)
 
     training.decompose_spectra()  # Create the training set.
 
     #  (Optional) Plot the fitting results of the training set.
 
     #  Filepath to pickled dictionary of the training set.
-    path_to_training_set = os.path.join(
-        training.dirpath_gpy, "gpy_training", training.filename_out
-    )
+    path_to_training_set = os.path.join(training.dirpath_gpy, "gpy_training", training.filename_out)
     #  Directory in which the plots are saved.
     path_to_plots = os.path.join(training.dirpath_gpy, "gpy_training")
     plot_spectra(

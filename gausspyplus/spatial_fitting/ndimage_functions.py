@@ -28,11 +28,7 @@ def weighted_median(data):
         return (data[weights == np.max(weights)])[0]
     cs_weights = np.cumsum(s_weights)
     idx = np.where(cs_weights <= midpoint)[0][-1]
-    return (
-        np.mean(s_data[idx : idx + 2])
-        if cs_weights[idx] == midpoint
-        else s_data[idx + 1]
-    )
+    return np.mean(s_data[idx : idx + 2]) if cs_weights[idx] == midpoint else s_data[idx + 1]
 
 
 def number_of_component_jumps(values: np.ndarray, max_jump_comps: int) -> int:
@@ -52,10 +48,7 @@ def number_of_component_jumps(values: np.ndarray, max_jump_comps: int) -> int:
     if np.isnan(central_value := values[4]):
         return 0
     values = np.delete(values, 4)
-    return sum(
-        not np.isnan(value) and np.abs(central_value - value) > max_jump_comps
-        for value in values
-    )
+    return sum(not np.isnan(value) and np.abs(central_value - value) > max_jump_comps for value in values)
 
 
 def broad_components(
@@ -94,9 +87,7 @@ def broad_components(
         return 0
     #  Compare the largest FWHM value of the central spectrum with the largest FWHM values of its neighbors.
     counter = sum(
-        not np.isnan(value)
-        and central_value > value * fwhm_factor
-        and (central_value - value) > fwhm_separation
+        not np.isnan(value) and central_value > value * fwhm_factor and (central_value - value) > fwhm_separation
         for value in values
     )
     return central_value if counter > values.size * broad_neighbor_fraction else 0

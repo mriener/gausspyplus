@@ -48,9 +48,7 @@ class Model:
         if len(self._parameters) % 3 != 0:
             raise Exception("One or more fit parameters are missing")
         ncomps = number_of_gaussian_components(params=values)
-        self._amps, self._fwhms, self._means = split_params(
-            params=values, ncomps=ncomps
-        )
+        self._amps, self._fwhms, self._means = split_params(params=values, ncomps=ncomps)
         self._n_components = ncomps
         self._modelled_intensity_values = multi_component_gaussian_model(
             amps=self._amps,
@@ -58,9 +56,7 @@ class Model:
             means=self._means,
             x=self.spectrum.channels,
         )
-        self._residual = (
-            self.spectrum.intensity_values - self._modelled_intensity_values
-        )
+        self._residual = self.spectrum.intensity_values - self._modelled_intensity_values
         self._rchi2, self._aicc = goodness_of_fit(
             data=self.spectrum.intensity_values,
             best_fit_final=self._modelled_intensity_values,
@@ -78,11 +74,7 @@ class Model:
 
     @property
     def parameter_uncertainties(self) -> List:
-        return (
-            []
-            if self._parameter_uncertainties is None
-            else self._parameter_uncertainties
-        )
+        return [] if self._parameter_uncertainties is None else self._parameter_uncertainties
 
     @parameter_uncertainties.setter
     def parameter_uncertainties(self, values: List) -> None:
@@ -146,9 +138,7 @@ class Model:
 
     @property
     def quality_control(self) -> List:
-        self._quality_control = (
-            [] if self._quality_control is None else self._quality_control
-        )
+        self._quality_control = [] if self._quality_control is None else self._quality_control
         return self._quality_control
 
     @quality_control.setter
@@ -175,9 +165,7 @@ class Model:
 
     def log_in_case_of_successful_refit(
         self,
-        mode: Literal[
-            "positive_residual_peak", "negative_residual_peak", "broad", "blended"
-        ],
+        mode: Literal["positive_residual_peak", "negative_residual_peak", "broad", "blended"],
     ) -> None:
         if self.new_best_fit:
             log_gplus = self.log_gplus

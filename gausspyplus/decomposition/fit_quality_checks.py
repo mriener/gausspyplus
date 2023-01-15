@@ -41,9 +41,7 @@ def determine_significance(amp, fwhm, rms):
     return amp * np.sqrt(fwhm) / (np.sqrt(8 * np.log(2) / np.pi) * rms)
 
 
-def goodness_of_fit(
-    data, best_fit_final, errors, ncomps_fit, mask=None, get_aicc=False
-):
+def goodness_of_fit(data, best_fit_final, errors, ncomps_fit, mask=None, get_aicc=False):
     """Determine the goodness of fit (reduced chi-square, AICc).
 
     Parameters
@@ -84,9 +82,7 @@ def goodness_of_fit(
         #  sum of squared residuals
         ssr = np.sum(squared_residuals)
         log_likelihood = -0.5 * n_samples * np.log(ssr / n_samples)
-        aicc = 2.0 * (n_params - log_likelihood) + 2.0 * n_params * (n_params + 1.0) / (
-            n_samples - n_params - 1.0
-        )
+        aicc = 2.0 * (n_params - log_likelihood) + 2.0 * n_params * (n_params + 1.0) / (n_samples - n_params - 1.0)
         return rchi2, aicc
     return rchi2
 
@@ -130,17 +126,13 @@ def check_residual_for_normality(data, errors, mask=None, noise_spike_mask=None)
         try:
             statistic, pvalue = normaltest(data[noise_spike_mask])
         except ValueError:
-            warnings.warn(
-                "Normality test for residual unsuccessful. Setting pvalue to 0."
-            )
+            warnings.warn("Normality test for residual unsuccessful. Setting pvalue to 0.")
             pvalue = 0
 
         try:
             statistic, pvalue_mask = normaltest(data[mask])
         except ValueError:
-            warnings.warn(
-                "Normality test for residual unsuccessful. Setting pvalue to 0."
-            )
+            warnings.warn("Normality test for residual unsuccessful. Setting pvalue to 0.")
             pvalue_mask = 0
 
         return min(ks_pvalue, pvalue, pvalue_mask)
@@ -148,17 +140,13 @@ def check_residual_for_normality(data, errors, mask=None, noise_spike_mask=None)
     return ks_pvalue
 
 
-def negative_residuals(
-    spectrum, residual, rms, neg_res_snr=3.0, get_flags=False, fwhms=None, means=None
-):
+def negative_residuals(spectrum, residual, rms, neg_res_snr=3.0, get_flags=False, fwhms=None, means=None):
     N_negative_residuals = 0
 
     if get_flags:
         flags = np.zeros(len(fwhms)).astype("bool")
 
-    amp_vals, ranges = determine_peaks(
-        residual, peak="negative", amp_threshold=neg_res_snr * rms
-    )
+    amp_vals, ranges = determine_peaks(residual, peak="negative", amp_threshold=neg_res_snr * rms)
 
     if len(amp_vals) > 0:
         amp_vals_position_mask = np.in1d(residual, amp_vals)

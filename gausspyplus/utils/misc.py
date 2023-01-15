@@ -20,6 +20,4 @@ def remove_elements_at_indices(
     """
 
     # TODO: Return this as an array and check all the code that uses this if it can deal with an array
-    return np.concatenate(
-        [np.delete(arr, indices) for arr in np.split(np.array(array), n_subarrays)]
-    ).tolist()
+    return np.concatenate([np.delete(arr, indices) for arr in np.split(np.array(array), n_subarrays)]).tolist()

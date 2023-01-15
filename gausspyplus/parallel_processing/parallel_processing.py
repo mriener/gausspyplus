@@ -35,9 +35,7 @@ def init_gausspy(*args):
     if args:
         agd_object, agd_data, ilist = args[0]
     else:
-        agd_object, science_data_path, ilist = pickle.load(
-            open("batchdecomp_temp.pickle", "rb"), encoding="latin1"
-        )
+        agd_object, science_data_path, ilist = pickle.load(open("batchdecomp_temp.pickle", "rb"), encoding="latin1")
         agd_data = pickle.load(open(science_data_path, "rb"), encoding="latin1")
     if ilist is None:
         ilist = np.arange(len(agd_data["data_list"]))
@@ -84,15 +82,11 @@ def decompose_one(i):
 
 
 def refit_spectrum_1(i):
-    return SpatialFitting.refit_spectrum_phase_1(
-        self=mp_params[0], index=mp_data[i], i=i
-    )
+    return SpatialFitting.refit_spectrum_phase_1(self=mp_params[0], index=mp_data[i], i=i)
 
 
 def refit_spectrum_2(i):
-    return SpatialFitting.refit_spectrum_phase_2(
-        self=mp_params[0], index=mp_data[i], i=i
-    )
+    return SpatialFitting.refit_spectrum_phase_2(self=mp_params[0], index=mp_data[i], i=i)
 
 
 def calculate_noise_gpy(i):
@@ -125,15 +119,10 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
     """
     # We run the first few iterations serially to catch bugs
     if front_num > 0:
-        front = [
-            function(**a) if use_kwargs else function(a) for a in array[:front_num]
-        ]
+        front = [function(**a) if use_kwargs else function(a) for a in array[:front_num]]
     # If we set n_jobs to 1, just run a list comprehension. This is useful for benchmarking and debugging.
     if n_jobs == 1:
-        return front + [
-            function(**a) if use_kwargs else function(a)
-            for a in tqdm(array[front_num:])
-        ]
+        return front + [function(**a) if use_kwargs else function(a) for a in tqdm(array[front_num:])]
     # Assemble the workers
     with ProcessPoolExecutor(max_workers=n_jobs) as pool:
         # Pass the elements of array into function
@@ -168,29 +157,17 @@ def func(use_ncpus=None, function="noise"):
     print(f"Using {use_ncpus} of {ncpus} cpus")
     try:
         if function == "noise":
-            results_list = parallel_process(
-                array=mp_ilist, function=calculate_noise, n_jobs=use_ncpus
-            )
+            results_list = parallel_process(array=mp_ilist, function=calculate_noise, n_jobs=use_ncpus)
         elif function == "gausspy_decompose":
-            results_list = parallel_process(
-                array=ilist, function=decompose_one, n_jobs=use_ncpus
-            )
+            results_list = parallel_process(array=ilist, function=decompose_one, n_jobs=use_ncpus)
         elif function == "gpy_noise":
-            results_list = parallel_process(
-                array=mp_ilist, function=calculate_noise_gpy, n_jobs=use_ncpus
-            )
+            results_list = parallel_process(array=mp_ilist, function=calculate_noise_gpy, n_jobs=use_ncpus)
         elif function == "refit_phase_1":
-            results_list = parallel_process(
-                array=mp_ilist, function=refit_spectrum_1, n_jobs=use_ncpus
-            )
+            results_list = parallel_process(array=mp_ilist, function=refit_spectrum_1, n_jobs=use_ncpus)
         elif function == "refit_phase_2":
-            results_list = parallel_process(
-                array=mp_ilist, function=refit_spectrum_2, n_jobs=use_ncpus
-            )
+            results_list = parallel_process(array=mp_ilist, function=refit_spectrum_2, n_jobs=use_ncpus)
         elif function == "make_table":
-            results_list = parallel_process(
-                array=mp_ilist, function=make_table, n_jobs=use_ncpus
-            )
+            results_list = parallel_process(array=mp_ilist, function=make_table, n_jobs=use_ncpus)
     except KeyboardInterrupt:
         print("KeyboardInterrupt... quitting.")
         quit()

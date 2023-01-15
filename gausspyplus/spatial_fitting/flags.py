@@ -36,9 +36,7 @@ def get_flags(n_old: int, n_new: int) -> Tuple[int, int]:
     return flag_old, flag_new
 
 
-def get_flags_rchi2(
-    rchi2_old: float, rchi2_new: float, rchi2_limit: float
-) -> Tuple[int, int]:
+def get_flags_rchi2(rchi2_old: float, rchi2_new: float, rchi2_limit: float) -> Tuple[int, int]:
     """Check how the reduced chi-square value of a spectrum changed after the refit.
 
     This check will only be performed if the 'self.flag_rchi2=True'.
@@ -64,17 +62,13 @@ def get_flags_rchi2(
         flag_new += 1
 
     #  reward new fit if it is closer to rchi2 = 1 and thus likely less "overfit"
-    if max(rchi2_old, rchi2_new) < rchi2_limit and abs(rchi2_new - 1) < abs(
-        rchi2_old - 1
-    ):
+    if max(rchi2_old, rchi2_new) < rchi2_limit and abs(rchi2_new - 1) < abs(rchi2_old - 1):
         flag_old += 1
 
     return flag_old, flag_new
 
 
-def get_flags_pvalue(
-    pvalue_old: float, pvalue_new: float, min_pvalue: float
-) -> Tuple[int, int]:
+def get_flags_pvalue(pvalue_old: float, pvalue_new: float, min_pvalue: float) -> Tuple[int, int]:
     flag_old, flag_new = 0, 0
 
     if pvalue_old < min_pvalue:
@@ -127,9 +121,7 @@ def get_flags_broad(
     elif len(fwhms_new) > 1:
         #  punish fit if broad component was introduced
         fwhms = sorted(fwhms_new)
-        if (fwhms[-1] > fwhm_factor * fwhms[-2]) and (
-            fwhms[-1] - fwhms[-2]
-        ) > fwhm_separation:
+        if (fwhms[-1] > fwhm_factor * fwhms[-2]) and (fwhms[-1] - fwhms[-2]) > fwhm_separation:
             flag_new = 1
 
     return flag_old, flag_new

@@ -94,9 +94,7 @@ class Finalize(BaseChecks):
         if "header" in self.pickled_data.keys():
             self.header = correct_header(self.pickled_data["header"])
             self.wcs = WCS(self.header)
-            self.velocity_increment = (
-                (self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2]).to(self.vel_unit).value
-            )
+            self.velocity_increment = (self.wcs.wcs.cdelt[2] * self.wcs.wcs.cunit[2]).to(self.vel_unit).value
             self.to_unit = (self.wcs.wcs.cunit[2]).to(self.vel_unit)
         if "location" in self.pickled_data.keys():
             self.location = self.pickled_data["location"]
@@ -125,9 +123,7 @@ class Finalize(BaseChecks):
 
         results_list = sp.finalize()
 
-        list_means_interval, list_n_centroids = (
-            [{} for _ in range(self.length)] for _ in range(2)
-        )
+        list_means_interval, list_n_centroids = ([{} for _ in range(self.length)] for _ in range(2))
 
         for i, item in enumerate(results_list):
             if not isinstance(item, list):
@@ -222,20 +218,14 @@ class Finalize(BaseChecks):
             means=fit_means,
         )
         flags_broad = self.get_flag_broad(fit_fwhms, broad)
-        flag_centroid = self.get_flag_centroid(
-            np.array(fit_means), means_interval, n_centroids
-        )
+        flag_centroid = self.get_flag_centroid(np.array(fit_means), means_interval, n_centroids)
 
         x_wcs, y_wcs, z_wcs = self.wcs.wcs_pix2world(xi, yi, np.array(fit_means), 0)
 
         velocities = z_wcs * self.to_unit
         e_velocities = np.array(fit_e_means) * self.velocity_increment
-        vel_disps = (
-            np.array(fit_fwhms) / CONVERSION_STD_TO_FWHM
-        ) * self.velocity_increment
-        e_vel_disps = (
-            np.array(fit_e_fwhms) / CONVERSION_STD_TO_FWHM
-        ) * self.velocity_increment
+        vel_disps = (np.array(fit_fwhms) / CONVERSION_STD_TO_FWHM) * self.velocity_increment
+        e_vel_disps = (np.array(fit_e_fwhms) / CONVERSION_STD_TO_FWHM) * self.velocity_increment
 
         amplitudes = np.array(fit_amps)
         e_amplitudes = np.array(fit_e_amps)
@@ -245,9 +235,7 @@ class Finalize(BaseChecks):
             e_amplitudes /= self.main_beam_efficiency
             error /= self.main_beam_efficiency
 
-        integrated_intensity = area_of_gaussian(
-            amp=amplitudes, fwhm=np.array(fit_fwhms) * self.velocity_increment
-        )
+        integrated_intensity = area_of_gaussian(amp=amplitudes, fwhm=np.array(fit_fwhms) * self.velocity_increment)
         fit_fwhms_plus_error = np.array(fit_fwhms) + np.array(fit_e_fwhms)
         e_integrated_intensity = (
             area_of_gaussian(
@@ -305,9 +293,7 @@ class Finalize(BaseChecks):
         """
         import gausspyplus.parallel_processing.parallel_processing
 
-        gausspyplus.parallel_processing.parallel_processing.init(
-            [self.decomposition["index_fit"], [self]]
-        )
+        gausspyplus.parallel_processing.parallel_processing.init([self.decomposition["index_fit"], [self]])
 
         results_list = gausspyplus.parallel_processing.parallel_processing.func(
             use_ncpus=self.use_ncpus, function="make_table"
@@ -414,26 +400,20 @@ class Finalize(BaseChecks):
             except ValueError:
                 array[y, x] = value[0]
 
-        header = change_header(
-            header=self.header.copy(), format="pp", comments=comments
-        )
+        header = change_header(header=self.header.copy(), format="pp", comments=comments)
 
         array = array.astype(dtype)
 
         if save:
             if keyword == "error":
-                filename, _ = os.path.splitext(
-                    os.path.basename(self.path_to_pickle_file)
-                )
+                filename, _ = os.path.splitext(os.path.basename(self.path_to_pickle_file))
             else:
                 filename = self.filename
 
             filename = f"{filename}{suffix}.fits"
             path_to_file = Path(self.dirpath_gpy, "gpy_maps", filename)
 
-            save_fits(
-                data=array, header=header, path_to_file=path_to_file, verbose=False
-            )
+            save_fits(data=array, header=header, path_to_file=path_to_file, verbose=False)
             say(f"\n'{filename}' in '{os.path.dirname(path_to_file)}'", task="save")
 
         return fits.PrimaryHDU(array, header)
@@ -469,12 +449,8 @@ class Finalize(BaseChecks):
         if not self.initialized_state:
             self.check_settings()
             self.initialize()
-        hdu = self.produce_map(
-            keyword="error", comments=comments, suffix=suffix, save=save, dtype=dtype
-        )
-        return return_hdu_options(
-            hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header
-        )
+        hdu = self.produce_map(keyword="error", comments=comments, suffix=suffix, save=save, dtype=dtype)
+        return return_hdu_options(hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
     def produce_rchi2_map(
         self,
@@ -514,9 +490,7 @@ class Finalize(BaseChecks):
             save=save,
             dtype=dtype,
         )
-        return return_hdu_options(
-            hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header
-        )
+        return return_hdu_options(hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
     def produce_component_map(
         self,
@@ -557,15 +531,11 @@ class Finalize(BaseChecks):
             dtype=dtype,
         )
 
-        return return_hdu_options(
-            hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header
-        )
+        return return_hdu_options(hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)
 
     def make_cube(
         self,
-        mode: Literal[
-            "full_decomposition", "integrated_intensity", "main_component"
-        ] = "full_decomposition",
+        mode: Literal["full_decomposition", "integrated_intensity", "main_component"] = "full_decomposition",
         save: bool = True,
         get_hdu: bool = False,
         get_data: bool = False,
@@ -617,21 +587,15 @@ class Finalize(BaseChecks):
 
             if mode == "main_component" and ncomps > 0:
                 j = amps.index(max(amps))
-                array[:, yi, xi] = single_component_gaussian_model(
-                    amps[j], fwhms[j], means[j], self.channels
-                )
+                array[:, yi, xi] = single_component_gaussian_model(amps[j], fwhms[j], means[j], self.channels)
             elif mode == "integrated_intensity" and ncomps > 0:
                 for j in range(ncomps):
-                    integrated_intensity = area_of_gaussian(
-                        amps[j], fwhms[j] * self.velocity_increment
-                    )
+                    integrated_intensity = area_of_gaussian(amps[j], fwhms[j] * self.velocity_increment)
                     channel = int(round(means[j]))
                     if self.channels[0] <= channel <= self.channels[-1]:
                         array[channel, yi, xi] += integrated_intensity
             elif mode == "full_decomposition":
-                array[:, yi, xi] = multi_component_gaussian_model(
-                    amps, fwhms, means, self.channels
-                )
+                array[:, yi, xi] = multi_component_gaussian_model(amps, fwhms, means, self.channels)
 
             nans = self.nan_mask[:, yi, xi]
             array[:, yi, xi][nans] = np.NAN
@@ -652,15 +616,9 @@ class Finalize(BaseChecks):
         comments = ["GaussPy+ decomposition results:"]
         comments.append(comment)
         if self.main_beam_efficiency is not None:
-            comments.append(
-                "Corrected for main beam efficiency of {}.".format(
-                    self.main_beam_efficiency
-                )
-            )
+            comments.append("Corrected for main beam efficiency of {}.".format(self.main_beam_efficiency))
 
-        header = update_header(
-            header=self.header.copy(), comments=comments, write_meta=True
-        )
+        header = update_header(header=self.header.copy(), comments=comments, write_meta=True)
 
         if save:
             pathToFile = Path(self.decomp_dirname, "FITS", filename)
@@ -669,6 +627,4 @@ class Finalize(BaseChecks):
 
         hdu = fits.PrimaryHDU(data=array, header=header)
 
-        return return_hdu_options(
-            hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header
-        )
+        return return_hdu_options(hdu=hdu, get_hdu=get_hdu, get_data=get_data, get_header=get_header)

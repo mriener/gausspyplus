@@ -51,10 +51,7 @@ def compare_parameters(guess_params, true_params):
     # Loop through answers and guesses
     for i in range(n_true):
         for j in range(n_guess):
-            sigs_away = np.abs(
-                (true_offsets[i] - guess_offsets[j])
-                / (true_FWHMs[i] / CONVERSION_STD_TO_FWHM)
-            )
+            sigs_away = np.abs((true_offsets[i] - guess_offsets[j]) / (true_FWHMs[i] / CONVERSION_STD_TO_FWHM))
             if (
                 (sigs_away < 1.0)
                 and (guess_FWHMs[j] > 0.3 * true_FWHMs[i])  # | Position match
@@ -75,9 +72,7 @@ def compare_parameters(guess_params, true_params):
 
 def single_training_example(kwargs):
     j = kwargs["j"]
-    true_params = np.append(
-        kwargs["amps"][j], np.append(kwargs["FWHMs"][j], kwargs["means"][j])
-    )
+    true_params = np.append(kwargs["amps"][j], np.append(kwargs["FWHMs"][j], kwargs["means"][j]))
 
     # Produce initial guesses
     result = agd_decomposer.AGD(
@@ -123,10 +118,7 @@ def objective_function(
 
     # Construct iterator of dictionaries of keywords for multi-processing
     mp_params = iter(
-        [
-            dict(list(values.items()) + list({"j": j}.items()))
-            for j in range(len(training_data["data_list"]))
-        ]
+        [dict(list(values.items()) + list({"j": j}.items())) for j in range(len(training_data["data_list"]))]
     )
 
     # Multiprocessing code
@@ -334,12 +326,8 @@ def train(
             momentum1 = momentum_value * (gd.alpha1_trace[i] - gd.alpha1_trace[i - 1])
             momentum2 = momentum_value * (gd.alpha2_trace[i] - gd.alpha2_trace[i - 1])
 
-        gd.alpha1_trace[i + 1] = (
-            gd.alpha1_trace[i] - learning_rate * gd.D_alpha1_trace[i] + momentum1
-        )
-        gd.alpha2_trace[i + 1] = (
-            gd.alpha2_trace[i] - learning_rate * gd.D_alpha2_trace[i] + momentum2
-        )
+        gd.alpha1_trace[i + 1] = gd.alpha1_trace[i] - learning_rate * gd.D_alpha1_trace[i] + momentum1
+        gd.alpha2_trace[i + 1] = gd.alpha2_trace[i] - learning_rate * gd.D_alpha2_trace[i] + momentum2
 
         # Sigma_alpha cannot be negative
         if gd.alpha1_trace[i + 1] < 0.0:
@@ -373,21 +361,15 @@ def train(
             )
         else:
             gd.alpha1means1[i] = np.mean(gd.alpha1_trace[i - window_size : i])
-            gd.alpha1means2[i] = np.mean(
-                gd.alpha1_trace[i - 2 * window_size : i - window_size]
-            )
+            gd.alpha1means2[i] = np.mean(gd.alpha1_trace[i - 2 * window_size : i - window_size])
             gd.alpha2means1[i] = np.mean(gd.alpha2_trace[i - window_size : i])
-            gd.alpha2means2[i] = np.mean(
-                gd.alpha2_trace[i - 2 * window_size : i - window_size]
-            )
+            gd.alpha2means2[i] = np.mean(gd.alpha2_trace[i - 2 * window_size : i - window_size])
 
             gd.fracdiff_alpha1[i] = np.abs(gd.alpha1means1[i] - gd.alpha1means2[i])
             gd.fracdiff_alpha2[i] = np.abs(gd.alpha2means1[i] - gd.alpha2means2[i])
 
             if phase == "two":
-                converge_logic = (gd.fracdiff_alpha1 < thresh) & (
-                    gd.fracdiff_alpha2 < thresh
-                )
+                converge_logic = (gd.fracdiff_alpha1 < thresh) & (gd.fracdiff_alpha2 < thresh)
             elif phase == "one":
                 converge_logic = gd.fracdiff_alpha1 < thresh
 

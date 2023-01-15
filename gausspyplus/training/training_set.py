@@ -69,19 +69,11 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
     @functools.cached_property
     def noise_map(self):
-        return (
-            None
-            if self.path_to_noise_map is None
-            else fits.getdata(self.path_to_noise_map)
-        )
+        return None if self.path_to_noise_map is None else fits.getdata(self.path_to_noise_map)
 
     @functools.cached_property
     def dirpath(self):
-        return (
-            self.dirpath_gpy
-            if self.dirpath_gpy is not None
-            else Path(self.path_to_file).parent
-        )
+        return self.dirpath_gpy if self.dirpath_gpy is not None else Path(self.path_to_file).parent
 
     @functools.cached_property
     def filename_in(self):
@@ -93,9 +85,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
     @functools.cached_property
     def n_channels(self):
-        return (
-            self.data.shape[0] if self.input_file_type == ".fits" else len(self.data[0])
-        )
+        return self.data.shape[0] if self.input_file_type == ".fits" else len(self.data[0])
 
     @functools.cached_property
     def channels(self):
@@ -113,11 +103,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
     @functools.cached_property
     def data(self):
-        return (
-            self.input_object.data
-            if self.input_file_type == ".fits"
-            else self.input_object["data_list"]
-        )
+        return self.input_object.data if self.input_file_type == ".fits" else self.input_object["data_list"]
 
     @functools.cached_property
     def header(self):
@@ -129,18 +115,12 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
     @functools.cached_property
     def n_available_spectra(self):
-        return (
-            self.data.shape[1] * self.data.shape[2]
-            if self.input_file_type == ".fits"
-            else len(self.data)
-        )
+        return self.data.shape[1] * self.data.shape[2] if self.input_file_type == ".fits" else len(self.data)
 
     @functools.cached_property
     def locations(self):
         return (
-            list(
-                itertools.product(range(self.data.shape[1]), range(self.data.shape[2]))
-            )
+            list(itertools.product(range(self.data.shape[1]), range(self.data.shape[2])))
             if self.input_file_type == ".fits"
             else None
         )
@@ -166,9 +146,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
         }
 
     def _save_as_pickled_file(self, data):
-        (dirpath_out := Path(self.dirpath, "gpy_training")).mkdir(
-            exist_ok=True, parents=True
-        )
+        (dirpath_out := Path(self.dirpath, "gpy_training")).mkdir(exist_ok=True, parents=True)
         filename = (
             self.filename_out
             if self.filename_out is not None
@@ -190,9 +168,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
         if self.random_seed is not None:
             random.seed(self.random_seed)
 
-        indices = random.sample(
-            range(self.n_available_spectra), self.n_available_spectra
-        )
+        indices = random.sample(range(self.n_available_spectra), self.n_available_spectra)
         # indices = np.array([4506])  # for testing
 
         if self.use_all:
@@ -202,14 +178,10 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
         gausspyplus.parallel_processing.parallel_processing.init([indices, [self]])
 
-        results = gausspyplus.parallel_processing.parallel_processing.func_ts(
-            self.n_spectra, use_ncpus=self.use_ncpus
-        )
+        results = gausspyplus.parallel_processing.parallel_processing.func_ts(self.n_spectra, use_ncpus=self.use_ncpus)
         print("SUCCESS\n")
 
-        training_set = self._prepare_training_set(
-            [result for result in results if result is not None]
-        )
+        training_set = self._prepare_training_set([result for result in results if result is not None])
         self._save_as_pickled_file(training_set)
 
     def _get_spectrum(self, index):
@@ -247,9 +219,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
         nans = np.isnan(spectrum)
         spectrum[nans] = np.random.randn(len(spectrum[nans])) * rms_noise
 
-        noise_spike_ranges = get_noise_spike_ranges(
-            spectrum, rms_noise, snr_noise_spike=self.snr_noise_spike
-        )
+        noise_spike_ranges = get_noise_spike_ranges(spectrum, rms_noise, snr_noise_spike=self.snr_noise_spike)
         if self.mask_out_ranges is not None:
             noise_spike_ranges += self.mask_out_ranges
 
@@ -267,16 +237,12 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
 
         n_comps = len(fit_values)
         amplitude_values = [fit_params[0] for fit_params in fit_values]
-        fwhm_values = [
-            fit_params[2] * CONVERSION_STD_TO_FWHM for fit_params in fit_values
-        ]
+        fwhm_values = [fit_params[2] * CONVERSION_STD_TO_FWHM for fit_params in fit_values]
         mean_values = [fit_params[1] for fit_params in fit_values]
         modelled_spectrum = multi_component_gaussian_model(
             amps=amplitude_values, fwhms=fwhm_values, means=mean_values, x=self.channels
         )
-        mask_signal = (
-            mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
-        )
+        mask_signal = mask_channels(self.n_channels, signal_ranges) if signal_ranges else None
         rchi2 = (
             None
             if n_comps == 0
@@ -291,9 +257,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
         # TODO: change the rchi2_limit value??
         # TODO: if self.use_all is True then fit_values needs to be None instead of []
         if self.use_all or (
-            fit_values
-            and rchi2 < self.rchi2_limit
-            and max(amplitude_values) > self.threshold_amplitude
+            fit_values and rchi2 < self.rchi2_limit and max(amplitude_values) > self.threshold_amplitude
         ):
             return FitResults(
                 amplitude_values=amplitude_values,
@@ -323,21 +287,15 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
     def gaussian_fitting(self, spectrum, rms):
         initial_gaussian_models = []
         for idx in self._get_maxima(spectrum, rms):
-            initial_gaussian_model = models.Gaussian1D(
-                amplitude=spectrum[idx], mean=idx, stddev=2
-            )
+            initial_gaussian_model = models.Gaussian1D(amplitude=spectrum[idx], mean=idx, stddev=2)
             initial_gaussian_model.bounds["amplitude"] = (None, 1.1 * spectrum[idx])
             initial_gaussian_models.append(initial_gaussian_model)
 
         improve = True
         while improve:
-            fit_values = self.determine_gaussian_fit_models(
-                initial_gaussian_models, spectrum
-            )
+            fit_values = self.determine_gaussian_fit_models(initial_gaussian_models, spectrum)
             if fit_values:
-                improve, initial_gaussian_models = self.check_fit_parameters(
-                    fit_values, initial_gaussian_models, rms
-                )
+                improve, initial_gaussian_models = self.check_fit_parameters(fit_values, initial_gaussian_models, rms)
             else:
                 improve = False
         return fit_values
@@ -350,9 +308,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
                 revised_gaussians.remove(initial_guess)
                 improve = True
                 break
-            significance = determine_significance(
-                amp=amp, fwhm=stddev * CONVERSION_STD_TO_FWHM, rms=rms
-            )
+            significance = determine_significance(amp=amp, fwhm=stddev * CONVERSION_STD_TO_FWHM, rms=rms)
             if significance < self.significance:
                 revised_gaussians.remove(initial_guess)
                 improve = True
@@ -410,9 +366,7 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
             )
         return fit_values
 
-    def determine_gaussian_fit_models(
-        self, gaussians, spectrum: np.ndarray
-    ) -> List[Optional[List]]:
+    def determine_gaussian_fit_models(self, gaussians, spectrum: np.ndarray) -> List[Optional[List]]:
         """Return list of fit parameters [[amp_1, mean_1, stddev_1], ... [amp_N, mean_N, stddev_N]]."""
         if len(gaussians) == 0:
             return []

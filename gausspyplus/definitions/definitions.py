@@ -330,21 +330,11 @@ class SettingsTraining:
             "simple": False,
         },
     )
-    params_from_data: bool = field(
-        default=True, metadata={"description": " [True/False]", "simple": False}
-    )
-    alpha1_initial: Optional[float] = field(
-        default=None, metadata={"description": " [float]", "simple": False}
-    )
-    alpha2_initial: Optional[float] = field(
-        default=None, metadata={"description": " [float]", "simple": False}
-    )
-    snr_thresh: Optional[float] = field(
-        default=None, metadata={"description": " [float]", "simple": False}
-    )
-    snr2_thresh: Optional[float] = field(
-        default=None, metadata={"description": " [float]", "simple": False}
-    )
+    params_from_data: bool = field(default=True, metadata={"description": " [True/False]", "simple": False})
+    alpha1_initial: Optional[float] = field(default=None, metadata={"description": " [float]", "simple": False})
+    alpha2_initial: Optional[float] = field(default=None, metadata={"description": " [float]", "simple": False})
+    snr_thresh: Optional[float] = field(default=None, metadata={"description": " [float]", "simple": False})
+    snr2_thresh: Optional[float] = field(default=None, metadata={"description": " [float]", "simple": False})
 
 
 @dataclass

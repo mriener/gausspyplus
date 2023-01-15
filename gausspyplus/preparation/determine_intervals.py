@@ -50,9 +50,7 @@ def _add_buffer_to_intervals(
     # TODO: this needs to be tested and compared time-wise with the previous
     if not ranges:  # in case ranges is an empty list
         return ranges
-    intervals = pad_intervals(
-        intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels
-    )
+    intervals = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
     return merge_overlapping_intervals(intervals)
 
 
@@ -84,11 +82,7 @@ def check_if_intervals_contain_signal(
     """
     # TODO: ranges should be np.ndarray
     # TODO: rename this function (function is also used in gp_plus, where it is used for a conditional check)
-    intervals = [
-        [lower, upper]
-        for lower, upper in ranges
-        if np.max(spectrum[lower:upper]) > snr * rms
-    ]
+    intervals = [[lower, upper] for lower, upper in ranges if np.max(spectrum[lower:upper]) > snr * rms]
     return [
         [lower, upper]
         for lower, upper in intervals
@@ -128,9 +122,7 @@ def get_signal_ranges(
     #  TODO: max_amp_vals is calculated but not used -> can determine_peaks be simplified if max_amp_vals is not needed?
     _, ranges = determine_peaks(spectrum, peak="positive", amp_threshold=snr * rms)
 
-    ranges = check_if_intervals_contain_signal(
-        spectrum, rms, ranges, snr=snr, significance=significance
-    )
+    ranges = check_if_intervals_contain_signal(spectrum, rms, ranges, snr=snr, significance=significance)
 
     if len(ranges) == 0 or pad_channels <= 0:
         return ranges
@@ -142,21 +134,15 @@ def get_signal_ranges(
     #  3 x pad_channels in the 3rd iteration, and so on
     for i in itertools.count():
         ranges = _add_buffer_to_intervals(ranges, n_channels, pad_channels=pad_channels)
-        mask_signal = mask_channels(
-            n_channels, ranges, remove_intervals=remove_intervals
-        )
+        mask_signal = mask_channels(n_channels, ranges, remove_intervals=remove_intervals)
         ranges = intervals_where_mask_is_true(mask_signal)
         # TODO: find something better for the second break condition
-        if (np.count_nonzero(mask_signal) >= min_channels) or (
-            2 * i * pad_channels >= spectrum.size
-        ):
+        if (np.count_nonzero(mask_signal) >= min_channels) or (2 * i * pad_channels >= spectrum.size):
             break
     return ranges
 
 
-def get_noise_spike_ranges(
-    spectrum: np.ndarray, rms: float, snr_noise_spike: float = 5.0
-) -> List[Optional[List]]:
+def get_noise_spike_ranges(spectrum: np.ndarray, rms: float, snr_noise_spike: float = 5.0) -> List[Optional[List]]:
     """Determine intervals in the spectrum potentially containing noise spikes.
 
     Parameters
@@ -173,15 +159,11 @@ def get_noise_spike_ranges(
 
     """
     # TODO: change name of function to determine_noise_spike_intervals
-    _, ranges = determine_peaks(
-        spectrum, peak="negative", amp_threshold=snr_noise_spike * rms
-    )
+    _, ranges = determine_peaks(spectrum, peak="negative", amp_threshold=snr_noise_spike * rms)
     return ranges.tolist()
 
 
-def indices_of_fit_components_in_interval(
-    fwhms: List, means: List, interval: List
-) -> Tuple[List, List]:
+def indices_of_fit_components_in_interval(fwhms: List, means: List, interval: List) -> Tuple[List, List]:
     """Find indices of components overlapping with the interval and update the interval range to accommodate full extent of the components.
 
     Component i is selected if means[i] +/- fwhms[i] overlaps with the
@@ -210,9 +192,7 @@ def indices_of_fit_components_in_interval(
     for i, (mean, fwhm) in enumerate(zip(means, fwhms)):
         lower = max(0, mean - fwhm)
         upper = mean + fwhm
-        if (lower_interval <= lower <= upper_interval) or (
-            lower_interval <= upper <= upper_interval
-        ):
+        if (lower_interval <= lower <= upper_interval) or (lower_interval <= upper <= upper_interval):
             lower_interval_new = min(lower_interval_new, lower)
             upper_interval_new = max(upper_interval_new, upper)
             indices.append(i)
