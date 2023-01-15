@@ -1,4 +1,3 @@
-import itertools
 from collections import namedtuple
 from typing import Optional, List, Union, Tuple, Literal, Dict
 
@@ -12,7 +11,11 @@ from gausspyplus.preparation.determine_intervals import (
     check_if_intervals_contain_signal,
     get_slice_indices_for_interval,
 )
-from gausspyplus.decomposition.fit_quality_checks import determine_significance
+from gausspyplus.decomposition.fit_quality_checks import (
+    determine_significance,
+    get_indices_of_fully_blended_gaussians,
+    get_number_of_fully_blended_gaussians,
+)
 from gausspyplus.decomposition.gaussian_functions import (
     multi_component_gaussian_model,
     area_of_gaussian,
@@ -410,60 +413,6 @@ def _get_initial_guesses(
     return amp_vals_of_peaks[is_valid_peak], fwhm_guesses_for_peaks, peak_positions
 
 
-def get_fully_blended_gaussians(
-    params_fit: List,
-    get_count: bool = False,
-    # TODO: Where does this magic factor come from?
-    separation_factor: float = 0.8493218002991817,
-) -> Union[int, np.ndarray]:
-    """Return information about blended Gaussian fit components.
-
-    A Gaussian fit component i is blended with another component if the separation of their mean positions is less
-    than the FWHM value of the narrower component multiplied by the 'separation_factor'.
-
-    The default value for the separation_factor (0.8493218002991817) is based on the minimum required separation
-    distance to distinguish two identical Gaussian peaks (= 2*std).
-
-    Parameters
-    ----------
-    params_fit : list
-        Parameter vector in the form of [amp1, ..., ampN, fwhm1, ..., fwhmN, mean1, ..., meanN].
-    get_count : bool
-        Default is 'False'. If set to 'True' only the number of blended components is returned.
-    separation_factor : float
-        The required minimum separation between two Gaussian components (mean1, fwhm1) and (mean2, fwhm2) is determined
-        as separation_factor * min(fwhm1, fwhm2).
-
-    Returns
-    -------
-    indices_blended : numpy.ndarray
-        Indices of fitted Gaussian components that satisfy the criterion for blendedness, sorted from lowest to highest
-        amplitude values.
-
-    """
-    amps_fit, fwhms_fit, offsets_fit = np.split(np.array(params_fit), 3)
-    indices_blended = np.array([])
-
-    N_blended = 0
-
-    for idx1, idx2 in itertools.combinations(range(amps_fit.size), 2):
-        min_separation = min(fwhms_fit[idx1], fwhms_fit[idx2]) * separation_factor
-        separation = abs(offsets_fit[idx1] - offsets_fit[idx2])
-
-        if separation < min_separation:
-            indices_blended = np.append(indices_blended, np.array([idx1, idx2]))
-            N_blended += 1
-
-    if get_count:
-        return N_blended
-
-    indices_blended = np.unique(indices_blended).astype("int")
-    # Sort the identified blended components from lowest to highest amplitude value
-    sort = np.argsort(np.array(amps_fit)[indices_blended])
-
-    return indices_blended[sort]
-
-
 def get_best_fit_model(
     model: Model,  # model is a new instance of Model
     params_fit: List,
@@ -789,9 +738,8 @@ def _check_for_blended_feature(model: Model, settings_improve_fit: SettingsImpro
     if model.n_components < 2:
         return model
 
-    exclude_indices = get_fully_blended_gaussians(
+    exclude_indices = get_indices_of_fully_blended_gaussians(
         params_fit=model.parameters,
-        get_count=False,
         separation_factor=settings_improve_fit.separation_factor,
     )
 
@@ -970,9 +918,8 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
         model=model, settings_improve_fit=settings_improve_fit, get_count=True
     )
 
-    N_blended = get_fully_blended_gaussians(
+    N_blended = get_number_of_fully_blended_gaussians(
         params_fit=model.parameters,
-        get_count=True,
         separation_factor=settings_improve_fit.separation_factor,
     )
 

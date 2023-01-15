@@ -11,9 +11,8 @@ from astropy.table import Table
 from astropy.wcs import WCS
 
 from gausspyplus.definitions.config_file import get_values_from_config_file
-from gausspyplus.decomposition.gp_plus import get_fully_blended_gaussians
 from gausspyplus.definitions.checks import BaseChecks
-from gausspyplus.decomposition.fit_quality_checks import negative_residuals
+from gausspyplus.decomposition.fit_quality_checks import negative_residuals, get_indices_of_fully_blended_gaussians
 from gausspyplus.decomposition.gaussian_functions import (
     single_component_gaussian_model,
     multi_component_gaussian_model,
@@ -142,7 +141,8 @@ class Finalize(BaseChecks):
 
     def get_flag_blended(self, amps, fwhms, means):
         params_fit = amps + fwhms + means
-        indices = get_fully_blended_gaussians(params_fit)
+        # TODO: separation_factor is missing here
+        indices = get_indices_of_fully_blended_gaussians(params_fit)
         flags = np.zeros(len(amps))
         flags[indices] = 1
         return flags.astype("int")
