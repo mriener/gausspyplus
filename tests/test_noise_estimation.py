@@ -7,7 +7,7 @@ from astropy.io import fits
 import numpy as np
 
 ROOT = Path(os.path.realpath(__file__)).parents[1]
-DATA = fits.getdata(ROOT / "gausspyplus" / "data" / "grs-test_field.fits")
+DATA = fits.getdata(ROOT / "data" / "grs-test_field.fits")
 
 
 def test_determine_maximum_consecutive_channels():

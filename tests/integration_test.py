@@ -7,7 +7,7 @@ from astropy.io import fits
 import numpy as np
 
 ROOT = Path(os.path.realpath(__file__)).parents[1]
-filepath = Path(ROOT / "gausspyplus" / "data" / "grs-test_field_10x10.fits")
+filepath = Path(ROOT / "data" / "grs-test_field_10x10.fits")
 DATA = fits.getdata(filepath)
 
 # TODO: Delete created pickle files after running the tests; otherwise intermediate-stage pickle files can still be
