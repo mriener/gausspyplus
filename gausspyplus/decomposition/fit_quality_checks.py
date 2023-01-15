@@ -162,7 +162,4 @@ def negative_residuals(spectrum, residual, rms, neg_res_snr=3.0, get_flags=False
 
                     flags += np.logical_and(lower < offset, upper > offset)
 
-    if get_flags:
-        return flags.astype("int")
-
-    return N_negative_residuals
+    return flags.astype("int") if get_flags else N_negative_residuals
