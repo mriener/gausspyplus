@@ -11,11 +11,7 @@ from gausspyplus.preparation.determine_intervals import (
     check_if_intervals_contain_signal,
     get_slice_indices_for_interval,
 )
-from gausspyplus.decomposition.fit_quality_checks import (
-    determine_significance,
-    get_indices_of_fully_blended_gaussians,
-    get_number_of_fully_blended_gaussians,
-)
+from gausspyplus.decomposition.fit_quality_checks import determine_significance
 from gausspyplus.decomposition.gaussian_functions import (
     multi_component_gaussian_model,
     area_of_gaussian,
@@ -740,12 +736,7 @@ def _check_for_blended_feature(model: Model, settings_improve_fit: SettingsImpro
     if model.n_components < 2:
         return model
 
-    exclude_indices = get_indices_of_fully_blended_gaussians(
-        params_fit=model.parameters,
-        separation_factor=settings_improve_fit.separation_factor,
-    )
-
-    for exclude_idx in exclude_indices:
+    for exclude_idx in model.indices_of_blended_components(settings_improve_fit.separation_factor):
         model = _try_fit_with_new_components(
             model=model,
             settings_improve_fit=settings_improve_fit,
@@ -888,12 +879,12 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
         model=model, settings_improve_fit=settings_improve_fit, get_count=True
     )
 
-    N_blended = get_number_of_fully_blended_gaussians(
-        params_fit=model.parameters,
-        separation_factor=settings_improve_fit.separation_factor,
+    return (
+        model.best_fit_info,
+        N_neg_res_peak,
+        model.number_of_blended_components(settings_improve_fit.separation_factor),
+        model.log_of_successful_refits,
     )
-
-    return (model.best_fit_info, N_neg_res_peak, N_blended, model.log_of_successful_refits)
 
 
 if __name__ == "__main__":
