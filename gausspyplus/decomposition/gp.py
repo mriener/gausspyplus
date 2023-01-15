@@ -45,11 +45,7 @@ class GaussianDecomposer(object):
         """Solve for optimal values of alpha1 (and alpha2) using training data."""
         print("Training...")
 
-        (
-            self.p["alpha1"],
-            self.p["alpha2"],
-            self.p["training_results"],
-        ) = gradient_descent.train(
+        (self.p["alpha1"], self.p["alpha2"], self.p["training_results"],) = gradient_descent.train(
             alpha1_initial=alpha1_initial,
             alpha2_initial=alpha2_initial,
             training_data=self.p["training_data"],
@@ -112,9 +108,7 @@ class GaussianDecomposer(object):
                 protocol=2,
             )
             parallel_processing.init_gausspy()
-            result_list = parallel_processing.func(
-                use_ncpus=self.p["use_ncpus"], function="gausspy_decompose"
-            )
+            result_list = parallel_processing.func(use_ncpus=self.p["use_ncpus"], function="gausspy_decompose")
         else:
             #  if only a single spectrum is decomposed
             parallel_processing.init_gausspy([self, dct, ilist])
@@ -153,17 +147,13 @@ class GaussianDecomposer(object):
                 ncomps = result["N_components"]
                 output_data["N_components"].append(ncomps)
                 if ncomps > 0:
-                    amps, fwhms, offsets = split_params(
-                        params=result["best_fit_parameters"], ncomps=ncomps
-                    )
+                    amps, fwhms, offsets = split_params(params=result["best_fit_parameters"], ncomps=ncomps)
                     output_data["amplitudes_fit"].append(amps)
                     output_data["fwhms_fit"].append(fwhms)
                     output_data["means_fit"].append(offsets)
 
                     # Final fit errors
-                    amps_err, fwhms_err, offsets_err = split_params(
-                        params=result["best_fit_errors"], ncomps=ncomps
-                    )
+                    amps_err, fwhms_err, offsets_err = split_params(params=result["best_fit_errors"], ncomps=ncomps)
                     output_data["amplitudes_fit_err"].append(amps_err)
                     output_data["fwhms_fit_err"].append(fwhms_err)
                     output_data["means_fit_err"].append(offsets_err)
@@ -215,9 +205,7 @@ class GaussianDecomposer(object):
                 output_data["index_fit"][i] = i
 
         if failed_decompositions:
-            print(
-                "Could not fit the following spectra and replaced their entries with None:"
-            )
+            print("Could not fit the following spectra and replaced their entries with None:")
             for item in failed_decompositions:
                 print(item)
 

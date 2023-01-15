@@ -29,9 +29,7 @@ class GaussPyTraining(SettingsDefault, SettingsTraining, BaseChecks):
         if not self.log_output:
             return False
         return set_up_logger(
-            parentDirname=(
-                self.gpy_dirpath or Path(self.path_to_training_set).parents[1]
-            ),
+            parentDirname=(self.gpy_dirpath or Path(self.path_to_training_set).parents[1]),
             filename=Path(self.path_to_training_set).stem,
             method="g+_training",
         )
@@ -53,12 +51,8 @@ class GaussPyTraining(SettingsDefault, SettingsTraining, BaseChecks):
         decomposer = gp.GaussianDecomposer()
 
         decomposer.load_training_data(self.path_to_training_set)
-        decomposer.set(
-            "SNR_thresh", self.snr if self.snr_thresh is None else self.snr_thresh
-        )
-        decomposer.set(
-            "SNR2_thresh", self.snr if self.snr2_thresh is None else self.snr2_thresh
-        )
+        decomposer.set("SNR_thresh", self.snr if self.snr_thresh is None else self.snr_thresh)
+        decomposer.set("SNR2_thresh", self.snr if self.snr2_thresh is None else self.snr2_thresh)
 
         if self.two_phase_decomposition:
             decomposer.set("phase", "two")  # Set GaussPy parameters

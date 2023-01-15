@@ -14,9 +14,7 @@ def test_get_neighbors():
         np.array([[1, 2], [2, 2]]),
     ]
     actual_results = [
-        get_neighbors(
-            (2, 0), shape=(3, 3), return_indices=False, return_coordinates=True
-        ),
+        get_neighbors((2, 0), shape=(3, 3), return_indices=False, return_coordinates=True),
         get_neighbors(
             (2, 0),
             exclude_location=False,
@@ -50,7 +48,4 @@ def test_get_neighbors():
             return_coordinates=True,
         ),
     ]
-    assert np.all(
-        np.equal(expected, actual)
-        for expected, actual in zip(expected_results, actual_results)
-    )
+    assert np.all(np.equal(expected, actual) for expected, actual in zip(expected_results, actual_results))

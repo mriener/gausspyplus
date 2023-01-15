@@ -28,17 +28,11 @@ class GaussPyDecompose(SettingsDefault, SettingsDecomposition, BaseChecks):
     @functools.cached_property
     def dirpath(self):
         # TODO: homogenize attributes self.dirpath_gpy (used here) and self.gpy_dirpath (used in training_set)
-        return (
-            self.dirpath_gpy
-            if self.dirpath_gpy is not None
-            else Path(self.path_to_pickle_file).parents[1]
-        )
+        return self.dirpath_gpy if self.dirpath_gpy is not None else Path(self.path_to_pickle_file).parents[1]
 
     @functools.cached_property
     def decomp_dirname(self):
-        (decomp_dirname := Path(self.dirpath, "gpy_decomposed")).mkdir(
-            parents=True, exist_ok=True
-        )
+        (decomp_dirname := Path(self.dirpath, "gpy_decomposed")).mkdir(parents=True, exist_ok=True)
         return decomp_dirname
 
     @functools.cached_property

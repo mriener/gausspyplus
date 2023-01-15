@@ -65,15 +65,9 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             )
         if self.simulation:
             self.raise_exception_if_attribute_is_none("average_rms")
-        self.raise_exception_if_all_attributes_are_none_or_false(
-            ["path_to_file", "hdu"]
-        )
-        self.raise_exception_if_all_attributes_are_none_or_false(
-            ["path_to_file", "dirpath_gpy"]
-        )
-        self.raise_exception_if_all_attributes_are_none_or_false(
-            ["path_to_file", "filename"]
-        )
+        self.raise_exception_if_all_attributes_are_none_or_false(["path_to_file", "hdu"])
+        self.raise_exception_if_all_attributes_are_none_or_false(["path_to_file", "dirpath_gpy"])
+        self.raise_exception_if_all_attributes_are_none_or_false(["path_to_file", "filename"])
 
         if self.testing:
             say(
@@ -110,19 +104,13 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
 
     @functools.cached_property
     def noise_map(self):
-        return (
-            None
-            if self.path_to_noise_map is None
-            else fits.getdata(self.path_to_noise_map)
-        )
+        return None if self.path_to_noise_map is None else fits.getdata(self.path_to_noise_map)
 
     @functools.cached_property
     def input_object(self):
         hdu = fits.open(self.path_to_file)[0]
         if self.simulation:
-            hdu = add_noise(
-                self.average_rms, hdu=hdu, get_hdu=True, random_seed=self.random_seed
-            )
+            hdu = add_noise(self.average_rms, hdu=hdu, get_hdu=True, random_seed=self.random_seed)
         # TODO: additional axes should be removed before adding noise for self.simulation
         data, header = remove_additional_axes(hdu.data, hdu.header)
         return fits.PrimaryHDU(data=data, header=header)
@@ -141,9 +129,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
 
     @functools.cached_property
     def locations(self) -> list:
-        return list(
-            itertools.product(range(self.data.shape[1]), range(self.data.shape[2]))
-        )
+        return list(itertools.product(range(self.data.shape[1]), range(self.data.shape[2])))
 
     @functools.cached_property
     def header(self):
@@ -166,9 +152,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         # TODO: is the self.testing condition really necessary?
         if self.testing:
             return None
-        (dirpath_pickle := Path(self.dirpath, "gpy_prepared")).mkdir(
-            parents=True, exist_ok=True
-        )
+        (dirpath_pickle := Path(self.dirpath, "gpy_prepared")).mkdir(parents=True, exist_ok=True)
         return dirpath_pickle
 
     def return_single_prepared_spectrum(self, data_location=None) -> dict:
@@ -217,9 +201,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             # TODO: Change rms from list of list to single value
             "error": [[spectrum.rms_noise] for spectrum in results],
             "signal_ranges": [spectrum.signal_intervals for spectrum in results],
-            "noise_spike_ranges": [
-                spectrum.noise_spike_intervals for spectrum in results
-            ],
+            "noise_spike_ranges": [spectrum.noise_spike_intervals for spectrum in results],
             # TODO: Info about NaNs can be saved more efficiently -> but where is this used? Make sure to change it
             #  everywhere
             "nan_mask": np.isnan(self.data),
@@ -239,48 +221,29 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         path_to_file = self.dirpath_pickle / f"{self.filename_in}"
         with open(f"{path_to_file}{suffix}.pickle", "wb") as file:
             pickle.dump(results, file, protocol=2)
-        print(
-            "\033[92mFor GaussPyDecompose:\033[0m 'path_to_pickle_file' = '{}'".format(
-                path_to_file
-            )
-        )
+        print("\033[92mFor GaussPyDecompose:\033[0m 'path_to_pickle_file' = '{}'".format(path_to_file))
 
     def prepare_gausspy_pickle(self) -> None:
         say("\npreparing GaussPy cube...", logger=self.logger)
 
-        if (
-            not self.simulation
-            and not self.testing
-            and self.path_to_noise_map is None
-            and self.average_rms is None
-        ):
+        if not self.simulation and not self.testing and self.path_to_noise_map is None and self.average_rms is None:
             self.calculate_average_rms_from_data()
 
         import gausspyplus.parallel_processing.parallel_processing
 
         # TODO: The first argument len(self.locations) is needed to later on use the same code as for training_set.py
-        gausspyplus.parallel_processing.parallel_processing.init(
-            [len(self.locations), [self]]
-        )
+        gausspyplus.parallel_processing.parallel_processing.init([len(self.locations), [self]])
 
         results_list = gausspyplus.parallel_processing.parallel_processing.func(
             use_ncpus=self.use_ncpus, function="gpy_noise"
         )
         print("SUCCESS\n")
 
-        problems = (
-            (index, item)
-            for index, item in enumerate(results_list)
-            if not isinstance(item, PreparedSpectrum)
-        )
+        problems = ((index, item) for index, item in enumerate(results_list) if not isinstance(item, PreparedSpectrum))
         for index, error_message in problems:
-            print(
-                f"The following problem occurred while preparing spectrum with {index=}: {error_message}"
-            )
+            print(f"The following problem occurred while preparing spectrum with {index=}: {error_message}")
 
-        results = self._prepare_output(
-            [result for result in results_list if isinstance(result, PreparedSpectrum)]
-        )
+        results = self._prepare_output([result for result in results_list if isinstance(result, PreparedSpectrum)])
 
         # TODO: this is just needed for the noise map -> create this later?
         self.errors = np.empty((self.data.shape[1], self.data.shape[2]))
@@ -312,19 +275,13 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
             average_rms=self.average_rms,
         )
 
-    def _get_noise_spike_ranges(
-        self, spectrum: np.ndarray, rms: float
-    ) -> Optional[list]:
+    def _get_noise_spike_ranges(self, spectrum: np.ndarray, rms: float) -> Optional[list]:
         if np.isnan(rms):
             return None
         mask_out_ranges = [] if self.mask_out_ranges is None else self.mask_out_ranges
-        return mask_out_ranges + get_noise_spike_ranges(
-            spectrum, rms, snr_noise_spike=self.snr_noise_spike
-        )
+        return mask_out_ranges + get_noise_spike_ranges(spectrum, rms, snr_noise_spike=self.snr_noise_spike)
 
-    def _get_signal_ranges(
-        self, spectrum: np.ndarray, rms: float, noise_spike_ranges: list
-    ) -> Optional[list]:
+    def _get_signal_ranges(self, spectrum: np.ndarray, rms: float, noise_spike_ranges: list) -> Optional[list]:
         if np.isnan(rms) or not self.signal_mask:
             return None
         return get_signal_ranges(
@@ -367,9 +324,7 @@ class GaussPyPrepare(SettingsDefault, SettingsPreparation, BaseChecks):
         header = change_header(self.header.copy(), format="pp", comments=comments)
 
         filename = f"{self.filename_in}{'' if self.suffix is None else self.suffix}_noise_map.fits"
-        path_to_file = os.path.join(
-            os.path.dirname(self.dirpath_pickle), "gpy_maps", filename
-        )
+        path_to_file = os.path.join(os.path.dirname(self.dirpath_pickle), "gpy_maps", filename)
 
         save_fits(self.errors.astype(dtype), header, path_to_file, verbose=False)
         #  TODO: put the color coding as an additional keyword in say?

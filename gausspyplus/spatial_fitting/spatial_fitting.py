@@ -82,9 +82,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             self.fin_filename = f"{self.filename}_sf-p1{self.suffix or ''}"
 
             if self.phase_two:
-                self.fin_filename = (
-                    f"{self.filename.replace('_sf-p1', '')}_sf-p2{self.suffix or ''}"
-                )
+                self.fin_filename = f"{self.filename.replace('_sf-p1', '')}_sf-p2{self.suffix or ''}"
 
         self.set_attribute_if_none("dirpath_gpy", os.path.dirname(self.decomp_dirname))
         self.set_attribute_if_none("rchi2_limit_refit", self.rchi2_limit)
@@ -147,9 +145,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         self.neighbor_indices = np.array([None] * self.n_indices)
         self.neighbor_indices_all = np.array([None] * self.n_indices)
 
-        self.nan_mask = np.isnan(
-            [n or np.nan for n in self.decomposition["N_components"]]
-        )
+        self.nan_mask = np.isnan([n or np.nan for n in self.decomposition["N_components"]])
 
         if self.pixel_range is not None:
             self._mask_out_beyond_pixel_range()
@@ -207,15 +203,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def _getting_ready(self) -> None:
         """Set up logger and write initial output to terminal."""
         if self.log_output:
-            self.logger = set_up_logger(
-                self.dirpath_gpy, self.filename, method="g+_spatial_refitting"
-            )
+            self.logger = set_up_logger(self.dirpath_gpy, self.filename, method="g+_spatial_refitting")
         else:
             self.logger = False
         say(
-            message=make_pretty_header(
-                f"Spatial refitting - Phase {1 + self.phase_two}"
-            ),
+            message=make_pretty_header(f"Spatial refitting - Phase {1 + self.phase_two}"),
             logger=self.logger,
         )
         say(self._info_text(refit=False), logger=self.logger)
@@ -285,9 +277,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         """Return boolean mask identifying the location of broad fit components."""
         return np.array(
             [
-                False
-                if (fwhms is None or len(fwhms) == 0)
-                else np.any(np.array(fwhms) > self.max_fwhm)
+                False if (fwhms is None or len(fwhms) == 0) else np.any(np.array(fwhms) > self.max_fwhm)
                 for fwhms in self.decomposition["fwhms_fit"]
             ]
         )
@@ -300,9 +290,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         #  exceeds the second largest FWHM value in that spectrum by a factor of 'self.fwhm_factor'; also check if
         #  the absolute difference of their values exceeds 'self.fwhm_separation' to avoid narrow components.
         fwhms = sorted(fwhms)
-        return (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (
-            fwhms[-1] - fwhms[-2]
-        ) > self.fwhm_separation
+        return (fwhms[-1] > self.fwhm_factor * fwhms[-2]) and (fwhms[-1] - fwhms[-2]) > self.fwhm_separation
 
     def _define_mask_broad(self) -> np.ndarray:
         """Return a boolean mask indicating the location of broad fit components."""
@@ -339,10 +327,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         )
         # TODO: is nan_mask masking needed if _mask_out_beyond_pixel_range is set?
         # is_broad_compared_to_other_fit_components_in_spectrum[self.nan_mask] = False
-        return (
-            is_broad_compared_to_other_fit_components_in_spectrum
-            | is_broad_compared_to_fit_components_of_neighbors
-        )
+        return is_broad_compared_to_other_fit_components_in_spectrum | is_broad_compared_to_fit_components_of_neighbors
 
     def _define_mask_neighbor_ncomps(
         self, flag: bool
@@ -392,24 +377,12 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
     def determine_spectra_for_flagging(self) -> None:
         """Flag spectra not satisfying user-defined flagging criteria."""
         self.mask_blended = self._define_mask("N_blended", 0, self.flag_blended)
-        self.mask_neg_res_peak = self._define_mask(
-            "N_neg_res_peak", 0, self.flag_neg_res_peak
-        )
-        self.mask_rchi2_flagged = self._define_mask(
-            "best_fit_rchi2", self.rchi2_limit, self.flag_rchi2
-        )
-        self.mask_residual = self._define_mask(
-            "pvalue", self.min_pvalue, self.flag_residual, comparison_func=np.less
-        )
-        self.mask_broad_flagged = (
-            self._define_mask_broad()
-            if self.flag_broad
-            else np.zeros(self.length, dtype=bool)
-        )
+        self.mask_neg_res_peak = self._define_mask("N_neg_res_peak", 0, self.flag_neg_res_peak)
+        self.mask_rchi2_flagged = self._define_mask("best_fit_rchi2", self.rchi2_limit, self.flag_rchi2)
+        self.mask_residual = self._define_mask("pvalue", self.min_pvalue, self.flag_residual, comparison_func=np.less)
+        self.mask_broad_flagged = self._define_mask_broad() if self.flag_broad else np.zeros(self.length, dtype=bool)
         self.mask_broad_limit = (
-            self._define_mask_broad_limit()
-            if self.flag_broad
-            else np.zeros(self.length, dtype=bool)
+            self._define_mask_broad_limit() if self.flag_broad else np.zeros(self.length, dtype=bool)
         )
         (
             self.mask_ncomps,
@@ -462,9 +435,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         )
         self.indices_refit = np.array(self.decomposition["index_fit"])[mask_refit]
         # self.indices_refit = self.indices_refit[886:888]  # for debugging
-        self.locations_refit = np.take(
-            np.array(self.location), self.indices_refit, axis=0
-        )
+        self.locations_refit = np.take(np.array(self.location), self.indices_refit, axis=0)
 
     def _determine_spectra_for_refitting(self) -> None:
         """Determine spectra for refitting in phase 1 of the spatially coherent refitting."""
@@ -476,11 +447,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         # Determine new masks for spectra that do not satisfy the user-defined criteria for broad components and
         # reduced chi-square values. This is done because users can opt to use different values for flagging and
         # refitting for these two criteria.
-        self.mask_broad_refit = (
-            self._define_mask_broad()
-            if self.refit_broad
-            else np.zeros(self.length, dtype=bool)
-        )
+        self.mask_broad_refit = self._define_mask_broad() if self.refit_broad else np.zeros(self.length, dtype=bool)
         self.mask_rchi2_refit = self._define_mask(
             key="best_fit_rchi2", limit=self.rchi2_limit_refit, flag=self.refit_rchi2
         )
@@ -544,10 +511,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return True
         #  stop refitting if the number of spectra selected for refitting got higher than in the previous iteration for each user-defined criterion
         if self.refitting_iteration > 0:
-            return all(
-                n_refit_list[i] >= min(n[i] for n in self.list_n_refit)
-                for i in range(len(n_refit_list))
-            )
+            return all(n_refit_list[i] >= min(n[i] for n in self.list_n_refit) for i in range(len(n_refit_list)))
 
     def _refitting(self) -> None:
         """Refit spectra with multiprocessing routine."""
@@ -560,9 +524,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         import gausspyplus.parallel_processing.parallel_processing
 
-        gausspyplus.parallel_processing.parallel_processing.init(
-            [self.indices_refit, [self]]
-        )
+        gausspyplus.parallel_processing.parallel_processing.init([self.indices_refit, [self]])
 
         #  try to refit spectra via the multiprocessing routine
         results_list = gausspyplus.parallel_processing.parallel_processing.func(
@@ -653,9 +615,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         # TODO: Compute this once in the beginning, so it does not get recomputed all the time?
         # Here we select all indices of spectra that are not NaN and have fit components
-        valid_indices = np.array(self.decomposition["index_fit"])[
-            np.flatnonzero(self.decomposition["N_components"])
-        ]
+        valid_indices = np.array(self.decomposition["index_fit"])[np.flatnonzero(self.decomposition["N_components"])]
         if not include_flagged:
             # Whether to exclude all flagged neighboring spectra as well that were not selected for refitting
             indices_flagged = (
@@ -708,9 +668,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             ]
         ]
 
-        indices_neighbors_ = get_neighbors(
-            location=self.locations_refit[i], shape=self.shape
-        )
+        indices_neighbors_ = get_neighbors(location=self.locations_refit[i], shape=self.shape)
 
         indices_of_unflagged_neighbors = self._determine_neighbor_indices(
             indices_of_all_neighbors=indices_neighbors_, include_flagged=False
@@ -720,20 +678,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         for include_flagged_spectra in np.unique((False, self.use_all_neighors)):
             if include_flagged_spectra:
-                indices_of_flagged_and_unflagged_neighbors = (
-                    self._determine_neighbor_indices(
-                        indices_of_all_neighbors=indices_neighbors_,
-                        include_flagged=True,
-                    )
+                indices_of_flagged_and_unflagged_neighbors = self._determine_neighbor_indices(
+                    indices_of_all_neighbors=indices_neighbors_,
+                    include_flagged=True,
                 )
                 # The following is necessary to avoid repeating refits with neighboring solutions that we already tried
                 indices_neighbors_for_individual_refit = np.setdiff1d(
                     indices_of_flagged_and_unflagged_neighbors,
                     indices_neighbors_for_grouping,
                 )
-                indices_neighbors_for_grouping = (
-                    indices_of_flagged_and_unflagged_neighbors
-                )
+                indices_neighbors_for_grouping = indices_of_flagged_and_unflagged_neighbors
 
             # Skip refitting if there are no valid neighbors available
             if indices_neighbors_for_grouping.size == 0:
@@ -742,19 +696,14 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             # TODO: Check if condition with indices_neighbors_for_grouping is correct here
             # Skip refitting if there were no changes of neighboring fit solutions in the last iteration
             if (
-                np.array_equal(
-                    indices_neighbors_for_grouping, self.neighbor_indices[index]
-                )
+                np.array_equal(indices_neighbors_for_grouping, self.neighbor_indices[index])
                 and not self.mask_refitted[indices_neighbors_for_grouping].sum()
             ):
                 continue
 
             # Try to refit the spectrum with fit solution of individual spectra from selected neighbors
             for flag in flags:
-                (
-                    fit_results,
-                    is_successful_refit,
-                ) = self._try_refit_with_individual_neighbors(
+                (fit_results, is_successful_refit,) = self._try_refit_with_individual_neighbors(
                     index=index,
                     spectrum=spectrum,
                     indices_neighbors=indices_neighbors_for_individual_refit,
@@ -977,12 +926,8 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         #  for component flagged as broad select the interval [mean - FWHM, mean + FWHM]
         if flag == "blended":
             params = amps + fwhms + means
-            separation_factor = self.decomposition[
-                "improve_fit_settings"
-            ].separation_factor
-            indices = get_fully_blended_gaussians(
-                params, separation_factor=separation_factor
-            )
+            separation_factor = self.decomposition["improve_fit_settings"].separation_factor
+            indices = get_fully_blended_gaussians(params, separation_factor=separation_factor)
             lower = max(0, min(np.array(means)[indices] - np.array(fwhms)[indices]))
             upper = max(np.array(means)[indices] + np.array(fwhms)[indices])
         elif flag == "broad":
@@ -1059,9 +1004,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 means=means,
                 flag=flag,
             )
-        indices, interval = indices_of_fit_components_in_interval(
-            fwhms=fwhms, means=means, interval=interval
-        )
+        indices, interval = indices_of_fit_components_in_interval(fwhms=fwhms, means=means, interval=interval)
 
         amps = remove_elements_at_indices(amps, indices)
         fwhms = remove_elements_at_indices(fwhms, indices)
@@ -1076,9 +1019,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         means_err_new = self.decomposition["means_fit_err"][index_neighbor]
 
         #  check which of the neighboring fit components overlap with the interval containing the flagged feature(s)
-        indices, interval = indices_of_fit_components_in_interval(
-            fwhms=fwhms_new, means=means_new, interval=interval
-        )
+        indices, interval = indices_of_fit_components_in_interval(fwhms=fwhms_new, means=means_new, interval=interval)
 
         if len(indices) == 0:
             return
@@ -1099,9 +1040,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         idx_upper = int(interval[1]) + 2
 
         fit_components_in_interval = {}
-        for amp, fwhm, mean, mean_err in zip(
-            amps_new, fwhms_new, means_new, means_err_new
-        ):
+        for amp, fwhm, mean, mean_err in zip(amps_new, fwhms_new, means_new, means_err_new):
             fit_components_in_interval = self._add_initial_value_to_dict(
                 fit_components=fit_components_in_interval,
                 intensity_values=intensity_values[idx_lower:idx_upper],
@@ -1182,9 +1121,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             "fwhm_ini": fwhm,
             "amp_bounds": [
                 0.0,
-                upper_limit_for_amplitude(
-                    intensity_values, mean, fwhm, buffer_factor=1.1
-                ),
+                upper_limit_for_amplitude(intensity_values, mean, fwhm, buffer_factor=1.1),
             ],
             "mean_bounds": [max(0.0, mean - mean_bound), mean + mean_bound],
             "fwhm_bounds": [
@@ -1287,9 +1224,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ncomps = np.insert(ncomps, 4, current_best_fit["N_components"])
 
         flag_ncomps_old, flag_ncomps_new = get_flags_ncomps(
-            ndiff_old=abs(
-                self.ncomps_wmedian[index] - current_best_fit["N_components"]
-            ),
+            ndiff_old=abs(self.ncomps_wmedian[index] - current_best_fit["N_components"]),
             ndiff_new=abs(self.ncomps_wmedian[index] - fit_results["N_components"]),
             njumps_old=self.ncomps_jumps[index],
             njumps_new=number_of_component_jumps(ncomps, self.max_jump_comps),
@@ -1343,9 +1278,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         # sum(tuple_of_lists, []) makes a flat list out of the tuple of lists
         return np.array(sum((self.decomposition[key][idx] for idx in indices), []))
 
-    def _get_initial_values(
-        self, indices_neighbors: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _get_initial_values(self, indices_neighbors: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Get sorted parameter values (amps, means, fwhms) of neighboring fit components for the grouping.
 
         :param indices_neighbors: Array containing the indices of all neighboring fit solutions that should be used
@@ -1356,17 +1289,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             - Array of FWHM values (sorted according to mean position).
         """
 
-        amps = self._get_values_for_indices(
-            indices=indices_neighbors, key="amplitudes_fit"
-        )
+        amps = self._get_values_for_indices(indices=indices_neighbors, key="amplitudes_fit")
         means = self._get_values_for_indices(indices=indices_neighbors, key="means_fit")
         fwhms = self._get_values_for_indices(indices=indices_neighbors, key="fwhms_fit")
         sort_order = np.argsort(means)
         return amps[sort_order], means[sort_order], fwhms[sort_order]
 
-    def _get_initial_values_from_neighbor(
-        self, i: int, intensity_values: np.ndarray
-    ) -> Dict:
+    def _get_initial_values_from_neighbor(self, i: int, intensity_values: np.ndarray) -> Dict:
         """Get dictionary with information about all fit components from neighboring fit solution.
 
         :param i: Index of neighboring fit solution.
@@ -1400,9 +1329,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 "fwhm_ini": fwhm,
                 "amp_bounds": [
                     0.0,
-                    upper_limit_for_amplitude(
-                        intensity_values, mean, fwhm, buffer_factor=1.1
-                    ),
+                    upper_limit_for_amplitude(intensity_values, mean, fwhm, buffer_factor=1.1),
                 ],
                 "mean_bounds": [mean_min, mean_max],
                 "fwhm_bounds": [fwhm_min, fwhm_max],
@@ -1428,9 +1355,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         #  correct dictionary key
         settings_improve_fit = self.decomposition["improve_fit_settings"]
-        settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(
-            spectrum.intensity_values
-        )
+        settings_improve_fit.max_amp = settings_improve_fit.max_amp_factor * np.max(spectrum.intensity_values)
 
         #  set limits for fit parameters
         params, params_min, params_max = [], [], []
@@ -1480,9 +1405,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         N_blended = get_fully_blended_gaussians(
             params_fit=model.parameters,
             get_count=True,
-            separation_factor=self.decomposition[
-                "improve_fit_settings"
-            ].separation_factor,
+            separation_factor=self.decomposition["improve_fit_settings"].separation_factor,
         )
         N_neg_res_peak = check_for_negative_residual(
             model=model, settings_improve_fit=settings_improve_fit, get_count=True
@@ -1520,8 +1443,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         # first, check only immediate neighboring spectra
         mask_weight = weights >= (self.w_1 / np.sqrt(2))
         counts_choices = [
-            0 if choice == 0 else np.count_nonzero(n_centroids[mask_weight] == choice)
-            for choice in choices
+            0 if choice == 0 else np.count_nonzero(n_centroids[mask_weight] == choice) for choice in choices
         ]
 
         n_neighbors = np.count_nonzero(mask_weight)
@@ -1529,10 +1451,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return choices[np.argmax(counts_choices)]
 
         # include additional neighbors that are two pixels away
-        weights_choices = [
-            0 if choice == 0 else sum(weights[n_centroids == choice])
-            for choice in choices
-        ]
+        weights_choices = [0 if choice == 0 else sum(weights[n_centroids == choice]) for choice in choices]
         return choices[np.argmax(weights_choices)]
 
     def _combine_directions(self, spatial_coherence_checks_per_direction: Dict) -> Dict:
@@ -1544,18 +1463,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             ]
         )
         weights = np.concatenate(
-            [
-                spatial_coherence_checks_per_direction[direction]["weights"]
-                for direction in self.weights.keys()
-            ]
+            [spatial_coherence_checks_per_direction[direction]["weights"] for direction in self.weights.keys()]
         )
         intervals = merge_overlapping_intervals(
             [
                 interval
                 for direction in self.weights.keys()
-                for interval in spatial_coherence_checks_per_direction[direction][
-                    "means_interval"
-                ]
+                for interval in spatial_coherence_checks_per_direction[direction]["means_interval"]
             ]
         )
         means_interval = {
@@ -1567,21 +1481,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         }
         # TODO: The following lines also appear in _check_continuity_centroids; should this be refactored into its own
         #  method?
-        means_of_neighbors = [
-            self.decomposition["means_fit"][idx] for idx in indices_neighbors
-        ]
+        means_of_neighbors = [self.decomposition["means_fit"][idx] for idx in indices_neighbors]
         # estimate the expected number of centroids for interval
         ncomps_per_interval = {
             key: [
-                sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
-                for means in means_of_neighbors
+                sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0 for means in means_of_neighbors
             ]
             for key, (mean_min, mean_max) in means_interval.items()
         }
         # calculate number of centroids per centroid interval of neighbors
         n_centroids = {
-            key: self._get_n_centroid(np.array(ncomps), weights)
-            for key, ncomps in ncomps_per_interval.items()
+            key: self._get_n_centroid(np.array(ncomps), weights) for key, ncomps in ncomps_per_interval.items()
         }
         return {
             "indices_neighbors": indices_neighbors,
@@ -1621,23 +1531,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         )
         is_neighbor = indices_neighbors_and_center != idx
         has_fit_components = np.array(
-            [
-                self.decomposition["N_components"][i]
-                for i in indices_neighbors_and_center
-            ]
+            [self.decomposition["N_components"][i] for i in indices_neighbors_and_center]
         ).astype(bool)
-        relative_position_to_center = np.arange(
-            len(indices_neighbors_and_center)
-        ) - np.flatnonzero(~is_neighbor)
+        relative_position_to_center = np.arange(len(indices_neighbors_and_center)) - np.flatnonzero(~is_neighbor)
         return (
             indices_neighbors_and_center[is_neighbor & has_fit_components],
             np.array(
-                [
-                    self.weights[direction][pos]
-                    for pos in relative_position_to_center[
-                        is_neighbor & has_fit_components
-                    ]
-                ]
+                [self.weights[direction][pos] for pos in relative_position_to_center[is_neighbor & has_fit_components]]
             ),
         )
 
@@ -1685,14 +1585,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 for key, value in grouping.items()
             }
 
-            means_of_neighbors = [
-                self.decomposition["means_fit"][idx] for idx in indices_neighbors
-            ]
+            means_of_neighbors = [self.decomposition["means_fit"][idx] for idx in indices_neighbors]
             ncomps_per_interval = {
                 key: [
-                    sum(mean_min < mean < mean_max for mean in means)
-                    if bool(means)
-                    else 0
+                    sum(mean_min < mean < mean_max for mean in means) if bool(means) else 0
                     for means in means_of_neighbors
                 ]
                 for key, (mean_min, mean_max) in means_interval.items()
@@ -1700,16 +1596,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
             # Calculate weight of required components per centroid interval.
             factor_required = {
-                key: sum(np.array(val, dtype=bool) * weights_neighbors)
-                for key, val in ncomps_per_interval.items()
+                key: sum(np.array(val, dtype=bool) * weights_neighbors) for key, val in ncomps_per_interval.items()
             }
 
             # Keep only centroid intervals that have a certain minimum weight
-            means_interval = [
-                means_interval[key]
-                for key in factor_required
-                if factor_required[key] > self.min_p
-            ]
+            means_interval = [means_interval[key] for key in factor_required if factor_required[key] > self.min_p]
 
             spatial_coherence_checks_per_direction[direction] = {
                 "indices_neighbors": indices_neighbors,
@@ -1719,16 +1610,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         return self._combine_directions(spatial_coherence_checks_per_direction)
 
-    def _check_for_required_components(
-        self, idx: int, spatial_coherence_checks: Dict
-    ) -> Dict:
+    def _check_for_required_components(self, idx: int, spatial_coherence_checks: Dict) -> Dict:
         """Check the presence of the required centroid positions within the determined interval."""
         means = self.decomposition["means_fit"][idx]
         keys_for_refit = [
             key
             for key, interval in spatial_coherence_checks["means_interval"].items()
-            if sum(interval[0] < x < interval[1] for x in means)
-            != spatial_coherence_checks["n_centroids"][key]
+            if sum(interval[0] < x < interval[1] for x in means) != spatial_coherence_checks["n_centroids"][key]
         ]
         return {
             "indices_neighbors": spatial_coherence_checks["indices_neighbors"],
@@ -1738,24 +1626,17 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 for i, key in enumerate(keys_for_refit, start=1)
             },
             "n_centroids": {
-                str(i): spatial_coherence_checks["n_centroids"][key]
-                for i, key in enumerate(keys_for_refit, start=1)
+                str(i): spatial_coherence_checks["n_centroids"][key] for i, key in enumerate(keys_for_refit, start=1)
             },
         }
 
-    def _select_neighbors_to_use_for_refit(
-        self, indices: np.ndarray, means_interval: Dict, n_centroids: Dict
-    ) -> Dict:
+    def _select_neighbors_to_use_for_refit(self, indices: np.ndarray, means_interval: Dict, n_centroids: Dict) -> Dict:
         """Select neighboring fit solutions with right number of centroid positions as refit solutions."""
         return {
             key: [
                 idx
                 for idx in indices
-                if n_centroids[key]
-                == sum(
-                    interval[0] < x < interval[1]
-                    for x in self.decomposition["means_fit"][idx]
-                )
+                if n_centroids[key] == sum(interval[0] < x < interval[1] for x in self.decomposition["means_fit"][idx])
             ]
             for key, interval in means_interval.items()
         }
@@ -1764,9 +1645,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         """Determine the indices of all valid neighbors."""
         say("\ndetermine neighbors for all spectra...", logger=self.logger)
 
-        mask_all = np.array(
-            [0 if x is None else 1 for x in self.decomposition["N_components"]]
-        ).astype("bool")
+        mask_all = np.array([0 if x is None else 1 for x in self.decomposition["N_components"]]).astype("bool")
         self.indices_all = np.array(self.decomposition["index_fit"])[mask_all]
         if self.pixel_range is not None:
             self.indices_all = np.array(self.decomposition["index_fit"])[~self.nan_mask]
@@ -1782,9 +1661,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                     n_neighbors=2,
                     direction=direction,
                 )
-                indices_neighbors_total = np.append(
-                    indices_neighbors_total, indices_neighbors
-                )
+                indices_neighbors_total = np.append(indices_neighbors_total, indices_neighbors)
             indices_neighbors_total = indices_neighbors_total.astype("int")
             self.neighbor_indices_all[i] = indices_neighbors_total
 
@@ -1800,16 +1677,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return
 
         self.indices_refit = np.array(
-            [
-                i
-                for i in self.indices_all
-                if np.count_nonzero(self.mask_refitted[self.neighbor_indices_all[i]])
-            ],
+            [i for i in self.indices_all if np.count_nonzero(self.mask_refitted[self.neighbor_indices_all[i]])],
             dtype="int",
         )
-        self.locations_refit = np.take(
-            np.array(self.location), self.indices_refit, axis=0
-        )
+        self.locations_refit = np.take(np.array(self.location), self.indices_refit, axis=0)
 
     def _check_continuity(self) -> None:
         """Check continuity of centroid positions.
@@ -1818,9 +1689,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
         """
         self.refitting_iteration += 1
-        say(
-            f"\nthreshold for required components: {self.min_p:.3f}", logger=self.logger
-        )
+        say(f"\nthreshold for required components: {self.min_p:.3f}", logger=self.logger)
         self.determine_spectra_for_flagging()
         self._check_indices_refit()
         self._refitting()
@@ -1840,9 +1709,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         indices_neighbors = []
         spatial_coherence_refit_requirements = self._check_for_required_components(
             idx=index,
-            spatial_coherence_checks=self._check_continuity_centroids(
-                idx=index, loc=self.locations_refit[i]
-            ),
+            spatial_coherence_checks=self._check_continuity_centroids(idx=index, loc=self.locations_refit[i]),
         )
 
         if self._finalize:
@@ -1855,21 +1722,16 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         if len(spatial_coherence_refit_requirements["means_interval"].keys()) == 0:
             return [index, None, indices_neighbors, is_successful_refit]
 
-        spatial_coherence_refit_requirements[
-            "indices_refit"
-        ] = self._select_neighbors_to_use_for_refit(
+        spatial_coherence_refit_requirements["indices_refit"] = self._select_neighbors_to_use_for_refit(
             # TODO: Check if spatial_coherence_refit_requirements['weights'] >= self.w_min condition was already checked earlier
             indices=spatial_coherence_refit_requirements["indices_neighbors"][
-                spatial_coherence_refit_requirements["weights"]
-                >= (self.w_1 / np.sqrt(2))
+                spatial_coherence_refit_requirements["weights"] >= (self.w_1 / np.sqrt(2))
             ],
             means_interval=spatial_coherence_refit_requirements["means_interval"],
             n_centroids=spatial_coherence_refit_requirements["n_centroids"],
         )
 
-        for key, indices_neighbors in spatial_coherence_refit_requirements[
-            "indices_refit"
-        ].items():
+        for key, indices_neighbors in spatial_coherence_refit_requirements["indices_refit"].items():
             fit_results, refit = self._try_refit_with_individual_neighbors(
                 index=index,
                 spectrum=Spectrum(

@@ -22,9 +22,7 @@ def area_of_gaussian(amp: float, fwhm: float) -> float:
     return amp * fwhm / ((1.0 / np.sqrt(2 * np.pi)) * CONVERSION_STD_TO_FWHM)
 
 
-def single_component_gaussian_model(
-    amp: float, fwhm: float, mean: float, x: np.ndarray
-) -> np.ndarray:
+def single_component_gaussian_model(amp: float, fwhm: float, mean: float, x: np.ndarray) -> np.ndarray:
     """Return results of a Gaussian function.
 
     Parameters
@@ -97,9 +95,7 @@ def errs_vec_from_lmfit(lmfit_params):
     # # TODO: estimate errors via bootstrapping instead of setting them to zero
     # errs = [0 if err is None else err for err in errs]
     # return errs
-    return [
-        0 if value.stderr is None else value.stderr for value in lmfit_params.values()
-    ]
+    return [0 if value.stderr is None else value.stderr for value in lmfit_params.values()]
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
@@ -142,9 +138,7 @@ def paramvec_to_lmfit(
             params_max[ncomps : 2 * ncomps] = ncomps * [max_fwhm]
 
     for i in range(len(paramvec)):
-        params.add(
-            name=f"p{i + 1}", value=paramvec[i], min=params_min[i], max=params_max[i]
-        )
+        params.add(name=f"p{i + 1}", value=paramvec[i], min=params_min[i], max=params_max[i])
 
     return params
 

@@ -18,9 +18,7 @@ def get_neighbors(
     return_indices: bool = True,
     return_coordinates: bool = False,
     return_mask: bool = False,
-) -> Union[
-    np.ndarray, Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray]
-]:
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Determine pixel coordinates of neighboring pixels.
 
     Adapted from https://stackoverflow.com/a/34908879.
@@ -152,12 +150,8 @@ def group_fit_solutions(
 
         lst_of_grouped_indices = []
         for i in range(len(means)):
-            grouped_indices_means = np.where(
-                (np.abs(means - means[i]) < mean_separation)
-            )[0]
-            grouped_indices_fwhms = np.where(
-                (np.abs(fwhms - fwhms[i]) < fwhm_separation)
-            )[0]
+            grouped_indices_means = np.where((np.abs(means - means[i]) < mean_separation))[0]
+            grouped_indices_fwhms = np.where((np.abs(fwhms - fwhms[i]) < fwhm_separation))[0]
             ind = np.intersect1d(grouped_indices_means, grouped_indices_fwhms)
             lst_of_grouped_indices.append(list(ind))
 
@@ -224,9 +218,7 @@ def determine_average_values(
         mean_ini = np.mean(means)
         fwhm_ini = np.mean(fwhms)
 
-        if (
-            amp_max := upper_limit_for_amplitude(intensity_values, mean_ini, fwhm_ini)
-        ) < intensity_threshold:
+        if (amp_max := upper_limit_for_amplitude(intensity_values, mean_ini, fwhm_ini)) < intensity_threshold:
             fit_components.pop(key)
             continue
 

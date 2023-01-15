@@ -27,9 +27,7 @@ def main():
     #  (Optional) Plot some of the spectra and the estimated signal ranges
 
     #  Filepath to pickled dictionary of the prepared data.
-    path_to_pickled_file = Path(
-        "decomposition_grs", "gpy_prepared", "grs-test_field.pickle"
-    )
+    path_to_pickled_file = Path("decomposition_grs", "gpy_prepared", "grs-test_field.pickle")
     #  Directory in which the plots are saved.
     path_to_plots = Path("decomposition_grs", "gpy_plots")
     #  Here we select a subregion of the data cube, whose spectra we want to plot.

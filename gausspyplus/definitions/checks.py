@@ -11,9 +11,7 @@ class BaseChecks:
         if getattr(self, name) is None:
             setattr(self, name, value)
             if show_warning:
-                warnings.warn(
-                    f"No value for '{name}' supplied. Setting {name}={value}."
-                )
+                warnings.warn(f"No value for '{name}' supplied. Setting {name}={value}.")
 
     def raise_exception_if_attribute_is_none(self, attribute, error_message: str = ""):
         if getattr(self, attribute) is None:

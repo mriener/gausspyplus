@@ -17,9 +17,7 @@ def main():
     #  The following lines will override the corresponding parameter settings defined in 'gausspy+.ini'.
 
     #  Filepath to pickled dictionary of the prepared data.
-    decompose.path_to_pickle_file = Path(
-        "decomposition_grs", "gpy_prepared", "grs-test_field.pickle"
-    )
+    decompose.path_to_pickle_file = Path("decomposition_grs", "gpy_prepared", "grs-test_field.pickle")
     #  First smoothing parameter
     decompose.alpha1 = 2.58
     #  Second smoothing parameter
@@ -34,13 +32,9 @@ def main():
     #  Initialize the 'Finalize' class and read in the parameter settings from 'gausspy+.ini'.
     finalize = Finalize(config_file="gausspy+.ini")
     #  filepath to the pickled dictionary of the prepared data
-    finalize.path_to_pickle_file = Path(
-        "decomposition_grs", "gpy_prepared", "grs-test_field.pickle"
-    )
+    finalize.path_to_pickle_file = Path("decomposition_grs", "gpy_prepared", "grs-test_field.pickle")
     #  Filepath to the pickled dictionary of the decomposition results
-    finalize.path_to_decomp_file = Path(
-        "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin.pickle"
-    )
+    finalize.path_to_decomp_file = Path("decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin.pickle")
     #  Produce a FITS image showing the number of fitted components
     finalize.produce_component_map()
     #  Produce a FITS image showing the reduced chi-square values
@@ -51,9 +45,7 @@ def main():
     #  Filepath to pickled dictionary of the prepared data.
     path_to_pickled_file = decompose.path_to_pickle_file
     #  Filepath to pickled dictionary with the decomposition results
-    path_to_decomp_pickle = Path(
-        "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin.pickle"
-    )
+    path_to_decomp_pickle = Path("decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin.pickle")
     #  Directory in which the plots are saved.
     path_to_plots = Path("decomposition_grs", "gpy_plots")
     #  Here we select a subregion of the data cube, whose spectra we want to plot.

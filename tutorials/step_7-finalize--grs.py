@@ -15,9 +15,7 @@ def main():
     #  The following lines will override the corresponding parameter settings defined in 'gausspy+.ini'.
 
     #  filepath to the pickled dictionary of the prepared data
-    finalize.path_to_pickle_file = Path(
-        "decomposition_grs", "gpy_prepared", "grs-test_field.pickle"
-    )
+    finalize.path_to_pickle_file = Path("decomposition_grs", "gpy_prepared", "grs-test_field.pickle")
     #  Filepath to the pickled dictionary of the decomposition results
     finalize.path_to_decomp_file = Path(
         "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin_sf-p2.pickle"

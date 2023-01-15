@@ -29,9 +29,7 @@ def test_prepare_cube():
     prepare.log_output = False
     prepare.verbose = False
     prepare.prepare_cube()
-    with open(
-        ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle", "rb"
-    ) as pfile:
+    with open(ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle", "rb") as pfile:
         data_prepared = pickle.load(pfile)
 
     expected_values = [
@@ -50,9 +48,7 @@ def test_decompose_cube_gausspy():
     from gausspyplus.decomposition.decompose import GaussPyDecompose
 
     decompose = GaussPyDecompose()
-    decompose.path_to_pickle_file = str(
-        ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle"
-    )
+    decompose.path_to_pickle_file = str(ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle")
     decompose.alpha1 = 2.58
     decompose.alpha2 = 5.14
     decompose.suffix = "_g"
@@ -106,11 +102,7 @@ def test_decompose_cube_gausspy():
         sum(filter(is_not_none, data_decomposed_gplus["best_fit_rchi2"])),
         sum(filter(is_not_none, data_decomposed_gplus["best_fit_aicc"])),
         sum(map(sum, filter(is_not_none, data_decomposed_gplus["log_gplus"]))),
-        sum(
-            len(x)
-            for x in data_decomposed_gplus["log_gplus"]
-            if x is not None and bool(x)
-        ),
+        sum(len(x) for x in data_decomposed_gplus["log_gplus"] if x is not None and bool(x)),
     ]
     assert np.allclose(expected_values, actual_values)
 
@@ -122,13 +114,9 @@ def test_spatial_fitting_phase_1():
     from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
-    sp.path_to_pickle_file = str(
-        ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle"
-    )
+    sp.path_to_pickle_file = str(ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle")
     #  Filepath to the pickled dictionary of the decomposition results
-    sp.path_to_decomp_file = str(
-        ROOT / "tests" / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin.pickle"
-    )
+    sp.path_to_decomp_file = str(ROOT / "tests" / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin.pickle")
     sp.refit_blended = True
     sp.refit_neg_res_peak = True
     sp.refit_broad = True
@@ -141,9 +129,7 @@ def test_spatial_fitting_phase_1():
     sp.spatial_fitting()
 
     with open(
-        ROOT
-        / "tests"
-        / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin_sf-p1.pickle",
+        ROOT / "tests" / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin_sf-p1.pickle",
         "rb",
     ) as pfile:
         data_spatial_fitted_phase_1 = pickle.load(pfile)
@@ -164,9 +150,7 @@ def test_spatial_fitting_phase_1():
         sp.refitting_iteration,
         sum(filter(is_not_none, data_spatial_fitted_phase_1["N_components"])),
         sum(map(sum, filter(is_not_none, data_spatial_fitted_phase_1["fwhms_fit"]))),
-        sum(
-            map(sum, filter(is_not_none, data_spatial_fitted_phase_1["fwhms_fit_err"]))
-        ),
+        sum(map(sum, filter(is_not_none, data_spatial_fitted_phase_1["fwhms_fit_err"]))),
         sum(data_spatial_fitted_phase_1["refit_iteration"]),
     ]
     assert np.allclose(expected_values, actual_values)
@@ -177,15 +161,9 @@ def test_spatial_fitting_phase_2():
     from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
     sp = SpatialFitting()
-    sp.path_to_pickle_file = str(
-        ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle"
-    )
+    sp.path_to_pickle_file = str(ROOT / "tests" / f"test_grs/gpy_prepared/{filepath.stem}.pickle")
     #  Filepath to the pickled dictionary of the decomposition results
-    sp.path_to_decomp_file = str(
-        ROOT
-        / "tests"
-        / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin_sf-p1.pickle"
-    )
+    sp.path_to_decomp_file = str(ROOT / "tests" / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin_sf-p1.pickle")
     sp.refit_blended = False
     sp.refit_neg_res_peak = False
     sp.refit_broad = False
@@ -197,9 +175,7 @@ def test_spatial_fitting_phase_2():
     sp.spatial_fitting(continuity=True)
 
     with open(
-        ROOT
-        / "tests"
-        / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin_sf-p2.pickle",
+        ROOT / "tests" / f"test_grs/gpy_decomposed/{filepath.stem}_g+_fit_fin_sf-p2.pickle",
         "rb",
     ) as pfile:
         data_spatial_fitted_phase_2 = pickle.load(pfile)
@@ -215,9 +191,7 @@ def test_spatial_fitting_phase_2():
         sp.refitting_iteration,
         sum(filter(is_not_none, data_spatial_fitted_phase_2["N_components"])),
         sum(map(sum, filter(is_not_none, data_spatial_fitted_phase_2["fwhms_fit"]))),
-        sum(
-            map(sum, filter(is_not_none, data_spatial_fitted_phase_2["fwhms_fit_err"]))
-        ),
+        sum(map(sum, filter(is_not_none, data_spatial_fitted_phase_2["fwhms_fit_err"]))),
         sum(data_spatial_fitted_phase_2["refit_iteration"]),
     ]
     assert np.allclose(expected_values, actual_values)

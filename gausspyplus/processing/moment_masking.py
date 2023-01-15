@@ -84,9 +84,7 @@ class MomentMask(object):
         self.locations = list(itertools.product(range(yMax), range(xMax)))
 
         self.n_channels = self.data.shape[0]
-        self.max_consecutive_channels = determine_maximum_consecutive_channels(
-            self.n_channels, self.p_limit
-        )
+        self.max_consecutive_channels = determine_maximum_consecutive_channels(self.n_channels, self.p_limit)
 
         self.nan_mask = np.isnan(self.data)
         self.nan_mask_2D = np.zeros((yMax, xMax))
@@ -98,14 +96,10 @@ class MomentMask(object):
             self.noiseMap = open_fits_file(self.path_to_noise_map, get_header=False)
 
         if self.current_resolution_spatial is None:
-            self.current_resolution_spatial = (
-                abs(self.wcs.wcs.cdelt[0]) * self.wcs.wcs.cunit[0]
-            )
+            self.current_resolution_spatial = abs(self.wcs.wcs.cdelt[0]) * self.wcs.wcs.cunit[0]
 
         if self.current_resolution_spectral is None:
-            self.current_resolution_spectral = (
-                abs(self.wcs.wcs.cdelt[2]) * self.wcs.wcs.cunit[2]
-            )
+            self.current_resolution_spectral = abs(self.wcs.wcs.cdelt[2]) * self.wcs.wcs.cunit[2]
 
         if self.target_resolution_spatial is None:
             self.target_resolution_spatial = 2 * self.current_resolution_spatial
@@ -120,24 +114,12 @@ class MomentMask(object):
             )
 
         if self.target_resolution_spatial <= self.current_resolution_spatial:
-            raise Exception(
-                "target_resolution_spatial had to be >= current_resolution_spatial"
-            )
+            raise Exception("target_resolution_spatial had to be >= current_resolution_spatial")
         if self.target_resolution_spectral <= self.current_resolution_spectral:
-            raise Exception(
-                "target_resolution_spectral had to be >= current_resolution_spectral"
-            )
+            raise Exception("target_resolution_spectral had to be >= current_resolution_spectral")
 
-        self.n_s = round(
-            0.5
-            * self.target_resolution_spatial.value
-            / self.current_resolution_spatial.value
-        )
-        self.n_v = round(
-            0.5
-            * self.target_resolution_spectral.value
-            / self.current_resolution_spectral.value
-        )
+        self.n_s = round(0.5 * self.target_resolution_spatial.value / self.current_resolution_spatial.value)
+        self.n_v = round(0.5 * self.target_resolution_spectral.value / self.current_resolution_spectral.value)
 
     def moment_masking(self):
         say("Preparing cube ...", verbose=self.verbose)
@@ -277,9 +259,7 @@ class MomentMask(object):
 
         for i, rms in tqdm(enumerate(results_list)):
             if not isinstance(rms, np.float):
-                warnings.warn(
-                    f"Problems with entry {i} from resulting parallel_processing list, skipping entry"
-                )
+                warnings.warn(f"Problems with entry {i} from resulting parallel_processing list, skipping entry")
                 continue
             else:
                 ypos, xpos = self.locations[i]
@@ -309,9 +289,7 @@ class MomentMask(object):
         comments=[],
     ):
         if path_to_output_file is None:
-            path_to_output_file = self.get_path_to_output_file(
-                suffix=f"{suffix}_mom_{order}_map"
-            )
+            path_to_output_file = self.get_path_to_output_file(suffix=f"{suffix}_mom_{order}_map")
         hdu = fits.PrimaryHDU(data=self.data.copy(), header=self.header.copy())
         if slice_params is None:
             slice_params = self.slice_params
@@ -341,9 +319,7 @@ class MomentMask(object):
         comments=[],
     ):
         if path_to_output_file is None:
-            path_to_output_file = self.get_path_to_output_file(
-                suffix=f"{suffix}_pv_map"
-            )
+            path_to_output_file = self.get_path_to_output_file(suffix=f"{suffix}_pv_map")
         hdu = fits.PrimaryHDU(data=self.data.copy(), header=self.header.copy())
         if slice_params is None:
             slice_params = self.slice_params

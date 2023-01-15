@@ -28,12 +28,8 @@ def test_gaussian_fitting():
     training_set = GaussPyTrainingSet()
     rms = 0.10634302494716603
     training_set.n_channels = spectrum.size
-    training_set.maxStddev = (
-        training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
-    )
-    training_set.minStddev = (
-        training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
-    )
+    training_set.maxStddev = training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
+    training_set.minStddev = training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
     fit_values = training_set.gaussian_fitting(spectrum, rms)
     assert fit_values == [
         [0.49323248704016304, 182.4598447452132, 16.670207796744403],

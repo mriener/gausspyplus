@@ -47,12 +47,7 @@ def determine_maximum_consecutive_channels(n_channels: int, p_limit: float) -> i
             matrix[i, 0] = 0.5
             matrix[i, i + 1] = 0.5
         matrix[-1, -1] = 1.0
-        if (
-            np.linalg.matrix_power(matrix, n_channels - 1)[
-                0, n_consecutive_channels - 1
-            ]
-            < p_limit
-        ):
+        if np.linalg.matrix_power(matrix, n_channels - 1)[0, n_consecutive_channels - 1] < p_limit:
             return n_consecutive_channels
 
 
@@ -71,21 +66,13 @@ def intervals_where_mask_is_true(mask: np.ndarray) -> np.ndarray:
     """
     # TODO: return ranges as np.ndarray instead of list (.tolist() currently is still necessary for pytest to work)
     return (
-        np.flatnonzero(
-            np.diff(np.concatenate((np.array([False]), mask, np.array([False]))))
-        )
-        .reshape(-1, 2)
-        .tolist()
+        np.flatnonzero(np.diff(np.concatenate((np.array([False]), mask, np.array([False]))))).reshape(-1, 2).tolist()
     )
 
 
 # @jit(nopython=True)
-def _determine_peak_intervals(
-    spectrum: np.ndarray, peak: Literal["positive", "negative"] = "positive"
-) -> np.ndarray:
-    return intervals_where_mask_is_true(
-        mask=spectrum > 0 if peak == "positive" else spectrum < 0
-    )
+def _determine_peak_intervals(spectrum: np.ndarray, peak: Literal["positive", "negative"] = "positive") -> np.ndarray:
+    return intervals_where_mask_is_true(mask=spectrum > 0 if peak == "positive" else spectrum < 0)
 
 
 def _get_number_of_consecutive_channels(peak_intervals: np.ndarray) -> np.ndarray:
@@ -122,18 +109,10 @@ def determine_peaks(
     # TODO: rename peak to peak_type
     amp_threshold = 0 if amp_threshold is None else amp_threshold
     peak_intervals = _determine_peak_intervals(spectrum, peak=peak)
-    maximum_value_in_peak_interval = np.array(
-        [np.abs(spectrum[low:upp]).max() for low, upp in peak_intervals]
-    )
+    maximum_value_in_peak_interval = np.array([np.abs(spectrum[low:upp]).max() for low, upp in peak_intervals])
     exceeds_threshold = maximum_value_in_peak_interval > abs(amp_threshold)
     maximum_intensity_in_group = maximum_value_in_peak_interval[exceeds_threshold]
-    peak_intervals = np.array(
-        [
-            interval
-            for interval, is_valid in zip(peak_intervals, exceeds_threshold)
-            if is_valid
-        ]
-    )
+    peak_intervals = np.array([interval for interval, is_valid in zip(peak_intervals, exceeds_threshold) if is_valid])
     return (
         maximum_intensity_in_group * (1 if peak == "positive" else -1),
         peak_intervals,
@@ -181,9 +160,7 @@ def mask_channels(
 
     """
     mask = np.zeros(n_channels, dtype="bool")
-    ranges = pad_intervals(
-        intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels
-    )
+    ranges = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
     for (lower, upper) in ranges:
         mask[lower:upper] = True
 
@@ -194,9 +171,7 @@ def mask_channels(
     return mask
 
 
-def _correct_rms(
-    average_rms: Optional[float] = None, idx: Optional[int] = None
-) -> float:
+def _correct_rms(average_rms: Optional[float] = None, idx: Optional[int] = None) -> float:
     """Replace spurious rms noise value with average rms noise value (if available) or set noise value to NaN.
 
     This is a safeguard for spectra with bad baselines and/or insufficient continuum subtraction that render the noise
@@ -204,13 +179,9 @@ def _correct_rms(
     """
     info_index = f"with index {idx} " if idx is not None else ""
     info_action = (
-        f"Assuming average rms value of {average_rms}"
-        if average_rms is not None
-        else "Masking out spectrum."
+        f"Assuming average rms value of {average_rms}" if average_rms is not None else "Masking out spectrum."
     )
-    warnings.warn(
-        f"Could not determine noise for spectrum {info_index} (baseline issue?). {info_action}"
-    )
+    warnings.warn(f"Could not determine noise for spectrum {info_index} (baseline issue?). {info_action}")
     return average_rms or np.nan
 
 
@@ -232,32 +203,23 @@ def _identify_valid_noise_values(
         return np.empty(0)
 
     #  Step 2: remove features with high positive or negative data values
-    spectrum_negative_values = spectrum[
-        ~np.logical_or(mask_for_broad_features, spectrum > 0)
-    ]
-    reflected_noise = np.concatenate(
-        (spectrum_negative_values, np.abs(spectrum_negative_values))
-    )
+    spectrum_negative_values = spectrum[~np.logical_or(mask_for_broad_features, spectrum > 0)]
+    reflected_noise = np.concatenate((spectrum_negative_values, np.abs(spectrum_negative_values)))
 
     spectrum_with_broad_features_set_to_zero = spectrum.copy()
     spectrum_with_broad_features_set_to_zero[mask_for_broad_features] = 0
 
     channels_exceeding_threshold = np.flatnonzero(
-        np.abs(spectrum_with_broad_features_set_to_zero)
-        > 5 * median_absolute_deviation(reflected_noise)
+        np.abs(spectrum_with_broad_features_set_to_zero) > 5 * median_absolute_deviation(reflected_noise)
     )
     if channels_exceeding_threshold.size > 0:
-        peak_interval_has_high_value = (
-            np.digitize(channels_exceeding_threshold, peak_intervals[:, 0]) - 1
-        )
+        peak_interval_has_high_value = np.digitize(channels_exceeding_threshold, peak_intervals[:, 0]) - 1
         mask_for_high_features = mask_channels(
             n_channels=spectrum.size,
             ranges=peak_intervals[peak_interval_has_high_value],
             pad_channels=pad_channels,
         )
-        has_valid_noise_channels = ~np.logical_or(
-            mask_for_broad_features, mask_for_high_features
-        )
+        has_valid_noise_channels = ~np.logical_or(mask_for_broad_features, mask_for_high_features)
     else:
         has_valid_noise_channels = ~mask_for_broad_features
 
@@ -278,9 +240,7 @@ def _determine_valid_noise_channels_and_calculate_rms_noise(
     negative_peaks = _determine_peak_intervals(spectrum, peak="negative")
     peak_intervals = np.concatenate((positive_peaks, negative_peaks))
     peak_intervals = peak_intervals[np.argsort(peak_intervals[:, 0])]
-    noise_values = _identify_valid_noise_values(
-        spectrum, peak_intervals, max_consecutive_channels, pad_channels
-    )
+    noise_values = _identify_valid_noise_values(spectrum, peak_intervals, max_consecutive_channels, pad_channels)
 
     if noise_values.size <= min_fraction_noise_channels * spectrum.size:
         rms_noise = _correct_rms(average_rms=average_rms, idx=idx)
@@ -325,9 +285,7 @@ def determine_noise(
     """
     # TODO: test functionality of refactored function and compare the performance to the previous implementation
     if max_consecutive_channels is None:
-        max_consecutive_channels = determine_maximum_consecutive_channels(
-            n_channels=spectrum.size, p_limit=0.02
-        )
+        max_consecutive_channels = determine_maximum_consecutive_channels(n_channels=spectrum.size, p_limit=0.02)
     np.random.seed(random_seed)  # TODO: check if this is really needed here?
 
     # TODO: The following is only a problem if channels WITHIN the spectrum are NaNs, so that the calculation of

@@ -6,9 +6,7 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 
 
-def set_up_logger(
-    parentDirname: Union[str, Path], filename: str, method: str = "g+_decomposition"
-) -> logging.Logger:
+def set_up_logger(parentDirname: Union[str, Path], filename: str, method: str = "g+_decomposition") -> logging.Logger:
     #  setting up logger
     now = datetime.now()
     date_string = "{}{}{}-{}{}{}".format(
@@ -64,6 +62,4 @@ def say(
 
 
 def format_warning(message, category, filename, lineno, file=None, line=None):
-    sys.stderr.write(
-        "\n\033[93mWARNING:\033[0m {}: {}\n".format(category.__name__, message)
-    )
+    sys.stderr.write("\n\033[93mWARNING:\033[0m {}: {}\n".format(category.__name__, message))

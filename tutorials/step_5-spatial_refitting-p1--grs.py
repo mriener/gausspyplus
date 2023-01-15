@@ -17,13 +17,9 @@ def main():
     #  The following lines will override the corresponding parameter settings defined in 'gausspy+.ini'.
 
     #  filepath to the pickled dictionary of the prepared data
-    sp.path_to_pickle_file = os.path.join(
-        "decomposition_grs", "gpy_prepared", "grs-test_field.pickle"
-    )
+    sp.path_to_pickle_file = os.path.join("decomposition_grs", "gpy_prepared", "grs-test_field.pickle")
     #  Filepath to the pickled dictionary of the decomposition results
-    sp.path_to_decomp_file = os.path.join(
-        "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin.pickle"
-    )
+    sp.path_to_decomp_file = os.path.join("decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin.pickle")
     #  Try to refit blended fit components
     sp.refit_blended = True
     #  Try to refit spectra with negative residual features
@@ -57,9 +53,7 @@ def main():
     #  Filepath to pickled dictionary of the prepared data.
     finalize.path_to_pickle_file = sp.path_to_pickle_file
     #  Filepath to the pickled dictionary with the decomposition results
-    path_to_decomp_pickle = Path(
-        "decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin_sf-p1.pickle"
-    )
+    path_to_decomp_pickle = Path("decomposition_grs", "gpy_decomposed", "grs-test_field_g+_fit_fin_sf-p1.pickle")
     #  Load the decomposition results
     finalize.path_to_decomp_file = path_to_decomp_pickle
     #  Produce a FITS image showing the number of fitted components

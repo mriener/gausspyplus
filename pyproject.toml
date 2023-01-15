@@ -24,6 +24,9 @@ pre-commit = "2.20.0"
 [tool.poetry.scripts]
 streamlit = "poetry_run:streamlit"
 
+[tool.black]
+line-length = 119
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
