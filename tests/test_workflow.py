@@ -15,8 +15,21 @@ def is_not_none(x):
     return x is not None
 
 
+def _remove_old_files():
+    for dirname in ["gpy_prepared", "gpy_decomposed"]:
+        if (path_files := ROOT / "tests" / "test_grs" / dirname).exists():
+            for file in [
+                filepath
+                for filepath in path_files.iterdir()
+                if filepath.is_file() and filepath.stem.startswith("grs-test_field_5x5")
+            ]:
+                file.unlink()
+
+
 def test_prepare_cube():
     from gausspyplus.preparation.prepare import GaussPyPrepare
+
+    _remove_old_files()
 
     prepare = GaussPyPrepare()
     prepare.path_to_file = ROOT / "data" / "grs-test_field_5x5.fits"

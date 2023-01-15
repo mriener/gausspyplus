@@ -1,5 +1,6 @@
 import os
 import pickle
+import shutil
 from pathlib import Path
 
 from astropy.io import fits
@@ -18,9 +19,22 @@ def is_not_none(x):
     return x is not None
 
 
+def _remove_old_files():
+    for dirname in ["gpy_prepared", "gpy_decomposed"]:
+        if (path_files := ROOT / "tests" / "test_grs" / dirname).exists():
+            for file in [
+                filepath
+                for filepath in path_files.iterdir()
+                if filepath.is_file() and filepath.stem.startswith("grs-test_field_10x10")
+            ]:
+                file.unlink()
+
+
 # @pytest.mark.skip(reason="Temporarily disabled to make tests run quicker")
 def test_prepare_cube():
     from gausspyplus.preparation.prepare import GaussPyPrepare
+
+    _remove_old_files()
 
     prepare = GaussPyPrepare()
     prepare.path_to_file = str(filepath)
