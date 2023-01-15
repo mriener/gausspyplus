@@ -36,7 +36,7 @@ class Model:
     parameters_max_values: List = None  # params_max
     _pvalue: float = None  # pvalue
     _quality_control: List = None  # quality_control
-    _log_gplus: List = None
+    _log_of_successful_refits: List = None
 
     @property
     def parameters(self) -> List:
@@ -168,8 +168,8 @@ class Model:
         mode: Literal["positive_residual_peak", "negative_residual_peak", "broad", "blended"],
     ) -> None:
         if self.new_best_fit:
-            log_gplus = self.log_gplus
-            log_gplus.append(
+            log_of_successful_refits = self.log_of_successful_refits
+            log_of_successful_refits.append(
                 {
                     "positive_residual_peak": 1,
                     "negative_residual_peak": 2,
@@ -177,8 +177,12 @@ class Model:
                     "blended": 4,
                 }[mode]
             )
-            self._log_gplus = log_gplus
+            self._log_of_successful_refits = log_of_successful_refits
 
     @property
-    def log_gplus(self) -> List:
-        return [] if self._log_gplus is None else self._log_gplus
+    def log_of_successful_refits(self) -> List:
+        return [] if self._log_of_successful_refits is None else self._log_of_successful_refits
+
+    @log_of_successful_refits.setter
+    def log_of_successful_refits(self, log: List) -> None:
+        self._log_of_successful_refits = log

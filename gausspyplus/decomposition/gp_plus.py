@@ -476,6 +476,8 @@ def choose_better_model_based_on_aicc(old_model: Model, new_model: Model) -> Mod
     if (new_model.aicc < old_model.aicc) and not np.isclose(new_model.aicc, old_model.aicc, atol=1e-1):
         new_model.new_best_fit = True
         new_model.quality_control = old_model.quality_control + new_model.quality_control
+        # TODO: Verify that log_of_successful_refits gives the correct results
+        new_model.log_of_successful_refits = old_model.log_of_successful_refits
         return new_model
     else:
         old_model.new_best_fit = False
@@ -813,37 +815,6 @@ def check_for_peaks_in_residual(
     return chosen_model, fitted_residual_peaks
 
 
-# TODO: Add function 'log_in_case_of_successful_refit' instead to Model
-def _log_new_fit(
-    new_fit: bool,
-    log_gplus: List,
-    mode: Literal["positive_residual_peak", "negative_residual_peak", "broad", "blended"] = "residual",
-) -> List:
-    """Log the successful refits of a spectrum.
-
-    Parameters
-    ----------
-    new_fit : If 'True', the spectrum was successfully refit.
-    log_gplus : Log of all previous successful refits of the spectrum.
-    mode : Specifies the feature that was refit or used for a new successful refit.
-
-    Returns
-    -------
-    log_gplus : Updated log of successful refits of the spectrum.
-
-    """
-    if new_fit:
-        log_gplus.append(
-            {
-                "positive_residual_peak": 1,
-                "negative_residual_peak": 2,
-                "broad": 3,
-                "blended": 4,
-            }[mode]
-        )
-    return log_gplus
-
-
 def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFit) -> Tuple[Dict, int, int, List]:
     """Short summary.
 
@@ -857,7 +828,7 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
     model : Best fit model
     N_neg_res_peak : Number of negative residual features that occur in the best fit of the spectrum.
     N_blended : Number of blended Gaussian components that occur in the best fit of the spectrum.
-    log_gplus : Log of all successful refits of the spectrum.
+    log_of_successful_refits : Log of all successful refits of the spectrum.
 
     """
 
@@ -872,7 +843,6 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
     # Try to improve fit by searching for peaks in the residual
     first_run = True
     fitted_residual_peaks = []
-    log_gplus = []
     selected_for_refit = {
         "negative_residual_peak": settings_improve_fit.refit_neg_res_peak,
         "broad": settings_improve_fit.refit_broad,
@@ -892,7 +862,7 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
             model, fitted_residual_peaks = check_for_peaks_in_residual(
                 model, settings_improve_fit, fitted_residual_peaks
             )
-            log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode="positive_residual_peak")
+            model.log_in_case_of_successful_refit(mode="positive_residual_peak")
             if not model.new_best_fit:
                 break
         n_fitted_residual_peaks_after_check = len(fitted_residual_peaks)
@@ -906,7 +876,7 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
             while selected_for_refit[mode]:
                 model.new_best_fit = False
                 model = refit_function[mode](model=model, settings_improve_fit=settings_improve_fit)
-                log_gplus = _log_new_fit(new_fit=model.new_best_fit, log_gplus=log_gplus, mode=mode)
+                model.log_in_case_of_successful_refit(mode=mode)
                 if not model.new_best_fit:
                     break
 
@@ -923,7 +893,7 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
         separation_factor=settings_improve_fit.separation_factor,
     )
 
-    return model.best_fit_info, N_neg_res_peak, N_blended, log_gplus
+    return (model.best_fit_info, N_neg_res_peak, N_blended, model.log_of_successful_refits)
 
 
 if __name__ == "__main__":
