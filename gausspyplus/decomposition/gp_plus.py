@@ -875,14 +875,4 @@ def try_to_improve_fitting(model: Model, settings_improve_fit: SettingsImproveFi
             break
         first_run = False
 
-    return (
-        model.best_fit_info,
-        model.number_of_negative_residual_peaks(settings_improve_fit.snr_negative),
-        model.number_of_blended_components(settings_improve_fit.separation_factor),
-        model.log_of_successful_refits,
-    )
-
-
-if __name__ == "__main__":
-    model = Model()
-    model.parameters = [1, 10, 20]
+    return model
