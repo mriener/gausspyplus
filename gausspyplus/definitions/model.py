@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Literal
+from typing import List, Literal
 
 import numpy as np
 
@@ -51,6 +51,7 @@ class Model:
         if len(self._parameters) % 3 != 0:
             raise Exception("One or more fit parameters are missing")
         ncomps = number_of_gaussian_components(params=values)
+        # TODO: Replace split_params with np.split?
         self._amps, self._fwhms, self._means = split_params(params=values, ncomps=ncomps)
         self._n_components = ncomps
         self._modelled_intensity_values = multi_component_gaussian_model(
@@ -147,24 +148,6 @@ class Model:
     @quality_control.setter
     def quality_control(self, value: List):
         self._quality_control = value
-
-    @property
-    def best_fit_info(self) -> Dict:
-        """Return best_fit_info dictionary from Model dataclass"""
-        return {
-            "params_fit": self.parameters,
-            "params_errs": self.parameter_uncertainties,
-            "ncomps_fit": self.n_components,
-            "best_fit_final": self.modelled_intensity_values,
-            "residual": self.residual,
-            "rchi2": self.rchi2,
-            "aicc": self.aicc,
-            "new_fit": self.new_best_fit,
-            "params_min": self.parameters_min_values,
-            "params_max": self.parameters_max_values,
-            "pvalue": self.pvalue,
-            "quality_control": self.quality_control,
-        }
 
     def log_in_case_of_successful_refit(
         self,

@@ -105,9 +105,7 @@ def _initial_guess(
     # Take regularized derivatives
     t0 = time.time()
     say(f"Convolution sigma [pixels]: {alpha}", verbose=verbose)
-    u, u2, u3, u4 = _determine_derivatives(
-        data, dv=np.abs(vel[1] - vel[0]), gauss_sigma=alpha
-    )
+    u, u2, u3, u4 = _determine_derivatives(data, dv=np.abs(vel[1] - vel[0]), gauss_sigma=alpha)
     say(
         "...took {0:4.2f} seconds per derivative.".format((time.time() - t0) / 4.0),
         verbose=verbose,
@@ -121,9 +119,7 @@ def _initial_guess(
 
     if SNR2_thresh > 0:
         wsort = np.argsort(np.abs(u2))
-        RMSD2 = (
-            np.std(u2[wsort[: int(0.5 * len(u2))]]) / 0.377
-        )  # RMS based in +-1 sigma fluctuations
+        RMSD2 = np.std(u2[wsort[: int(0.5 * len(u2))]]) / 0.377  # RMS based in +-1 sigma fluctuations
         say(f"Second derivative noise: {RMSD2}", verbose=verbose)
         thresh2 = -RMSD2 * SNR2_thresh
         say(f"Second derivative threshold: {thresh2}", verbose=verbose)
@@ -140,9 +136,7 @@ def _initial_guess(
         ),
         axis=0,
     )
-    indices_of_offsets = np.flatnonzero(
-        np.abs(np.diff(np.sign(u3))) * mask
-    )  # Index offsets
+    indices_of_offsets = np.flatnonzero(np.abs(np.diff(np.sign(u3))) * mask)  # Index offsets
     fvel = interp1d(np.arange(len(vel)), vel)  # Converts from index -> x domain
     offsets = fvel(indices_of_offsets + 0.5)  # Velocity offsets
     N_components = len(offsets)
@@ -161,9 +155,7 @@ def _initial_guess(
         for i in range(FF_matrix.shape[0]):
             for j in range(FF_matrix.shape[1]):
                 FF_matrix[i, j] = np.exp(
-                    -((offsets[i] - offsets[j]) ** 2)
-                    / 2
-                    / (fwhms[j] / CONVERSION_STD_TO_FWHM) ** 2
+                    -((offsets[i] - offsets[j]) ** 2) / 2 / (fwhms[j] / CONVERSION_STD_TO_FWHM) ** 2
                 )
         amps_new = lstsq(FF_matrix, amps, rcond=None)[0]
         if np.all(amps_new > 0):
@@ -198,18 +190,10 @@ def AGD(
     phase: Literal["one", "two"] = "one",
 ) -> Dict:
     """Autonomous Gaussian Decomposition."""
-    max_amp = (
-        settings_improve_fit.max_amp_factor * np.max(data)
-        if settings_improve_fit is not None
-        else None
-    )
+    max_amp = settings_improve_fit.max_amp_factor * np.max(data) if settings_improve_fit is not None else None
     if settings_improve_fit is not None:
         settings_improve_fit.max_amp = max_amp
-    improve_fitting = (
-        settings_improve_fit.improve_fitting
-        if settings_improve_fit is not None
-        else False
-    )
+    improve_fitting = settings_improve_fit.improve_fitting if settings_improve_fit is not None else False
 
     say("\n  --> AGD() \n", verbose=verbose)
 
@@ -265,13 +249,9 @@ def AGD(
             # Error function for intermediate optimization
             def objectiveD2_leastsq(paramslm):
                 params = vals_vec_from_lmfit(paramslm)
-                model0 = multi_component_gaussian_model(
-                    *np.split(np.array(params), 3), vel
-                )
+                model0 = multi_component_gaussian_model(*np.split(np.array(params), 3), vel)
                 model2 = np.diff(np.diff(model0.ravel())) / dv / dv
-                resids1 = (
-                    fitmask[1:-1] * (model2 - agd_phase1["u2"][1:-1]) / errors[1:-1]
-                )
+                resids1 = fitmask[1:-1] * (model2 - agd_phase1["u2"][1:-1]) / errors[1:-1]
                 resids2 = ~fitmask * (model0 - data) / errors / 10.0
                 return np.append(resids1, resids2)
 
@@ -281,9 +261,7 @@ def AGD(
             lmfit_params = paramvec_to_lmfit(
                 paramvec=params_guess_phase1,
                 max_amp=max_amp,
-                max_fwhm=settings_improve_fit.max_fwhm
-                if settings_improve_fit is not None
-                else None,
+                max_fwhm=settings_improve_fit.max_fwhm if settings_improve_fit is not None else None,
             )
             result = lmfit_minimize(objectiveD2_leastsq, lmfit_params, method="leastsq")
             params_fit_phase1 = vals_vec_from_lmfit(result.params)
@@ -299,9 +277,7 @@ def AGD(
                     *np.split(np.array(params_fit_phase1), 3), vel
                 ).ravel()
                 median_window = 2 * 10 ** ((np.log10(alpha1) + 2.187) / 3.859)
-                residuals = median_filter(
-                    data - intermediate_model, np.int64(median_window)
-                )
+                residuals = median_filter(data - intermediate_model, np.int64(median_window))
             # Finished producing residual signal # ---------------------------
 
         # Search for phase-two guesses
@@ -340,10 +316,7 @@ def AGD(
         def objective_leastsq(paramslm):
             params = vals_vec_from_lmfit(paramslm)
             resids = (
-                multi_component_gaussian_model(
-                    *np.split(np.array(params), 3), vel
-                ).ravel()
-                - data.ravel()
+                multi_component_gaussian_model(*np.split(np.array(params), 3), vel).ravel() - data.ravel()
             ) / errors
             return resids
 
@@ -358,46 +331,35 @@ def AGD(
         say(f"Final fit took {time.time() - t0} seconds.", verbose=verbose)
     else:
         params_fit = []
+        params_errs = []
+
+    # The model object should be initialized already earlier to simplify the previous code
+    model = Model(
+        spectrum=Spectrum(
+            intensity_values=data,
+            channels=vel,
+            rms_noise=errors[0],
+            signal_intervals=signal_ranges,
+            noise_spike_intervals=noise_spike_ranges,
+        )
+    )
+    model.parameters = params_fit
+    model.parameter_uncertainties = params_errs
 
     # Try to improve the fit
     # ----------------------
     if improve_fitting:
-        model = Model(
-            spectrum=Spectrum(
-                intensity_values=data,
-                channels=vel,
-                rms_noise=errors[0],
-                signal_intervals=signal_ranges,
-                noise_spike_intervals=noise_spike_ranges,
-            )
-        )
-        model.parameters = params_fit
-        best_fit_info, N_neg_res_peak, N_blended, log_gplus = try_to_improve_fitting(
-            model=model, settings_improve_fit=settings_improve_fit
-        )
+        model = try_to_improve_fitting(model, settings_improve_fit)
 
-        params_fit = best_fit_info["params_fit"]
-        params_errs = best_fit_info["params_errs"]
-        ncomps_guess_final = best_fit_info["ncomps_fit"]
-    else:
-        best_fit_info = None
-
-    # TODO: Simplify the parameters for this function
     if plot:
         plot_fit_stages(
-            data,
-            errors,
-            vel,
-            params_fit,
-            ncomps_guess_final,
+            model,
             improve_fitting,
             perform_final_fit,
             ncomps_guess_phase2,
             agd_phase1,
             phase,
-            residuals,
             agd_phase2,
-            best_fit_info=best_fit_info,
             params_fit_phase1=params_fit_phase1,
         )
 
@@ -405,26 +367,26 @@ def AGD(
     # -----------------------------------
     odict = {
         "initial_parameters": params_guess_final,
-        "N_components": ncomps_guess_final,
+        "N_components": model.n_components,
         "index": idx,
     }
-    if perform_final_fit and (ncomps_guess_final > 0):
+    if perform_final_fit and (model.n_components > 0):
         odict = {
             **odict,
-            **{"best_fit_parameters": params_fit, "best_fit_errors": params_errs},
+            **{"best_fit_parameters": model.parameters, "best_fit_errors": model.parameter_uncertainties},
         }
 
     if improve_fitting:
         odict = {
             **odict,
             **{
-                "best_fit_rchi2": best_fit_info["rchi2"],
-                "best_fit_aicc": best_fit_info["aicc"],
-                "pvalue": best_fit_info["pvalue"],
-                "N_neg_res_peak": N_neg_res_peak,
-                "N_blended": N_blended,
-                "log_gplus": log_gplus,
-                "quality_control": best_fit_info["quality_control"],
+                "best_fit_rchi2": model.rchi2,
+                "best_fit_aicc": model.aicc,
+                "pvalue": model.pvalue,
+                "N_neg_res_peak": model.number_of_negative_residual_peaks(settings_improve_fit.snr_negative),
+                "N_blended": model.number_of_blended_components(settings_improve_fit.separation_factor),
+                "log_gplus": model.log_of_successful_refits,
+                "quality_control": model.quality_control,
             },
         }
 

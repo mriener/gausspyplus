@@ -18,11 +18,11 @@ import matplotlib.pyplot as plt
 from astropy import units as u
 from tqdm import tqdm
 
-from gausspyplus.decomposition.fit_quality_checks import goodness_of_fit
 from gausspyplus.decomposition.gaussian_functions import (
     single_component_gaussian_model,
     multi_component_gaussian_model,
 )
+from gausspyplus.definitions.model import Model
 from gausspyplus.processing.spectral_cube_functions import (
     get_spectral_axis,
     correct_header,
@@ -509,33 +509,20 @@ def plot_spectra(
 
 
 def plot_fit_stages(
-    data: np.ndarray,
-    errors: np.ndarray,
-    vel: np.ndarray,
-    params_fit: List,
-    ncomps_guess_final: int,
+    model: Model,
     improve_fitting: bool,
     perform_final_fit: bool,
     ncomps_guess_phase2: int,
     agd_phase1: Dict,
     phase,
-    residuals,
     agd_phase2,
-    best_fit_info: Optional[Dict] = None,
     params_fit_phase1: Optional[List] = None,
 ):
     #                       P L O T T I N G
-    print(("params_fit:", params_fit))
+    print(("params_fit:", model.parameters))
 
-    best_fit_final = multi_component_gaussian_model(*np.split(np.array(params_fit), 3), vel)
-
-    if improve_fitting:
-        rchi2 = best_fit_info["rchi2"]
-        name = "GaussPy+"
-    else:
-        name = "GaussPy"
-        #  TODO: define mask from signal_ranges
-        rchi2 = goodness_of_fit(data, best_fit_final, errors, ncomps_guess_final)
+    intensity_values = model.spectrum.intensity_values
+    channels = model.spectrum.channels
 
     # Set up figure
     fig = plt.figure("AGD results", [16, 12])
@@ -545,10 +532,10 @@ def plot_fit_stages(
     ax4 = fig.add_axes([0.5, 0.1, 0.4, 0.4])  # Final fit
 
     # Decorations
-    plt.figtext(0.52, 0.47, f"Final fit ({name}+)")
+    plt.figtext(0.52, 0.47, f"Final fit ({'GaussPy+' if improve_fitting else 'GaussPy'})")
     if perform_final_fit:
-        plt.figtext(0.52, 0.45, f"Reduced Chi2: {rchi2:3.3f}")
-        plt.figtext(0.52, 0.43, f"N components: {ncomps_guess_final}")
+        plt.figtext(0.52, 0.45, f"Reduced Chi2: {model.rchi2:3.3f}")
+        plt.figtext(0.52, 0.43, f"N components: {model.n_components}")
 
     plt.figtext(0.12, 0.47, "Phase-two initial guess")
     plt.figtext(0.12, 0.45, f"N components: {ncomps_guess_phase2}")
@@ -561,26 +548,26 @@ def plot_fit_stages(
     # Initial Guesses (Panel 1)
     # -------------------------
     ax1.xaxis.tick_top()
-    u2_scale = 1.0 / np.max(np.abs(agd_phase1["u2"])) * np.max(data) * 0.5
+    u2_scale = 1.0 / np.max(np.abs(agd_phase1["u2"])) * np.max(intensity_values) * 0.5
     ax1.axhline(color="black", linewidth=0.5)
-    ax1.plot(vel, data, "-k")
-    ax1.plot(vel, agd_phase1["u2"] * u2_scale, "-r")
-    ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh"], "--k")
-    ax1.plot(vel, np.ones(len(vel)) * agd_phase1["thresh2"] * u2_scale, "--r")
+    ax1.plot(channels, intensity_values, "-k")
+    ax1.plot(channels, agd_phase1["u2"] * u2_scale, "-r")
+    ax1.axhline(agd_phase1["thresh"], color="k", ls="dashed")
+    ax1.axhline(agd_phase1["thresh2"] * u2_scale, color="r", ls="dashed")
 
     for amp, fwhm, mean in zip(agd_phase1["amps"], agd_phase1["fwhms"], agd_phase1["means"]):
-        ax1.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
+        ax1.plot(channels, single_component_gaussian_model(amp, fwhm, mean, channels), "-g")
 
     # Plot intermediate fit components (Panel 2)
     # ------------------------------------------
     ax2.xaxis.tick_top()
     ax2.axhline(color="black", linewidth=0.5)
-    ax2.plot(vel, data, "-k")
+    ax2.plot(channels, intensity_values, "-k")
     ax2.yaxis.tick_right()
     for amp, fwhm, mean in zip(*np.split(np.array(params_fit_phase1), 3)):
         ax2.plot(
-            vel,
-            single_component_gaussian_model(amp, fwhm, mean, vel),
+            channels,
+            single_component_gaussian_model(amp, fwhm, mean, channels),
             "-",
             color="blue",
         )
@@ -588,29 +575,33 @@ def plot_fit_stages(
     # Residual spectrum (Panel 3)
     # -----------------------------
     if phase == "two":
-        u2_phase2_scale = 1.0 / np.abs(agd_phase2["u2"]).max() * np.max(residuals) * 0.5
+        residual_after_intermediate_fit = intensity_values - multi_component_gaussian_model(
+            *np.split(np.array(params_fit_phase1), 3),
+            channels,
+        )
+        u2_phase2_scale = 1.0 / np.abs(agd_phase2["u2"]).max() * np.max(residual_after_intermediate_fit) * 0.5
         ax3.axhline(color="black", linewidth=0.5)
-        ax3.plot(vel, residuals, "-k")
-        ax3.plot(vel, np.ones(len(vel)) * agd_phase2["thresh"], "--k")
-        ax3.plot(vel, np.ones(len(vel)) * agd_phase2["thresh2"] * u2_phase2_scale, "--r")
-        ax3.plot(vel, agd_phase2["u2"] * u2_phase2_scale, "-r")
+        ax3.plot(channels, residual_after_intermediate_fit, "-k")
+        ax3.axhline(agd_phase2["thresh"], color="k", ls="dashed")
+        ax3.axhline(agd_phase2["thresh2"] * u2_phase2_scale, color="r", ls="dashed")
+        ax3.plot(channels, agd_phase2["u2"] * u2_phase2_scale, "-r")
 
         for amp, fwhm, mean in zip(agd_phase2["amps"], agd_phase2["fwhms"], agd_phase2["means"]):
-            ax3.plot(vel, single_component_gaussian_model(amp, fwhm, mean, vel), "-g")
+            ax3.plot(channels, single_component_gaussian_model(amp, fwhm, mean, channels), "-g")
 
     # Plot best-fit model (Panel 4)
     # -----------------------------
     if perform_final_fit:
         ax4.yaxis.tick_right()
         ax4.axhline(color="black", linewidth=0.5)
-        ax4.plot(vel, data, label="data", color="black")
-        for amp, fwhm, mean in zip(*np.split(np.array(params_fit), 3)):
+        ax4.plot(channels, intensity_values, label="data", color="black")
+        for amp, fwhm, mean in zip(model.amps, model.fwhms, model.means):
             ax4.plot(
-                vel,
-                single_component_gaussian_model(amp, fwhm, mean, vel),
+                channels,
+                single_component_gaussian_model(amp, fwhm, mean, channels),
                 "--",
                 color="orange",
             )
-        ax4.plot(vel, best_fit_final, "-", color="orange", linewidth=2)
+        ax4.plot(channels, model.modelled_intensity_values, "-", color="orange", linewidth=2)
 
     plt.show()
