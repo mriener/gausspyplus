@@ -369,7 +369,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         ).flatten()
 
         mask_neighbor = np.logical_or(
-            np.where(self.nan_mask, False, ncomps_wmedian > self.max_diff_comps),
+            np.where(self.nan_mask, False, self.ncomps - ncomps_wmedian > self.max_diff_comps),
             np.where(self.nan_mask, False, ncomps_jumps > self.n_max_jump_comps),
         )
         return mask_neighbor, ncomps_wmedian, ncomps_jumps
