@@ -481,13 +481,13 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         text = textwrap.dedent(
             f"""
             {n_indices_refit} out of {n_spectra} spectra ({n_fraction_refit:.2%}) selected for refitting:
-             - {n_refit_blended} spectra w/ blended components ({n_flagged_blended} flagged)
-             - {n_refit_neg_res_peak} spectra w/ negative residual feature ({n_flagged_neg_res_peak} flagged)
-             - {n_refit_broad} spectra w/ broad feature ({n_flagged_broad} flagged)
-             \t (info: {self.mask_broad_limit.sum()} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
-             - {n_refit_rchi2} spectra w/ high rchi2 value ({n_flagged_rchi2} flagged)
-             - {n_refit_residual} spectra w/ residual not passing normality test ({n_flagged_residual} flagged)
-             - {n_refit_ncomps} spectra w/ differing number of components ({n_flagged_ncomps} flagged)"""
+             - {n_refit_blended} spectra with blended components ({n_flagged_blended} flagged)
+             - {n_refit_neg_res_peak} spectra with negative residual feature ({n_flagged_neg_res_peak} flagged)
+             - {n_refit_broad} spectra with broad feature ({n_flagged_broad} flagged)
+             \t (info: {self.mask_broad_limit.sum()} spectra with a FWHM > {int(self.max_fwhm)} channels)
+             - {n_refit_rchi2} spectra with high rchi2 value ({n_flagged_rchi2} flagged)
+             - {n_refit_residual} spectra with residual not passing normality test ({n_flagged_residual} flagged)
+             - {n_refit_ncomps} spectra with differing number of components ({n_flagged_ncomps} flagged)"""
         )
         say(text, logger=self.logger)
 
@@ -515,10 +515,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
     def _refitting(self) -> None:
         """Refit spectra with multiprocessing routine."""
-        say(
-            f"\nstart refit iteration #{self.refitting_iteration}...",
-            logger=self.logger,
-        )
+        say(f"\nstart refit iteration #{self.refitting_iteration}...", logger=self.logger)
 
         #  initialize the multiprocessing routine
 
@@ -537,7 +534,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             return results_list
 
         #  reset the mask for spectra selected for refitting
-        self.mask_refitted = np.array([0] * self.n_indices)
+        self.mask_refitted = np.zeros(self.n_indices)
 
         keys = [
             "amplitudes_fit",
@@ -592,7 +589,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             if self._stopping_criterion([count_refitted]):
                 self.min_p -= self.w_2
                 self.list_n_refit = [[self.length]]
-                self.mask_refitted = np.array([1] * self.n_indices)
+                self.mask_refitted = np.ones(self.n_indices)
             else:
                 self.list_n_refit.append([count_refitted])
 
