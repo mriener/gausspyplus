@@ -345,7 +345,7 @@ class Finalize(BaseChecks):
             table_results[key].format = "{0:.4f}"
 
         if save:
-            filename = self.fin_filename + ".dat"
+            filename = f"{self.fin_filename}.dat"
             path_to_table = os.path.join(self.dirpath_table, filename)
             table_results.write(path_to_table, format="ascii", overwrite=True)
             say(f"'{filename}' in '{self.decomp_dirname}'", task="save")
