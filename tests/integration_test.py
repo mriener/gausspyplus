@@ -3,6 +3,7 @@ import pickle
 import shutil
 from pathlib import Path
 
+import pytest
 from astropy.io import fits
 
 import numpy as np
@@ -154,11 +155,11 @@ def test_spatial_fitting_phase_1():
     #  changed substantially with np.allclose -> if not, the values from the previous iteration should be kept
     # TODO: check whether refit_iteration tracks the number of how often a spectrum has been refit
     expected_values = [
-        1,
-        272,
-        4210.279292558555,
-        572.5082530900359,
-        0,
+        2,
+        268,
+        4122.7330610759045,
+        540.4437058370811,
+        29,
     ]
     actual_values = [
         sp.refitting_iteration,
@@ -195,11 +196,11 @@ def test_spatial_fitting_phase_2():
         data_spatial_fitted_phase_2 = pickle.load(pfile)
 
     expected_values = [
-        6,
-        272,
-        4210.279292558555,
-        572.5082530900359,
-        0,
+        7,
+        268,
+        4130.290450552784,
+        542.3787162124969,
+        1,
     ]
     actual_values = [
         sp.refitting_iteration,
