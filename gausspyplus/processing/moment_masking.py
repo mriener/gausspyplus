@@ -258,7 +258,7 @@ class MomentMask(object):
         )
 
         for i, rms in tqdm(enumerate(results_list)):
-            if not isinstance(rms, np.float):
+            if not isinstance(rms, float):
                 warnings.warn(f"Problems with entry {i} from resulting parallel_processing list, skipping entry")
                 continue
             else:

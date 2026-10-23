@@ -1307,7 +1307,7 @@ def _clip_noise_below_threshold(
         results_list = gausspyplus.parallel_processing.parallel_processing.func(use_ncpus=use_ncpus, function="noise")
 
         for i, rms in tqdm(enumerate(results_list)):
-            if not isinstance(rms, np.float):
+            if not isinstance(rms, float):
                 warnings.warn(f"Problems with entry {i} from resulting parallel_processing list, skipping entry")
                 continue
             else:

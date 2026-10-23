@@ -400,7 +400,7 @@ def _get_initial_guesses(
     if not any(is_valid_peak):
         return np.array([]), np.array([]), np.array([])
 
-    peak_positions = np.flatnonzero(np.in1d(residual, amp_vals_of_peaks[is_valid_peak]))
+    peak_positions = np.flatnonzero(np.isin(residual, amp_vals_of_peaks[is_valid_peak]))
     # We use the determined significance values to get input guesses for the FWHM values
     fwhm_guesses_for_peaks = (8 * np.log(2) / np.pi) * (
         significance_values[is_valid_peak] * rms / amp_vals_of_peaks[is_valid_peak]

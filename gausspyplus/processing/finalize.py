@@ -598,7 +598,7 @@ class Finalize(BaseChecks):
                 array[:, yi, xi] = multi_component_gaussian_model(amps, fwhms, means, self.channels)
 
             nans = self.nan_mask[:, yi, xi]
-            array[:, yi, xi][nans] = np.NAN
+            array[:, yi, xi][nans] = np.nan
 
         array[self.nan_mask] = np.nan
         array = array.astype(dtype)

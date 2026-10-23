@@ -151,7 +151,7 @@ def negative_residuals(spectrum, residual, rms, neg_res_snr=3.0, get_flags=False
     amp_vals, ranges = determine_peaks(residual, peak="negative", amp_threshold=neg_res_snr * rms)
 
     if len(amp_vals) > 0:
-        amp_vals_position_mask = np.in1d(residual, amp_vals)
+        amp_vals_position_mask = np.isin(residual, amp_vals)
         offset_vals = np.where(amp_vals_position_mask == True)[0]
 
         for offset in offset_vals:
