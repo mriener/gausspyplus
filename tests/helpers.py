@@ -20,14 +20,22 @@ def is_not_none(x):
     return x is not None
 
 
+def is_finite(x):
+    return x is not None and np.isfinite(x)
+
+
 def sum_nested(values):
-    """Sum over per-spectrum lists/arrays, skipping None entries."""
-    return sum(map(sum, filter(is_not_none, values)))
+    """Sum over per-spectrum lists/arrays, skipping None and non-finite entries.
+
+    Non-finite entries occur legitimately in the error-value lists: a
+    parameter uncertainty that LMFIT could not estimate is reported as NaN.
+    """
+    return sum(v for sublist in filter(is_not_none, values) for v in sublist if is_finite(v))
 
 
 def sum_flat(values):
-    """Sum a flat list, skipping None entries."""
-    return sum(filter(is_not_none, values))
+    """Sum a flat list, skipping None and non-finite entries."""
+    return sum(filter(is_finite, values))
 
 
 def load_pickle(path):

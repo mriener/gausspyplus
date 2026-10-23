@@ -112,7 +112,7 @@ def test_vals_vec_from_lmfit():
 
 
 def test_errs_vec_from_lmfit():
-    """Uncertainties are returned in insertion order; None stderrs are converted to 0."""
+    """Uncertainties are returned in insertion order; None stderrs are reported as NaN."""
     params = Parameters()
     params.add("p1", value=1.0)
     params.add("p2", value=2.0)
@@ -120,7 +120,7 @@ def test_errs_vec_from_lmfit():
     params["p1"].stderr = 0.25
     assert params["p2"].stderr is None
     assert params["p3"].stderr is None
-    np.testing.assert_array_equal(errs_vec_from_lmfit(params), [0.25, 0.0, 0.0])
+    np.testing.assert_array_equal(errs_vec_from_lmfit(params), [0.25, np.nan, np.nan])
 
 
 def test_paramvec_to_lmfit_names_and_defaults():

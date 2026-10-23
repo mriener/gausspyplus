@@ -87,15 +87,13 @@ def vals_vec_from_lmfit(lmfit_params):
 
 
 def errs_vec_from_lmfit(lmfit_params):
-    """Return Python list of parameter uncertainties from LMFIT Parameters object."""
-    # if (sys.version_info >= (3, 0)):
-    #     errs = [value.stderr for value in list(lmfit_params.values())]
-    # else:
-    #     errs = [value.stderr for value in lmfit_params.values()]
-    # # TODO: estimate errors via bootstrapping instead of setting them to zero
-    # errs = [0 if err is None else err for err in errs]
-    # return errs
-    return [0 if value.stderr is None else value.stderr for value in lmfit_params.values()]
+    """Return Python list of parameter uncertainties from LMFIT Parameters object.
+
+    Uncertainties that LMFIT could not estimate (stderr is None, e.g. when the
+    covariance matrix computation failed) are reported as NaN.
+    """
+    # TODO: estimate the NaN-reported uncertainties via bootstrapping
+    return [np.nan if value.stderr is None else value.stderr for value in lmfit_params.values()]
 
 
 # TODO: Identical function in AGD_decomposer -> remove redundancy
