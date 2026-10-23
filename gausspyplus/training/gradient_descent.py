@@ -24,10 +24,8 @@ def count_ones_in_row(data):
         else:
             total = 1
             counter = 1
-            while data[i - counter] == 1:
+            while i - counter >= 0 and data[i - counter] == 1:
                 total += 1
-                if i - counter < 0:
-                    break
                 counter += 1
             output[i] = total
     return output

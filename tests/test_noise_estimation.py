@@ -119,11 +119,6 @@ def test_calculate_average_rms_noise(grs_test_field):
     assert np.isclose(calculate_average_rms_noise(grs_test_field, 10), 0.09361524408773854)
 
 
-@pytest.mark.xfail(
-    reason="known bug: calculate_average_rms_noise samples all locations instead of only "
-    "number_rms_spectra locations, so NaN spectra get silently skipped and replaced",
-    strict=True,
-)
 def test_calculate_average_rms_noise_samples_requested_number_of_spectra():
     # cube with four noise spectra of very different rms and four spectra that are all NaN
     rng = np.random.RandomState(0)

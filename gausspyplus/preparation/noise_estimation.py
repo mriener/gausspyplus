@@ -161,11 +161,11 @@ def mask_channels(
     """
     mask = np.zeros(n_channels, dtype="bool")
     ranges = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
-    for (lower, upper) in ranges:
+    for lower, upper in ranges:
         mask[lower:upper] = True
 
     if remove_intervals is not None:
-        for (lower, upper) in remove_intervals:
+        for lower, upper in remove_intervals:
             mask[lower:upper] = False
 
     return mask
@@ -321,7 +321,7 @@ def calculate_average_rms_noise(
     x_positions = np.arange(data.shape[2])
     locations = list(itertools.product(y_positions, x_positions))
     if len(locations) > number_rms_spectra:
-        locations = random.sample(locations, len(locations))
+        locations = random.sample(locations, number_rms_spectra)
     sampled_rms_noise_values = []
     pbar = tqdm(total=number_rms_spectra)
     for y, x in locations:

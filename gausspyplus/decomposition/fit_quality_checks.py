@@ -1,4 +1,5 @@
 """Functions that check the quality of the fit."""
+
 import itertools
 from typing import List
 

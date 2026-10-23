@@ -18,11 +18,6 @@ def test_count_ones_in_row_edge_cases():
     np.testing.assert_array_equal(count_ones_in_row([]), [])
 
 
-@pytest.mark.xfail(
-    reason="known bug: count_ones_in_row accesses a negative index for i=0, which wraps around to the "
-    "end of the array and counts trailing '1's that are not part of a continuous run",
-    strict=True,
-)
 def test_count_ones_in_row_leading_ones():
     # the first element is its own run: a single leading '1' counts as 1, regardless of the array tail
     np.testing.assert_array_equal(count_ones_in_row([1, 0, 0, 1]), [1, 0, 0, 1])

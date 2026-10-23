@@ -605,13 +605,13 @@ class Finalize(BaseChecks):
 
         if mode == "main_component":
             comment = "Fit component with highest amplitude per spectrum."
-            filename = "{}_main.fits".format(self.filename, self.suffix)
+            filename = f"{self.filename}{self.suffix or ''}_main.fits"
         elif mode == "integrated_intensity":
             comment = "Integrated intensity of fit component at VLSR position."
-            filename = "{}_int_tot.fits".format(self.filename, self.suffix)
+            filename = f"{self.filename}{self.suffix or ''}_int_tot.fits"
         elif mode == "full_decomposition":
             comment = "Recreated dataset from fit components."
-            filename = "{}_decomp.fits".format(self.filename, self.suffix)
+            filename = f"{self.filename}{self.suffix or ''}_decomp.fits"
 
         comments = ["GaussPy+ decomposition results:"]
         comments.append(comment)

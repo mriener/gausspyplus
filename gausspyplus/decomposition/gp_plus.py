@@ -451,12 +451,22 @@ def get_best_fit_model(
     if ncomps_fit > 0:
         refit = True
         while refit:
-            (params_fit, params_errs, ncomps_fit, params_min, params_max, quality_control, refit,) = _check_params_fit(
+            (
+                params_fit,
+                params_errs,
+                ncomps_fit,
+                params_min,
+                params_max,
+                quality_control,
+                refit,
+            ) = _check_params_fit(
                 spectrum=model.spectrum,
                 params_fit=params_fit,
                 params_errs=params_errs,
                 settings=settings_improve_fit,
                 quality_control=quality_control,
+                params_min=params_min,
+                params_max=params_max,
             )
 
     model.parameters = params_fit
