@@ -321,7 +321,7 @@ def calculate_average_rms_noise(
     x_positions = np.arange(data.shape[2])
     locations = list(itertools.product(y_positions, x_positions))
     if len(locations) > number_rms_spectra:
-        locations = random.sample(locations, len(locations))
+        locations = random.sample(locations, number_rms_spectra)
     sampled_rms_noise_values = []
     pbar = tqdm(total=number_rms_spectra)
     for y, x in locations:
