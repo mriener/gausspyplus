@@ -76,12 +76,6 @@ def test_get_flags_broad():
     assert get_flags_broad([10.0], [10.0, 19.0], False, fwhm_factor=1.5) == (0, 1)
 
 
-@pytest.mark.xfail(
-    reason="known bug: get_flags_broad compares the maximum FWHM values with exact float equality "
-    "(see TODO in source); mathematically equal values that differ by float round-off must not be "
-    "punished as 'got even broader'",
-    strict=True,
-)
 def test_get_flags_broad_unchanged_max_float_roundoff():
     #  0.1 + 0.2 == 0.3 mathematically, so the maximum FWHM value is unchanged
     #  and the new fit must not be flagged as broader

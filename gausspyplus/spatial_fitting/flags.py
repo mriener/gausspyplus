@@ -1,5 +1,7 @@
 from typing import Tuple, List, Optional
 
+import numpy as np
+
 
 def get_flags(n_old: int, n_new: int) -> Tuple[int, int]:
     """Check how the refit affected the number of blended or negative residual features.
@@ -112,8 +114,7 @@ def get_flags_broad(
     if contains_fwhm_flagged_as_broad:
         flag_old = 1
         # No changes to the fit
-        # TODO: Compare these with np.isclose instead
-        if max(fwhms_old) == max(fwhms_new):
+        if np.isclose(max(fwhms_old), max(fwhms_new)):
             flag_new = 1
         # Punish fit if component got even broader
         elif max(fwhms_new) > max(fwhms_old):
