@@ -16,7 +16,7 @@ For tips on how to get started with ``GaussPy+`` see the section [Getting starte
 
 ### Version
 
-The currently recommended version of GaussPy+ is v0.2 (stable version released on 2020-05-19). See the [GaussPy+ Changelog](docs/CHANGES.md) for an overview of the major changes and improvements introduced in this version.
+The currently recommended version of GaussPy+ is v0.3.0 (stable version released on 2026-10-23). See the [GaussPy+ Changelog](docs/CHANGES.md) for an overview of the major changes and improvements introduced in this version.
 
 New updates to the code are first tested and developed in the ``dev`` branch. Users cloning the ``dev`` branch should beware that these versions are not guaranteed to be stable.
 
@@ -24,99 +24,45 @@ New updates to the code are first tested and developed in the ``dev`` branch. Us
 
 ### Dependencies
 
-You will need the following packages to run ``GaussPy+``. We list the version of each package which we know to be compatible with ``GaussPy+``.
+``GaussPy+`` requires Python 3.11 or later (the continuous integration tests cover Python 3.11 - 3.15) and the following packages. The listed minimum versions are enforced on installation.
 
-* [python 3.5](https://www.python.org/)
-* [astropy (v3.0.4)](http://www.astropy.org/)
-* [lmfit (v0.9.5)](https://lmfit.github.io/lmfit-py/intro.html)
-* [matplotlib (v2.2.2)](http://matplotlib.org/)
-* [networkx (v2.0)](https://networkx.github.io/)
-* [numpy (v1.14.2)](http://www.numpy.org/)
-* [scipy (v0.19.0)](http://www.scipy.org/)
-* [tqdm (v4.19.4)](https://tqdm.github.io/)
-
-If you do not already have Python 3.5, you can install the [Anaconda Scientific Python distribution](https://store.continuum.io/cshop/anaconda/), which comes pre-loaded with numpy and scipy.
-
-### Optional Dependencies
-
-If you wish to use optimization with Fortran code you will need
-
-* [GNU Scientific Library (GSL)](http://www.gnu.org/software/gsl/)
-
-### Download GaussPy+
-
-Download GaussPy+ using git `$ git clone https://github.com/mriener/gausspyplus`
-
-
-### Installing Dependencies on Linux
-
-You will need several libraries which the `GSL` and `scipy` libraries depend on. Install these required packages with:
-
-```bash
-sudo apt-get install libblas-dev liblapack-dev gfortran libgsl0-dev
-```
-
-Install pip for easy installation of python packages:
-
-```bash
-sudo apt-get install python-pip
-```
-
-Then install the required python packages:
-
-```bash
-sudo pip install astropy lmfit networkx numpy scipy tqdm
-```
-
-Install the optional dependencies for plotting and optimization:
-
-```bash
-sudo pip install matplotlib
-sudo apt-get install libgsl0-dev
-```
-
-### Installing Dependencies on OSX
-
-Installation on OSX can be done easily with homebrew. Install pip for easy installation of python packages:
-
-```bash
-sudo easy_install pip
-```
-
-Then install the required python packages:
-
-```bash
-sudo pip install numpy scipy lmfit astropy networkx tqdm
-```
-
-Install the optional dependencies for plotting and optimization:
-
-```bash
-sudo pip install matplotlib
-sudo brew install gsl
-```
+* [python (>= 3.11)](https://www.python.org/)
+* [astropy (>= 8.0)](http://www.astropy.org/)
+* [lmfit (>= 1.3)](https://lmfit.github.io/lmfit-py/intro.html)
+* [matplotlib (>= 3.11)](http://matplotlib.org/)
+* [networkx (>= 3.6)](https://networkx.github.io/)
+* [numpy (>= 2.4)](http://www.numpy.org/)
+* [scipy (>= 1.17)](http://www.scipy.org/)
+* [tqdm (>= 4.70)](https://tqdm.github.io/)
 
 ### Installing GaussPy+
 
-To install make sure that all dependences are already installed and properly linked to python --python has to be able to load them--. Then cd to the local directory containing ``GaussPy+`` and install via
+Download ``GaussPy+`` using git
 
 ```bash
-python setup.py install
+git clone https://github.com/mriener/gausspyplus
 ```
 
-If you don't have root access and/or wish a local installation of
-``GaussPy+`` then use
+Then install the package and its dependencies with
 
 ```bash
-python setup.py install --user
+pip install .
 ```
+
+executed in the cloned directory. For a development installation use
+
+```bash
+pip install -e .
+```
+
+instead. All required dependencies are installed automatically.
 
 <a id="gettingstarted"></a>
 ## Getting started
 
-You can find an example decomposition run with ``GaussPy+`` in the `example` directory. All individual scripts can be run via the Jupyter notebook [Tutorial_example-GRS.ipynb](example/Tutorial_example-GRS.ipynb).
+You can find an example decomposition run with ``GaussPy+`` in the `tutorials` directory. All individual scripts can be run via the Jupyter notebook [Tutorial_example-GRS.ipynb](tutorials/Tutorial_example-GRS.ipynb).
 
-The Jupyter notebook [Tutorial_decompose_single_spectrum.ipynb](example/Tutorial_decompose_single_spectrum.ipynb) illustrates the functionality of ``GaussPy+`` and allows users to play around with the different parameter settings to determine their effects on the decomposition.
+The Jupyter notebook [Tutorial_decompose_single_spectrum.ipynb](tutorials/Tutorial_decompose_single_spectrum.ipynb) illustrates the functionality of ``GaussPy+`` and allows users to play around with the different parameter settings to determine their effects on the decomposition.
 
 ### Some advice for decomposition runs with GaussPy+
 

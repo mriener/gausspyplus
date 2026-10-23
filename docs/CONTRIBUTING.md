@@ -120,11 +120,13 @@ pip install pytest
 
 Then run the tests via:
 
-```python
-pytests tests
+```shell
+pytest tests
 ```
 
 Make sure that all tests pass. Please, do not submit patches that fail.
+
+The continuous integration additionally checks the code formatting with [black](https://black.readthedocs.io/) (line length 119). Please format your changes accordingly, for example by running ``black <file>`` on the files you modified.
 
 #### Push your changes
 

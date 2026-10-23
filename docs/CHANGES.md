@@ -1,5 +1,30 @@
 ## GaussPy+ Changelog
 
+### 0.3.0 (2026-10-23)
+
+* Established compatibility with Python 3.11 - 3.15 and the current scientific Python stack (numpy 2.5, scipy 1.18, astropy 8.0, lmfit 1.3.4, matplotlib 3.11.2, networkx 3.7). Python 3.11 or later is now required and the minimum versions of the required packages are enforced on installation.
+
+* Added a pytest test suite and continuous integration on GitHub Actions. The full GaussPy+ pipeline (preparation, decomposition, spatially coherent refitting and finalization) is verified on the GRS test fields against recorded reference results; the continuous integration runs the test suite on Python 3.11 - 3.15 and additionally performs format, license and vulnerability checks.
+
+* Fixed the file name suffix of the decomposition results in the finalization step (``gausspyplus.processing.finalize.Finalize``).
+
+* Fixed the propagation of fit parameter bounds in the spatially coherent refitting. The bounds are now preserved when fit components are removed in the quality control, so refits can no longer return fit parameters outside the fitted bounds.
+
+* Fit parameter uncertainties are now reported as NaN instead of 0 in cases where the estimation of the parameter uncertainties fails.
+
+* Fixed a bug in the determination of the average noise levels (``calculate_average_rms_noise``) that could select the same noise samples multiple times.
+
+* Fixed the flagging criterion for broad fit components, which previously depended on the exact equality of floating point values.
+
+* Fixed an index wrap-around bug in ``count_ones_in_row`` (used in the convergence checks of the training).
+
+* Fixed crashes in the parallel processing routine.
+
+* Modernized the packaging: the package is now built with hatchling from PEP 621 project metadata and a uv lock file (``uv.lock``) is provided to reproduce the tested dependency versions.
+
+* The scripts in the ``tutorials`` directory can now be executed from any directory.
+
+
 ### 0.2 (2020-05-19)
 
 * Established compatibility with Python 3.8.2, Numpy 1.18.4, lmfit 1.0.1,  astropy 4.0.1, matplotlib 3.2.1.
