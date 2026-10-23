@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-ROOT = Path(os.path.realpath("__file__")).parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
 from gausspyplus.decomposition.decompose import GaussPyDecompose
