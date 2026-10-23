@@ -13,6 +13,7 @@ from gausspyplus.preparation.determine_intervals import (
 
 
 def test_get_signal_ranges(grs_test_field):
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift)
     spectrum = grs_test_field[:, 31, 40]
     signal_ranges = get_signal_ranges(spectrum=spectrum, rms=0.1)
     assert signal_ranges == [[142, 207], [212, 252]]
@@ -86,9 +87,8 @@ def test_get_noise_spike_ranges():
 
 
 def test_get_noise_spike_ranges_grs(grs_test_field):
-    # characterization test: the 16 ranges below were recorded from the current
-    # implementation on the reference stack (regression detection, not
-    # independent ground truth)
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift):
+    # the 16 ranges below were recorded from the current implementation on the reference stack
     # the established test spectrum contains no significant negative noise spikes
     spectrum = grs_test_field[:, 31, 40]
     assert get_noise_spike_ranges(spectrum, rms=0.1) == []

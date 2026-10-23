@@ -8,6 +8,9 @@ import numpy as np
 #   recorded from the current implementation on the reference dependency stack
 #   (real-data results have no independently computable ground truth). They
 #   detect regressions; they do not verify correctness.
+#   The comment includes the drift-risk class:
+#     * deterministic functions -> any change indicates a bug, not dependency drift
+#     * fitting-dependent values -> may legitimately drift between dependency versions
 # - All other golden values are either analytically derived or follow from
 #   synthetic inputs whose expected output is determined by the code contract.
 

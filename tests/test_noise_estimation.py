@@ -15,22 +15,25 @@ from gausspyplus.preparation.noise_estimation import (
     pad_intervals,
 )
 
-RMS = 0.10634302494716603
+RMS = 0.10634302494716603  # noise level of the test spectrum at position (31, 40); see test_get_rms_noise
 
 
 def test_determine_maximum_consecutive_channels():
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift)
     assert determine_maximum_consecutive_channels(100, 0.05) == 11
     assert determine_maximum_consecutive_channels(200, 0.02) == 14
     assert determine_maximum_consecutive_channels(1000, 0.01) == 17
 
 
 def test_get_rms_noise(grs_test_field):
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift)
     spectrum = grs_test_field[:, 31, 40]
     rms_noise = determine_noise(spectrum)
     assert np.allclose(rms_noise, RMS)
 
 
 def test_intervals_where_mask_is_true(grs_test_field):
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift)
     spectrum = grs_test_field[:, 31, 40]
     assert intervals_where_mask_is_true(spectrum > 0.5) == [
         [180, 192],
@@ -62,8 +65,8 @@ def test_determine_peaks_threshold_filtering():
 
 
 def test_determine_peaks_grs(grs_test_field):
-    # characterization test: the peak amplitudes and ranges below were recorded
-    # from the current implementation on the reference stack
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift):
+    # the peak amplitudes and ranges below were recorded from the current implementation on the reference stack
     spectrum = grs_test_field[:, 31, 40]
     amp_vals, ranges = determine_peaks(spectrum, peak="positive", amp_threshold=0.3)
     # properties independent of the recorded values: each amplitude is the
@@ -110,8 +113,8 @@ def test_determine_noise_edge_cases():
 
 
 def test_calculate_average_rms_noise(grs_test_field):
-    # characterization test: value recorded from the current implementation on
-    # the reference stack; deterministic due to the fixed random seed
+    # characterization test (deterministic given the fixed random seed; any change here indicates a bug,
+    # not dependency drift): value recorded from the current implementation on the reference stack
     assert np.isclose(calculate_average_rms_noise(grs_test_field, 10), 0.09361524408773854)
 
 

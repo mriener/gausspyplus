@@ -133,8 +133,9 @@ def test_model_computed_fit_properties():
     # ssr = 0.25 -> log-likelihood = -50 * ln(0.0025) = 299.5732...
     # aicc = 2 * (3 - log-likelihood) + 2 * 3 * 4 / (100 - 3 - 1)
     assert np.isclose(model.aicc, -592.8964547107981)
-    # characterization test: pvalue from the normality checks of the residual,
-    # recorded from the current implementation on the reference stack
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift):
+    # pvalue from the normality checks of the residual, recorded from the
+    # current implementation on the reference stack
     assert np.isclose(model.pvalue, 8.893431635866619e-175, rtol=1e-3, atol=0.0)
 
 

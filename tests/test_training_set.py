@@ -3,10 +3,11 @@ import numpy as np
 
 from gausspyplus.training.training_set import GaussPyTrainingSet
 
-RMS = 0.10634302494716603
+RMS = 0.10634302494716603  # noise level of the test spectrum at position (31, 40); recorded as the asserted output of determine_noise in test_noise_estimation.py
 
 
 def test_get_maxima(grs_test_field):
+    # characterization test (deterministic function; any change here indicates a bug, not dependency drift)
     spectrum = grs_test_field[:, 31, 40]
     training_set = GaussPyTrainingSet()
     maxima = training_set._get_maxima(spectrum, RMS)
