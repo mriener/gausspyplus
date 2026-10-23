@@ -1,4 +1,5 @@
 """Functions for interval determination."""
+
 import itertools
 import os
 from pathlib import Path

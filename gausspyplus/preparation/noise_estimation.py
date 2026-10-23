@@ -161,11 +161,11 @@ def mask_channels(
     """
     mask = np.zeros(n_channels, dtype="bool")
     ranges = pad_intervals(intervals=ranges, pad_channels=pad_channels, upper_limit=n_channels)
-    for (lower, upper) in ranges:
+    for lower, upper in ranges:
         mask[lower:upper] = True
 
     if remove_intervals is not None:
-        for (lower, upper) in remove_intervals:
+        for lower, upper in remove_intervals:
             mask[lower:upper] = False
 
     return mask

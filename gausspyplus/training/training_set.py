@@ -38,7 +38,6 @@ from gausspyplus.definitions.definitions import (
     SettingsTraining,
 )
 
-
 optimizers.DEFAULT_MAXITER = 1000  # set maximum iterations for SLSQPLSQFitter
 
 

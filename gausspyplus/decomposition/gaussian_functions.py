@@ -1,4 +1,5 @@
 """Gaussian functions."""
+
 from typing import List, Tuple, Optional, Union
 
 import numpy as np

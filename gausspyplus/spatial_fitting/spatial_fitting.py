@@ -185,8 +185,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
             Use also flagged spectra as refit solutions in case no new best fit could be obtained from unflagged spectra: {self.use_all_neighors}"""
             )
         )
-        return text_phase_1 + textwrap.dedent(
-            f"""
+        return text_phase_1 + textwrap.dedent(f"""
             {('Flagging', 'Refitting')[refit]}:
              - Blended components: {(self.flag_blended, self.refit_blended)[refit]}'
              - Negative residual features: {(self.flag_neg_res_peak, self.refit_neg_res_peak)[refit]}
@@ -197,8 +196,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
              \t >= {(self.fwhm_factor, self.fwhm_factor_refit)[refit]} times any FWHM in >= {self.broad_neighbor_fraction:.0%} of its neigbors
              - High reduced chi2 values (> {(self.rchi2_limit, self.rchi2_limit_refit)[refit]}): {(self.flag_rchi2, self.refit_rchi2)[refit]}
              - Non-Gaussian distributed residuals: {(self.flag_residual, self.refit_residual)[refit]}
-             - Differing number of components: {(self.flag_ncomps, self.refit_ncomps)[refit]}"""
-        )
+             - Differing number of components: {(self.flag_ncomps, self.refit_ncomps)[refit]}""")
 
     def _getting_ready(self) -> None:
         """Set up logger and write initial output to terminal."""
@@ -406,8 +404,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         )
 
         if self.phase_two:
-            text = textwrap.dedent(
-                f"""
+            text = textwrap.dedent(f"""
                 Flags:
                 - {self.mask_blended.sum()} spectra w/ blended components
                 - {self.mask_neg_res_peak.sum()} spectra w/ negative residual feature
@@ -415,8 +412,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
                 \t (info: {self.mask_broad_limit.sum()} spectra w/ a FWHM > {int(self.max_fwhm)} channels)
                 - {self.mask_rchi2_flagged.sum()} spectra w/ high rchi2 value
                 - {self.mask_residual.sum()} spectra w/ residual not passing normality test
-                - {self.mask_ncomps.sum()} spectra w/ differing number of components"""
-            )
+                - {self.mask_ncomps.sum()} spectra w/ differing number of components""")
             say(text, logger=self.logger)
 
     def _define_mask_refit(self) -> None:
@@ -478,8 +474,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         except ZeroDivisionError:
             n_fraction_refit = 0
 
-        text = textwrap.dedent(
-            f"""
+        text = textwrap.dedent(f"""
             {n_indices_refit} out of {n_spectra} spectra ({n_fraction_refit:.2%}) selected for refitting:
              - {n_refit_blended} spectra with blended components ({n_flagged_blended} flagged)
              - {n_refit_neg_res_peak} spectra with negative residual feature ({n_flagged_neg_res_peak} flagged)
@@ -487,8 +482,7 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
              \t (info: {self.mask_broad_limit.sum()} spectra with a FWHM > {int(self.max_fwhm)} channels)
              - {n_refit_rchi2} spectra with high rchi2 value ({n_flagged_rchi2} flagged)
              - {n_refit_residual} spectra with residual not passing normality test ({n_flagged_residual} flagged)
-             - {n_refit_ncomps} spectra with differing number of components ({n_flagged_ncomps} flagged)"""
-        )
+             - {n_refit_ncomps} spectra with differing number of components ({n_flagged_ncomps} flagged)""")
         say(text, logger=self.logger)
 
         # Check if the stopping criterion is fulfilled
@@ -574,13 +568,11 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
         #  print statistics of the refitting iteration to the terminal
 
         refit_percent = 0 if count_selected == 0 else count_refitted / count_selected
-        text = textwrap.dedent(
-            f"""
+        text = textwrap.dedent(f"""
             Results of the refit iteration:
             Tried to refit {count_selected} spectra
             Successfully refitted {count_refitted} spectra ({refit_percent:.2%})\n
-            ***"""
-        )
+            ***""")
         say(text, logger=self.logger)
 
         #  check if one of the stopping criteria is fulfilled
@@ -700,7 +692,10 @@ class SpatialFitting(SettingsDefault, SettingsSpatialFitting, BaseChecks):
 
             # Try to refit the spectrum with fit solution of individual spectra from selected neighbors
             for flag in flags:
-                (fit_results, is_successful_refit,) = self._try_refit_with_individual_neighbors(
+                (
+                    fit_results,
+                    is_successful_refit,
+                ) = self._try_refit_with_individual_neighbors(
                     index=index,
                     spectrum=spectrum,
                     indices_neighbors=indices_neighbors_for_individual_refit,
