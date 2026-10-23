@@ -51,7 +51,7 @@ def _determine_derivatives(
     -------
 
     """
-    gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
+    gauss_sigma_int = np.max([np.trunc(gauss_sigma), 5])
     gauss_dn = gauss_sigma_int * 6
 
     xx = np.arange(2 * gauss_dn + 2) - gauss_dn - 0.5
