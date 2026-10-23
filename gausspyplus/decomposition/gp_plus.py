@@ -457,6 +457,8 @@ def get_best_fit_model(
                 params_errs=params_errs,
                 settings=settings_improve_fit,
                 quality_control=quality_control,
+                params_min=params_min,
+                params_max=params_max,
             )
 
     model.parameters = params_fit
