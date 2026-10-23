@@ -14,30 +14,28 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10
         with:
+          version: "0.13.5"
           python-version: ${{ matrix.python-version }}
-      - name: Install poetry
-        run: pipx install poetry --force
       - name: Install dependencies
-        run: poetry install
+        run: uv sync --locked
       - name: Run test suite
-        run: poetry run pytest -q
+        run: uv run pytest -q
 
   formatting:
     name: black --check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10
         with:
+          version: "0.13.5"
           python-version: "3.14"
-      - name: Install poetry
-        run: pipx install poetry --force
       - name: Install dependencies
-        run: poetry install
+        run: uv sync --locked
       - name: Check formatting
-        run: poetry run black --check .
+        run: uv run black --check .
 
   compliance:
     name: dependency compliance (Python ${{ matrix.python-version }})
@@ -45,25 +43,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.11 and 3.14 exercise both marker-split resolution pairs of the
-        # lock (python <3.14 vs >=3.14 differ in contourpy, networkx, numpy,
-        # scipy, soupsieve)
+        #  3.11 and 3.14 exercise both resolution pairs of the lock (the
+        #  per-python-version resolution differs in contourpy, networkx,
+        #  numpy, scipy)
         python-version: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10
         with:
+          version: "0.13.5"
           python-version: ${{ matrix.python-version }}
-      - name: Install poetry
-        run: pipx install poetry --force
       - name: Install dependencies
-        run: poetry install
+        run: uv sync --locked
       - name: Check dependency licenses (permissive-only policy)
+        #  pip-licenses runs as a transient layer over the project environment
+        #  (--with) instead of being installed into it, so the environment is
+        #  not polluted and needs no subsequent cleanup.
         run: |
-          poetry run pip install -q pip-licenses
-          poetry run pip-licenses --allow-only="Apache 2.0;Apache Software License;Apache Software License; BSD License;Apache Software License; MIT License;Apache-2.0;Apache-2.0 AND BSD-2-Clause;Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT;Apache-2.0 OR BSD-2-Clause;Apache License, Version 2.0;BSD License;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0;ISC License (ISCL);MIT;MIT License;MIT-0;MIT-CMU;MPL-2.0;MPL-2.0 AND MIT;Mozilla Public License 2.0 (MPL 2.0);PSF-2.0;Python Software Foundation License"
+          uv run --with pip-licenses pip-licenses --allow-only="Apache 2.0;Apache Software License;Apache Software License; BSD License;Apache Software License; MIT License;Apache-2.0;Apache-2.0 AND BSD-2-Clause;Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT;Apache-2.0 OR BSD-2-Clause;Apache License, Version 2.0;BSD License;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0;ISC License (ISCL);MIT;MIT License;MIT-0;MIT-CMU;MPL-2.0;MPL-2.0 AND MIT;Mozilla Public License 2.0 (MPL 2.0);PSF-2.0;Python Software Foundation License"
       - name: Audit dependencies for known vulnerabilities
         run: |
-          poetry run pip freeze | grep -v 'gausspyplus' > requirements-audit.txt
+          uv pip freeze | grep -v 'gausspyplus' > requirements-audit.txt
           pipx install pip-audit --force
           pip-audit --no-deps -r requirements-audit.txt
