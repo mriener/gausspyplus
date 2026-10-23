@@ -1,4 +1,5 @@
 """Unit tests for methods of the GaussPyTrainingSet class."""
+
 import numpy as np
 
 from gausspyplus.training.training_set import GaussPyTrainingSet

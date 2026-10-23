@@ -3,7 +3,7 @@
 import multiprocessing
 import pickle
 import signal
-import sys
+
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
@@ -17,17 +17,21 @@ from gausspyplus.processing.finalize import Finalize
 
 # ------------MULTIPROCESSING------------
 
-
-#  With Python 3.8 the start method for multiprocessing defaults to 'spawn' for
-#  MacOS systems. Here we change it back to 'fork' for compatibility reasons.
-if sys.version_info[:2] >= (3, 8):
-    multiprocessing.set_start_method("fork", force=True)
+#  The worker functions in this module read module-level state (mp_params,
+#  mp_data, ...) that is set in the parent process, so the process pool
+#  requires the 'fork' start method to inherit that state. Fall back to the
+#  platform default where 'fork' is unavailable (e.g. Windows).
+try:
+    _mp_context = multiprocessing.get_context("fork")
+except ValueError:
+    _mp_context = multiprocessing.get_context()
 
 
 def init_worker_ts():
     """Worker initializer to ignore Keyboard interrupt."""
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    if hasattr(signal, "SIGPIPE"):
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
 def init_gausspy(*args):
@@ -124,7 +128,7 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
     if n_jobs == 1:
         return front + [function(**a) if use_kwargs else function(a) for a in tqdm(array[front_num:])]
     # Assemble the workers
-    with ProcessPoolExecutor(max_workers=n_jobs) as pool:
+    with ProcessPoolExecutor(max_workers=n_jobs, mp_context=_mp_context) as pool:
         # Pass the elements of array into function
         if use_kwargs:
             futures = [pool.submit(function, **a) for a in array[front_num:]]

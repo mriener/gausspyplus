@@ -3,6 +3,7 @@
 The heavy orchestration methods (_check_continuity, refit_spectrum_phase_2, _refitting) are
 covered end-to-end by tests/test_pipeline.py (stage 5); this file covers the decision logic.
 """
+
 import numpy as np
 
 from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting

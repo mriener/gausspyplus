@@ -1,4 +1,5 @@
 """Unit tests for phase 1 methods of the SpatialFitting class."""
+
 import numpy as np
 
 from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting

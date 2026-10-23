@@ -339,10 +339,9 @@ class GaussPyTrainingSet(SettingsDefault, SettingsTraining, BaseChecks):
     @staticmethod
     def _perform_fit(initial_fit_model, channels, spectrum):
         fitter = fitting.SLSQPLSQFitter()
-        try:
-            return fitter(initial_fit_model, channels, spectrum, disp=False)
-        except TypeError:
-            return fitter(initial_fit_model, channels, spectrum, verblevel=False)
+        #  'verblevel' is the verbosity kwarg of astropy's SLSQP optimizer; it
+        #  is forwarded to scipy's fmin_slsqp as its 'disp' argument.
+        return fitter(initial_fit_model, channels, spectrum, verblevel=False)
 
     @staticmethod
     def _get_fit_parameters(final_fit_model):

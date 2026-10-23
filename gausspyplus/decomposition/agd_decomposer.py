@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 from lmfit import minimize as lmfit_minimize
 
 from numpy.linalg import lstsq
-from scipy.ndimage.filters import median_filter, convolve
+from scipy.ndimage import median_filter, convolve
 
 from gausspyplus.definitions.definitions import SettingsImproveFit
 from gausspyplus.decomposition.gp_plus import try_to_improve_fitting
@@ -51,7 +51,7 @@ def _determine_derivatives(
     -------
 
     """
-    gauss_sigma_int = np.max([np.fix(gauss_sigma), 5])
+    gauss_sigma_int = np.max([np.trunc(gauss_sigma), 5])
     gauss_dn = gauss_sigma_int * 6
 
     xx = np.arange(2 * gauss_dn + 2) - gauss_dn - 0.5

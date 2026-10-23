@@ -1,4 +1,5 @@
 """Tests for the pure helper functions in decomposition/gaussian_functions.py."""
+
 import numpy as np
 from lmfit import Parameters
 
@@ -39,7 +40,7 @@ def test_area_of_gaussian_matches_numerical_integral():
     sigma = fwhm / CONVERSION_STD_TO_FWHM
     x = np.linspace(-50.0 * sigma, 50.0 * sigma, 200001)
     model = single_component_gaussian_model(amp, fwhm, 0.0, x)
-    np.testing.assert_allclose(np.trapz(model, x), area_of_gaussian(amp, fwhm), rtol=1e-6)
+    np.testing.assert_allclose(np.trapezoid(model, x), area_of_gaussian(amp, fwhm), rtol=1e-6)
 
 
 def test_single_component_gaussian_model():

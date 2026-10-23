@@ -1,4 +1,5 @@
 """Tests for the determine_intervals.py module."""
+
 import numpy as np
 
 from gausspyplus.preparation.determine_intervals import (
