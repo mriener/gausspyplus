@@ -122,8 +122,7 @@ def parallel_process(array, function, n_jobs=16, use_kwargs=False, front_num=3):
         [function(array[0]), function(array[1]), ...]
     """
     # We run the first few iterations serially to catch bugs
-    if front_num > 0:
-        front = [function(**a) if use_kwargs else function(a) for a in array[:front_num]]
+    front = [function(**a) if use_kwargs else function(a) for a in array[:front_num]]
     # If we set n_jobs to 1, just run a list comprehension. This is useful for benchmarking and debugging.
     if n_jobs == 1:
         return front + [function(**a) if use_kwargs else function(a) for a in tqdm(array[front_num:])]
@@ -172,6 +171,8 @@ def func(use_ncpus=None, function="noise"):
             results_list = parallel_process(array=mp_ilist, function=refit_spectrum_2, n_jobs=use_ncpus)
         elif function == "make_table":
             results_list = parallel_process(array=mp_ilist, function=make_table, n_jobs=use_ncpus)
+        else:
+            raise ValueError(f"Unknown function name: {function!r}")
     except KeyboardInterrupt:
         print("KeyboardInterrupt... quitting.")
         quit()
