@@ -1,13 +1,14 @@
-# Hooks run directly from the project's poetry environment, whose black
-# version is pinned via poetry.lock (the same version the CI formatting
+# Hooks run directly from the project's uv environment, whose black
+# version is pinned via uv.lock (the same version the CI formatting
 # job checks). This keeps the hook network-free: no hook-repo download
-# is needed, and 'poetry run black' resolves the interpreter through
-# poetry from the repository root (git hooks always run there).
+# is needed, and 'uv run black' resolves the interpreter and
+# environment through uv from the repository root (git hooks always
+# run there).
 repos:
 -   repo: local
     hooks:
     -   id: black
         name: black
-        entry: poetry run black --
+        entry: uv run black --
         language: system
         types: [python]
