@@ -38,3 +38,32 @@ jobs:
         run: poetry install
       - name: Check formatting
         run: poetry run black --check .
+
+  compliance:
+    name: dependency compliance (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 and 3.14 exercise both marker-split resolution pairs of the
+        # lock (python <3.14 vs >=3.14 differ in contourpy, networkx, numpy,
+        # scipy, soupsieve)
+        python-version: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        run: pipx install poetry --force
+      - name: Install dependencies
+        run: poetry install
+      - name: Check dependency licenses (permissive-only policy)
+        run: |
+          poetry run pip install -q pip-licenses
+          poetry run pip-licenses --allow-only="Apache 2.0;Apache Software License;Apache Software License; BSD License;Apache Software License; MIT License;Apache-2.0;Apache-2.0 AND BSD-2-Clause;Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT;Apache-2.0 OR BSD-2-Clause;Apache License, Version 2.0;BSD License;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0;ISC License (ISCL);MIT;MIT License;MIT-0;MIT-CMU;MPL-2.0;MPL-2.0 AND MIT;Mozilla Public License 2.0 (MPL 2.0);PSF-2.0;Python Software Foundation License"
+      - name: Audit dependencies for known vulnerabilities
+        run: |
+          poetry run pip freeze | grep -v 'gausspyplus' > requirements-audit.txt
+          pipx install pip-audit --force
+          pip-audit --no-deps -r requirements-audit.txt
