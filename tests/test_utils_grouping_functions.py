@@ -1,3 +1,4 @@
+"""Tests for the get_neighbors function in spatial_fitting/grouping.py."""
 import numpy as np
 
 from gausspyplus.spatial_fitting.grouping import get_neighbors
@@ -8,7 +9,9 @@ def test_get_neighbors():
         np.array([[1, 1, 2], [0, 1, 1]]).T,
         np.array([[1, 1, 2, 2], [0, 1, 0, 1]]).T,
         np.array([3, 4, 6, 7]),
-        np.array([[0, 0, 0, 1, 1, 2, 2, 2], [0, 1, 2, 0, 2, 0, 1, 2]]).T,
+        #  default call: returns flat indices (return_indices=True); the
+        #  central location (4) is excluded
+        np.array([0, 1, 2, 3, 5, 6, 7, 8]),
         np.array([[0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 2, 0, 1, 2, 0, 1, 2]]).T,
         np.array([False, True, True, False, True, True, False, False, False]),
         np.array([[1, 2], [2, 2]]),
@@ -48,4 +51,5 @@ def test_get_neighbors():
             return_coordinates=True,
         ),
     ]
-    assert np.all(np.equal(expected, actual) for expected, actual in zip(expected_results, actual_results))
+    for expected, actual in zip(expected_results, actual_results):
+        np.testing.assert_array_equal(np.asarray(expected), np.asarray(actual))

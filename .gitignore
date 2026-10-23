@@ -67,4 +67,7 @@ distribute-*.tar.gz
 *.fits
 *.txt
 *_*.py
+#  Exception: always track test files (the *_*.py pattern above would
+#  silently ignore any newly added test_*.py file)
+!tests/*.py
 *_*.ipynb

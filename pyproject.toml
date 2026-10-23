@@ -24,6 +24,12 @@ pre-commit = "2.20.0"
 [tool.poetry.scripts]
 streamlit = "poetry_run:streamlit"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: slow end-to-end pipeline tests on the 10x10 test field",
+]
+
 [tool.black]
 line-length = 119
 

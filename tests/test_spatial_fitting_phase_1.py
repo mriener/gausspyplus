@@ -1,21 +1,10 @@
-"""pytest tests for module spatial_fitting.py (Phase 1 methods)"""
-import os
-import pickle
-from pathlib import Path
-
-import pytest
-from astropy.io import fits
-
+"""Unit tests for phase 1 methods of the SpatialFitting class."""
 import numpy as np
 
-ROOT = Path(os.path.realpath(__file__)).parents[1]
-filepath = Path(ROOT / "data" / "grs-test_field_10x10.fits")
-DATA = fits.getdata(filepath)
+from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
 
 
-def test_spatial_fitting_phase_1():
-    from gausspyplus.spatial_fitting.spatial_fitting import SpatialFitting
-
+def test_define_mask_broad():
     sp = SpatialFitting()
     sp.length = 16
     sp.shape = (4, 4)
@@ -45,8 +34,4 @@ def test_spatial_fitting_phase_1():
         ]
     }
     mask_broad = sp._define_mask_broad()
-    assert np.all(np.equal(np.flatnonzero(mask_broad), np.array([6, 8, 9, 11])))
-
-
-if __name__ == "__main__":
-    test_spatial_fitting_phase_1()
+    assert np.array_equal(np.flatnonzero(mask_broad), np.array([6, 8, 9, 11]))
