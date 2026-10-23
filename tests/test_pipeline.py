@@ -5,8 +5,8 @@ test function per field, so the stages' intermediate on-disk results cannot go
 stale between tests.
 
 Golden values are regression baselines recorded on the reference stack
-(Python 3.10.16, numpy 1.21.6, scipy 1.7.3, astropy 5.0.4, lmfit 1.0.3,
-matplotlib 3.5.2, networkx 2.6.3, tqdm 4.62.3):
+(Python 3.14.9, numpy 2.5.4, scipy 1.18.1, astropy 8.0.2, lmfit 1.3.4,
+matplotlib 3.11.2, networkx 3.6, tqdm 4.70.1):
 
 * Float aggregates are compared with ``rtol=1e-3`` — fitting results
   legitimately drift in the low digits between dependency versions.
@@ -19,6 +19,7 @@ bug) and re-record the baselines.
 
 The 10x10 field is marked ``slow``; exclude it with ``pytest -m "not slow"``.
 """
+
 from pathlib import Path
 
 import numpy as np
@@ -34,42 +35,42 @@ FIELD_FILES = {
 #  Baselines recorded on the reference stack (see module docstring).
 EXPECTED = {
     "5x5": {
-        "prepare": [0.10368931207074261, 2.5922328017685654],
+        "prepare": [0.10368932, 2.5922327],
         # [sum N_components, sum fwhms_fit, sum fwhms_fit_err]
-        "decompose_g": [40, 698.5112826138093, 86.91178824642469],
+        "decompose_g": [40, 698.6367721321028, 86.91550132053058],
         # [sum N_components, sum fwhms_fit, sum fwhms_fit_err, sum pvalue,
         #  sum best_fit_rchi2, sum best_fit_aicc, sum log_gplus,
         #  number of non-empty log_gplus entries]
         "decompose_gplus": [
             63,
-            1078.5970403179574,
-            147.20047142250502,
-            4.332278239223718,
-            30.872647661581336,
-            -12029.699586265418,
+            1078.9933965125817,
+            147.28349208980956,
+            4.334427936336032,
+            30.873467291678917,
+            -12029.640413173274,
             24,
             20,
         ],
         # [refitting_iteration, sum N_components, sum fwhms_fit,
         #  sum fwhms_fit_err, sum refit_iteration]
-        "sf1": [1, 63, 1078.5244222771648, 135.07205262149353, 9],
-        "sf2": [6, 63, 1078.5244222771648, 135.07205262149353, 0],
+        "sf1": [1, 63, 1078.9219720703295, 147.27370597788288, 9],
+        "sf2": [6, 63, 1078.9219720703295, 147.27370597788288, 0],
     },
     "10x10": {
-        "prepare": [0.10315973929242594, 10.212814189950166],
-        "decompose_g": [181, 2821.8676401514977, 302.1821730175567],
+        "prepare": [0.10315975, 10.212815],
+        "decompose_g": [181, 2822.005436183146, 302.18645260103784],
         "decompose_gplus": [
             272,
-            4210.280166190561,
-            572.5087825697741,
-            14.174536835098168,
-            117.25885767049525,
-            -46522.95992089892,
+            4243.113147680418,
+            577.3745564059784,
+            14.17298973825546,
+            116.98788282255391,
+            -46549.87738520191,
             107,
             70,
         ],
-        "sf1": [2, 268, 4154.905501992696, 531.0105166239259, 28],
-        "sf2": [7, 268, 4162.435082910504, 532.9346201639797, 1],
+        "sf1": [2, 267, 4155.948965933362, 552.6675546277805, 28],
+        "sf2": [6, 267, 4155.948965933362, 552.6675546277805, 0],
     },
 }
 
