@@ -62,8 +62,17 @@ def test_determine_peaks_threshold_filtering():
 
 
 def test_determine_peaks_grs(grs_test_field):
+    # characterization test: the peak amplitudes and ranges below were recorded
+    # from the current implementation on the reference stack
     spectrum = grs_test_field[:, 31, 40]
     amp_vals, ranges = determine_peaks(spectrum, peak="positive", amp_threshold=0.3)
+    # properties independent of the recorded values: each amplitude is the
+    # maximum of the spectrum within its range and exceeds the threshold, and
+    # the ranges are sorted and non-overlapping
+    for amp, (start, end) in zip(amp_vals, ranges):
+        assert spectrum[start:end].max() == amp
+        assert amp > 0.3
+    assert all(ranges[i + 1][0] >= ranges[i][1] for i in range(len(ranges) - 1))
     np.testing.assert_allclose(amp_vals, [0.8587118, 0.7724102], rtol=1e-6)
     np.testing.assert_array_equal(ranges, [[147, 202], [217, 247]])
     # the spectrum contains no negative peak that exceeds 3 * rms
@@ -101,7 +110,8 @@ def test_determine_noise_edge_cases():
 
 
 def test_calculate_average_rms_noise(grs_test_field):
-    # golden value: deterministic due to the fixed random seed (reference stack)
+    # characterization test: value recorded from the current implementation on
+    # the reference stack; deterministic due to the fixed random seed
     assert np.isclose(calculate_average_rms_noise(grs_test_field, 10), 0.09361524408773854)
 
 

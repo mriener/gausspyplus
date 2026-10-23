@@ -86,12 +86,21 @@ def test_get_noise_spike_ranges():
 
 
 def test_get_noise_spike_ranges_grs(grs_test_field):
+    # characterization test: the 16 ranges below were recorded from the current
+    # implementation on the reference stack (regression detection, not
+    # independent ground truth)
     # the established test spectrum contains no significant negative noise spikes
     spectrum = grs_test_field[:, 31, 40]
     assert get_noise_spike_ranges(spectrum, rms=0.1) == []
     # the spectrum at (y=0, x=0) contains several significant negative noise spikes
     spectrum = grs_test_field[:, 0, 0]
-    assert get_noise_spike_ranges(spectrum, rms=0.1) == [
+    ranges = get_noise_spike_ranges(spectrum, rms=0.1)
+    # properties independent of the recorded values: the ranges are sorted and
+    # non-overlapping, and each contains at least one channel below the
+    # noise-spike threshold of -snr_noise_spike * rms
+    assert all(ranges[i + 1][0] >= ranges[i][1] for i in range(len(ranges) - 1))
+    assert all(np.min(spectrum[start:end]) <= -5.0 * 0.1 for start, end in ranges)
+    assert ranges == [
         [28, 29],
         [39, 45],
         [48, 52],

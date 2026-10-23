@@ -3,6 +3,14 @@ import pickle
 
 import numpy as np
 
+# Conventions used in this test suite:
+# - "characterization test" comments mark assertions whose expected values were
+#   recorded from the current implementation on the reference dependency stack
+#   (real-data results have no independently computable ground truth). They
+#   detect regressions; they do not verify correctness.
+# - All other golden values are either analytically derived or follow from
+#   synthetic inputs whose expected output is determined by the code contract.
+
 
 def is_not_none(x):
     return x is not None

@@ -123,9 +123,7 @@ def test_pipeline(field, data_path, results_dir):
     )
     assert len(decomposed_g["N_components"]) == n_spectra
     assert all(n is None or n >= 0 for n in decomposed_g["N_components"])
-    assert all(
-        np.all(np.asarray(fwhms) > 0) for fwhms in decomposed_g["fwhms_fit"] if fwhms is not None
-    )
+    assert all(np.all(np.asarray(fwhms) > 0) for fwhms in decomposed_g["fwhms_fit"] if fwhms is not None)
 
     # Stage 3: decompose with GaussPy+ (improved fitting)
     decompose.suffix = "_g+"
@@ -134,9 +132,7 @@ def test_pipeline(field, data_path, results_dir):
     decomposed_gplus = load_pickle(workdir / "gpy_decomposed" / f"{stem}_g+_fit_fin.pickle")
 
     exp = expected["decompose_gplus"]
-    assert_count(
-        sum_flat(decomposed_gplus["N_components"]), exp[0], tol=2, msg=f"{field}: decompose_gplus components"
-    )
+    assert_count(sum_flat(decomposed_gplus["N_components"]), exp[0], tol=2, msg=f"{field}: decompose_gplus components")
     assert_close(
         [
             sum_nested(decomposed_gplus["fwhms_fit"]),
@@ -148,9 +144,7 @@ def test_pipeline(field, data_path, results_dir):
         exp[1:6],
         msg=f"{field}: decompose_gplus",
     )
-    assert_count(
-        sum_nested(decomposed_gplus["log_gplus"]), exp[6], tol=2, msg=f"{field}: decompose_gplus log entries"
-    )
+    assert_count(sum_nested(decomposed_gplus["log_gplus"]), exp[6], tol=2, msg=f"{field}: decompose_gplus log entries")
     # number of non-empty per-spectrum refit log entries
     assert_count(
         sum(len(entry) for entry in decomposed_gplus["log_gplus"] if entry is not None and bool(entry)),

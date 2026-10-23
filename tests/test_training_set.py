@@ -20,9 +20,10 @@ def test_gaussian_fitting(grs_test_field):
     training_set.maxStddev = training_set.max_fwhm / 2.355 if training_set.max_fwhm is not None else None
     training_set.minStddev = training_set.min_fwhm / 2.355 if training_set.min_fwhm is not None else None
     fit_values = training_set.gaussian_fitting(spectrum, RMS)
-    #  Golden values recorded on the reference dependency stack; compared with
-    #  a tolerance since fitting results drift in the low digits between
-    #  dependency versions (see tests/test_pipeline.py for details).
+    #  characterization test: fit values recorded from the current
+    #  implementation on the reference dependency stack; compared with a
+    #  tolerance since fitting results drift in the low digits between
+    #  dependency versions (see tests/test_pipeline.py for details)
     assert np.allclose(
         fit_values,
         [
