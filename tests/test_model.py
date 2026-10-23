@@ -1,4 +1,5 @@
 """Tests for the Spectrum and Model dataclasses in definitions/spectrum.py and definitions/model.py."""
+
 import numpy as np
 import pytest
 

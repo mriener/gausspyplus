@@ -1,4 +1,5 @@
 """Shared fixtures for the GaussPy+ test suite."""
+
 import os
 from pathlib import Path
 

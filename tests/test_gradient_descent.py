@@ -1,4 +1,5 @@
 """Tests for the pure helper functions in training/gradient_descent.py."""
+
 import numpy as np
 import pytest
 

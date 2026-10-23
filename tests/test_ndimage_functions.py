@@ -1,4 +1,5 @@
 """Unit tests for the functions in spatial_fitting/ndimage_functions.py."""
+
 import numpy as np
 
 from gausspyplus.spatial_fitting.ndimage_functions import (

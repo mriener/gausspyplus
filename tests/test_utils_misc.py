@@ -1,4 +1,5 @@
 """Tests for the remove_elements_at_indices function in utils/misc.py."""
+
 import numpy as np
 import pytest
 

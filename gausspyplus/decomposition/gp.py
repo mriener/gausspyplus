@@ -45,7 +45,11 @@ class GaussianDecomposer(object):
         """Solve for optimal values of alpha1 (and alpha2) using training data."""
         print("Training...")
 
-        (self.p["alpha1"], self.p["alpha2"], self.p["training_results"],) = gradient_descent.train(
+        (
+            self.p["alpha1"],
+            self.p["alpha2"],
+            self.p["training_results"],
+        ) = gradient_descent.train(
             alpha1_initial=alpha1_initial,
             alpha2_initial=alpha2_initial,
             training_data=self.p["training_data"],

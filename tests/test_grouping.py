@@ -3,6 +3,7 @@
 Covers to_edges, to_graph, group_fit_solutions and determine_average_values;
 the get_neighbors function is covered by tests/test_utils_grouping_functions.py.
 """
+
 import collections
 
 import numpy as np

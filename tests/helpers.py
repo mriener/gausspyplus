@@ -1,4 +1,5 @@
 """Shared helper functions for the GaussPy+ test suite."""
+
 import pickle
 
 import numpy as np

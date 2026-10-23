@@ -1,4 +1,5 @@
 """Tests for the get_neighbors function in spatial_fitting/grouping.py."""
+
 import numpy as np
 
 from gausspyplus.spatial_fitting.grouping import get_neighbors

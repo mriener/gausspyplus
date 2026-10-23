@@ -1,4 +1,5 @@
 """Tests for the noise_estimation.py module."""
+
 import itertools
 import random
 

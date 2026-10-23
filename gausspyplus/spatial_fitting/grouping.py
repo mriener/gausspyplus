@@ -1,4 +1,5 @@
 """Functions used for grouping."""
+
 import collections
 from typing import Tuple, Optional, Union
 

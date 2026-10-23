@@ -1,4 +1,5 @@
 """Unit tests for the functions in spatial_fitting/flags.py."""
+
 import pytest
 
 from gausspyplus.spatial_fitting.flags import (
