@@ -10,6 +10,13 @@ matplotlib 3.11.2, networkx 3.6, tqdm 4.70.1):
 
 * Float aggregates are compared with ``rtol=1e-3`` — fitting results
   legitimately drift in the low digits between dependency versions.
+* Sums of fitted FWHM errors in the spatial-fitting stages are compared
+  with ``rtol=0.05``: for marginally degenerate refits, whether lmfit's
+  covariance estimation succeeds (large finite errors) or fails (0 via the
+  None→0 stderr sentinel in ``gaussian_functions.errs_vec_from_lmfit``)
+  depends on platform-level floating-point differences, so the summed
+  errors legitimately shift by one spectrum's contribution between CPU
+  architectures.
 * Integer counts are compared with a small tolerance — marginal fits can
   flip decision thresholds between dependency versions.
 
@@ -181,8 +188,19 @@ def test_pipeline(field, data_path, results_dir):
     assert_count(sp.refitting_iteration, exp[0], tol=2, msg=f"{field}: sf1 refitting_iteration")
     assert_count(sum_flat(fitted_p1["N_components"]), exp[1], tol=2, msg=f"{field}: sf1 components")
     assert_close(
-        [sum_nested(fitted_p1["fwhms_fit"]), sum_nested(fitted_p1["fwhms_fit_err"])],
-        exp[2:4],
+        [sum_nested(fitted_p1["fwhms_fit"])],
+        exp[2:3],
+        msg=f"{field}: sf1",
+    )
+    #  FWHM error sums are discontinuous for marginally degenerate refits: the
+    #  None→0 stderr sentinel (gaussian_functions.errs_vec_from_lmfit) zeroes
+    #  a spectrum's errors when lmfit's covariance estimation fails, and that
+    #  failure depends on platform-level floating-point differences. See the
+    #  module docstring; the fit sums above stay tight across architectures.
+    assert_close(
+        [sum_nested(fitted_p1["fwhms_fit_err"])],
+        exp[3:4],
+        rtol=0.05,
         msg=f"{field}: sf1",
     )
     assert_count(sum(fitted_p1["refit_iteration"]), exp[4], tol=2, msg=f"{field}: sf1 refit_iteration")
@@ -207,8 +225,16 @@ def test_pipeline(field, data_path, results_dir):
     assert_count(sp.refitting_iteration, exp[0], tol=2, msg=f"{field}: sf2 refitting_iteration")
     assert_count(sum_flat(fitted_p2["N_components"]), exp[1], tol=2, msg=f"{field}: sf2 components")
     assert_close(
-        [sum_nested(fitted_p2["fwhms_fit"]), sum_nested(fitted_p2["fwhms_fit_err"])],
-        exp[2:4],
+        [sum_nested(fitted_p2["fwhms_fit"])],
+        exp[2:3],
+        msg=f"{field}: sf2",
+    )
+    #  Same discontinuity as in phase 1: phase 2 inherits the phase 1 errors,
+    #  including any zeroed sentinel values (see module docstring).
+    assert_close(
+        [sum_nested(fitted_p2["fwhms_fit_err"])],
+        exp[3:4],
+        rtol=0.05,
         msg=f"{field}: sf2",
     )
     assert_count(sum(fitted_p2["refit_iteration"]), exp[4], tol=2, msg=f"{field}: sf2 refit_iteration")
