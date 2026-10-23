@@ -42,7 +42,7 @@ def grs_test_field_10x10(data_path):
 def results_dir(tmp_path_factory):
     """Isolated working directory for pipeline tests.
 
-    Replaces the former behaviour of writing intermediate pickles into
-    ``tests/test_grs`` inside the repository.
+    The intermediate pickles of the pipeline stages are written here instead
+    of into the repository.
     """
     return tmp_path_factory.mktemp("gpy_results")

@@ -1,7 +1,8 @@
 """End-to-end pipeline regression tests (prepare → decompose → spatial refitting).
 
-Replaces the former ``test_workflow.py`` (5x5 field) and ``integration_test.py``
-(10x10 field), which were ~90% duplicated code.
+Runs the full GaussPy+ chain on the 5x5 and 10x10 test fields within a single
+test function per field, so the stages' intermediate on-disk results cannot go
+stale between tests.
 
 Golden values are regression baselines recorded on the reference stack
 (Python 3.10.16, numpy 1.21.6, scipy 1.7.3, astropy 5.0.4, lmfit 1.0.3,
@@ -12,9 +13,9 @@ matplotlib 3.5.2, networkx 2.6.3, tqdm 4.62.3):
 * Integer counts are compared with a small tolerance — marginal fits can
   flip decision thresholds between dependency versions.
 
-When the dependency stack is updated (see the modernization effort), re-run
-this test: if values drift beyond the tolerances, verify the shift is
-legitimate version drift (not a bug) and re-record the baselines.
+When the dependency stack is updated, re-run this test: if values drift
+beyond the tolerances, verify the shift is legitimate version drift (not a
+bug) and re-record the baselines.
 
 The 10x10 field is marked ``slow``; exclude it with ``pytest -m "not slow"``.
 """

@@ -1,7 +1,7 @@
-"""Unit tests for the so-far-untested functions in spatial_fitting/grouping.py.
+"""Unit tests for the grouping functions in spatial_fitting/grouping.py.
 
-The get_neighbors function is already covered by tests/test_utils_grouping_functions.py
-and is intentionally not tested here.
+Covers to_edges, to_graph, group_fit_solutions and determine_average_values;
+the get_neighbors function is covered by tests/test_utils_grouping_functions.py.
 """
 import collections
 
